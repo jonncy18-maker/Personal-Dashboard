@@ -1,0 +1,170 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.menuBtn {
+  flex: 0 0 auto;
+}
+.greeting {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.greetingTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-wrap: balance;
+}
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .liveDot {
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.greetingFocus {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+.greetingFocus strong {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.dotSep {
+  color: var(--ink-faint);
+}
+
+.stats {
+  display: flex;
+  gap: 22px;
+  padding: 0 20px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.statIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-faint);
+}
+.statNum {
+  font-size: 15px;
+  font-weight: 800;
+}
+.statLabel {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+.iconBtn:hover {
+  color: var(--ink);
+  border-color: var(--border-strong);
+}
+.iconBtn svg {
+  width: 17px;
+  height: 17px;
+}
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1080px) {
+  .stats {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .topbar {
+    padding: 14px 16px;
+    gap: 10px;
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  .greeting {
+    flex: 1 1 auto;
+  }
+  .greetingTitle {
+    font-size: 19px;
+  }
+  .actions {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}

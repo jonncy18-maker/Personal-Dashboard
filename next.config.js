@@ -5,6 +5,6 @@ const nextConfig = {
   // No SPA-shell rewrite hack here: unlike the NextGen-Immersion gold standard
   // (a HashRouter SPA migrated into a Next shell), this is a greenfield App
   // Router app, so deep links resolve to real server-rendered routes directly.
-}
+};
 
-export default nextConfig
+export default nextConfig;

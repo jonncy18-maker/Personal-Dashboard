@@ -9,7 +9,7 @@
 --   • After applying a migration, update THIS file to match the sum of all of them.
 --   • All DDL is idempotent (IF NOT EXISTS) so re-running is safe.
 --
--- Applied migrations: 001_initial
+-- Applied migrations: 001_initial, 002_trip_images
 --
 -- Run on a fresh Neon project via the Neon MCP or the Neon SQL editor.
 
@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS trips (
   notes         text,
   budget        numeric,           -- coerce with num() at the API boundary
   itinerary     jsonb,
+  image_url          text,         -- auto-fetched or manually overridden destination photo
+  image_attribution  text,         -- required by Unsplash API terms when auto-fetched
+  image_source       text NOT NULL DEFAULT 'auto'
+                     CHECK (image_source IN ('auto', 'manual')),
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
