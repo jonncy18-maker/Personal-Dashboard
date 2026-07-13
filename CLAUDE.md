@@ -1,0 +1,155 @@
+# Personal Dashboard
+
+Master personal planning hub consolidating John's AI projects, travel, schedules, language learning, idea backlog, and email triage into one home. Built for a single user (John), no public access.
+
+> **Session start:** read `ARCHITECTURE.md` (system map) and the latest `ROADMAP.md` entry (recent decisions) before making structural changes.
+
+- **Repo:** `jonncy18-maker/Personal-Dashboard`
+- **Live URL(s):** *(fill in after first Vercel deploy)*
+- **Stack:** Next.js (App Router) + JavaScript + Vercel + Neon
+- **Cutover:** N/A — greenfield project, scoped July 2026
+
+## 1. Stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js (App Router) |
+| Frontend | React |
+| Routing | Next.js App Router (file-based) — one route per domain under `app/` |
+| Language | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard |
+| Styling | *(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)* |
+| Database | Neon (new, separate project — not shared with AI-Capital-Planning) |
+| Auth | **None — deliberately dropped.** See §7. |
+| Hosting | Vercel (native Git integration — no CI workflow) |
+| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col) |
+| AI | Claude Haiku (`claude-haiku-4-5`) — used narrowly; see §7 |
+
+**Two deliberate divergences from the NextGen-Immersion gold standard, documented so a future session doesn't "fix" them back:**
+1. **App Router, not a HashRouter SPA.** The gold standard is a Vite SPA migrated into a Next shell (`app/page.jsx → dynamic(App,{ssr:false})` + `pages/api/*`). This is greenfield with no SPA legacy, so it uses real App Router file-based routes and `app/api/*` route handlers. The blueprint's SPA-shell `next.config.js` rewrite is intentionally absent.
+2. **No auth.** The blueprint calls same-origin Neon Auth "the single highest-value pattern to copy." It does not apply here: this is a single-user private app. Auth (and `better-auth`/`jose`/`@neondatabase/auth`) is deliberately omitted. Do not add it back — gate access at the Vercel project level if needed.
+
+No migration history — this is a new project, built directly to this stack from day one.
+
+## 2. API Key / Security Rules
+
+| Key | Prefix | Lives | Why |
+|---|---|---|---|
+| Neon connection string (`DATABASE_URL`) | none (server-only) | Vercel env (Production + Preview) | DB access — never exposed to browser |
+| Vercel API token | none (server-only) | Vercel env (Production + Preview) | Read-only calls to Vercel's own API (`list_projects`, `get_project`, `list_deployments`) for AI Projects' live deploy status |
+| GitHub API access | none needed (public repos) | N/A | Public repo content (`ROADMAP.md` "Next Up") — no token unless private repos are added later |
+| Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) | none (server-only) | Vercel env (Production + Preview) | One client, read-only scopes for **Calendar** (next Spanish tutor call) and **Gmail** (Email domain + Travel import) |
+| Anthropic API key (Claude Haiku) | none (server-only) | Vercel env (Production + Preview) | Narrow uses only: Email Tier 2 semantic residual + Travel itinerary parse. See §7 |
+
+**Rule:** anything that touches the Vercel API, Neon connection, Google APIs, or Anthropic API goes through a server-side route handler (`app/api/*`); the browser never calls any of these directly. No env var carrying a secret gets a `NEXT_PUBLIC_` prefix.
+
+**Rule:** the Gmail integration is **read-only by design**. No code path may call a Gmail write/modify/delete endpoint. "Hiding" an email only sets a local flag in this app's own Neon database (`email_hidden`); the actual Gmail mailbox is never touched.
+
+## 3. Project Structure
+
+*(Expected shape given domain-per-route App Router. Claude Code populates real paths during Build.)*
+
+```
+app/
+  page.jsx                 # Home — status cards for all 6 domains
+  ai-projects/page.jsx     # AI Projects — popup w/ project cards (Vercel + GitHub) + Add Project
+  travel/page.jsx          # Travel — trip records + AI-assisted Gmail itinerary import
+  schedules/page.jsx       # Schedules — cross-domain task/prep list, optional trip/project link
+  language/page.jsx        # Language — "coming soon" + live "next Spanish call" card (Calendar)
+  ideas/page.jsx           # Idea Board — title/notes/status/domain-tag CRUD
+  email/page.jsx           # Email — read-only Gmail view, Tier 1 + Tier 2 hide rules, onboarding scan
+  api/
+    vercel/route.js        # Server-side Vercel API proxy
+    github/route.js        # Server-side GitHub public API proxy (ROADMAP.md "Next Up")
+    calendar/route.js      # Server-side Google Calendar proxy (read-only)
+    gmail/route.js         # Server-side Gmail proxy (read-only — list/search only)
+    email-rules/route.js   # CRUD for Tier 1 + Tier 2 rules; Haiku for Tier 2 residual only
+    travel-import/route.js # AI-assisted Gmail search + parse for itinerary import (Haiku)
+    schedules/route.js     # CRUD for cross-domain Schedules tasks
+lib/
+  db.js                    # Neon client + num() numeric-string coercion helper
+  anthropic.js             # Shared Haiku client (server-only)
+neon/
+  schema.sql               # canonical current DB state
+  migrations/              # numbered, immutable, additive (see §6)
+```
+
+## 4. Environment Variables
+
+```
+# Server-side (no public prefix)
+DATABASE_URL=              # Neon connection string
+ANTHROPIC_API_KEY=         # Claude Haiku — Email Tier 2 residual + Travel parse
+VERCEL_API_TOKEN=          # Read-only Vercel API access for AI Projects
+GOOGLE_CLIENT_ID=          # Google OAuth — read-only Calendar + Gmail
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+
+# Client-side (public-prefixed)
+NEXT_PUBLIC_APP_URL=       # Same-origin base URL
+```
+
+**Gotcha:** per Stack Blueprint Part 2, set every one of these for both **Production and Preview** in Vercel explicitly — a var present only in Production makes Preview deploys fail in a way that looks like a runtime bug, not a config bug.
+
+## 5. Routes / Pages
+
+| Route | Component | Role |
+|---|---|---|
+| `/` | Home dashboard | Status cards, one per domain (6), linking into each domain's page |
+| `/ai-projects` | AI Projects | Popup lists all tracked projects. Each: Vercel deploy status + live link (if a Vercel URL is set) OR a "protocol/library" badge + GitHub link (if not). Each card shows a "Next Up" line parsed from that repo's `ROADMAP.md`. "Add Project" = two fields (GitHub URL required, Vercel URL optional) |
+| `/travel` | Travel | Trip records (destination, dates, status, notes, optional budget). Click into a trip for full day-by-day/port itinerary (AI-assisted Gmail import — §7). No Idea Board link in v1 |
+| `/schedules` | Schedules | Cross-domain task/prep list (title, notes, due date, status, optional link to Travel trip / AI project). A linked item's card shows a small indicator when it has open Schedules tasks. Distinct from Idea Board by having a due date |
+| `/language` | Language Learning | "Coming soon" placeholder, except one live card: next Spanish tutor call from Google Calendar, matched by host/keyword (e.g. "italki") — no AI |
+| `/ideas` | Idea Board | CRUD — title, notes, status, domain tag. No promotion path to AI Projects. Distinct from Schedules by having no due date |
+| `/email` | Email | Read-only Gmail triage. No categorization buckets. Tier 1 + Tier 2 hide rules (§7). Management view lists both tiers w/ undo/delete. First-run onboarding scan (§7) |
+
+## 6. Schema & Migrations
+
+Lightweight convention — no ORM, no migration framework (overkill for one user):
+
+- **`neon/schema.sql` is the single source of truth** for the current DB shape. Read that one file; never reassemble state from migration history.
+- **Every change is a new numbered file** in `neon/migrations/` (`001_initial.sql`, `002_*.sql`, …). Applied migrations are **immutable** — never edit one. A later change (settling Language, adding a new domain) is always a new file.
+- **After applying a migration, update `schema.sql`** to reflect the sum of all migrations, and bump its "Applied migrations:" line.
+- **All DDL is idempotent** (`CREATE TABLE IF NOT EXISTS`).
+- **Settled domains have tables now; undecided ones don't.** Language Learning has no table yet (its v1 card reads live from Calendar). Do not add speculative tables — a new domain later is a 2-file operation (new migration + update `schema.sql`), not something to pre-guess.
+
+## 7. Key Rules for Claude Code
+
+**No auth — and don't add it back.** Single-user private app. The blueprint's same-origin Neon Auth pattern does not apply here. If access needs gating, do it at the Vercel project level, not by reintroducing an auth layer.
+
+**The Vercel API token is a real secret with write-capable scope if over-provisioned.** Scope it read-only in Vercel's token UI if possible, and never let it reach client code. A leaked deploy-capable token is a materially worse failure than a leaked read-only one.
+
+**Don't conflate GitHub and Vercel in AI Projects.** Vercel sources deploy status + live URL. GitHub sources the "Next Up" line, parsed from a standardized `## Next Up` section at the top of that repo's `ROADMAP.md`. Two separate API calls, two purposes — don't merge them into one data-model field or one fetch. *(Cross-repo dependency: this `## Next Up` convention does not yet exist in any sibling repo — see §10.)*
+
+**"Add Project" has no auto-detection — deliberately rejected.** Two explicit fields (GitHub URL required, Vercel URL optional). Do not scan Vercel projects to match a pasted GitHub URL.
+
+**Gmail access is read-only, full stop.** No code path may call a Gmail write/archive/delete/modify endpoint. "Hiding" an email only sets a local flag (`email_hidden`) — the real mailbox is never touched. Hard boundary, not a revisitable default.
+
+**Email is AI-minimal — most of it needs no model:**
+- *Tier 1 (sender rules):* triggered by the "X" button. **No AI.** The sender/domain is parsed directly from the email header into a deterministic rule (e.g. hide `dominos.com`). Filtering is then a plain DB lookup.
+- *Gmail-native categories do the fuzzy work for free:* Gmail already computes `category:promotions/social/updates`. Lean on those + search operators (e.g. `from:bank category:promotions`) before reaching for a model.
+- *Tier 2 (content rules):* Haiku is used **only for the semantic residual** Gmail categories can't express (e.g. "hide shipping-delay notices but keep delivery confirmations"). John types a plain-language rule; Haiku evaluates future emails from that sender against it. Small ongoing per-email cost — deliberately scoped to the residual, not applied to Tier 1's senders.
+- *Onboarding scan is not AI either:* on first visit to `/email`, group recent senders by frequency (a `GROUP BY`, no model) and propose likely Tier 1 candidates for one-pass approve/reject. **One-time** — track completion in `app_flags`; never re-run on every load.
+
+**Travel's itinerary import is a distinct AI use — Haiku, and it stays.** Flow: (1) John triggers import on a trip, (2) Haiku searches Gmail (read-only, same boundary as Email) for a likely confirmation/itinerary email, (3) if confident, parse; if not, ask John to identify the right email, (4) show a **preview for John to confirm/edit before saving** — never auto-save parsed data. This genuinely needs extraction, unlike the email tiers — keep it on Haiku.
+
+**Schedules vs Idea Board — the boundary is the due date, not topic.** Idea Board = no due date, "someday/maybe." Schedules = has a due date, actionable now. Kept as **separate tables** deliberately (`ideas` has no date column; `schedules.due_date` is `NOT NULL`). Do not merge them into one table with an optional date.
+
+**Google Calendar is in scope; Google Drive is explicitly not.** Different APIs, different concerns. Only Calendar read access is needed (next Spanish tutor call, matched by host/keyword — no AI).
+
+**Numeric-string coercion (Neon driver).** `NUMERIC`/`DECIMAL` columns (e.g. Travel `budget`) come back as strings. Coerce with `num()` from `lib/db.js` at the API boundary, never in a component.
+
+## 8. Working in This Environment
+
+*(Fill in as project-specific quirks surface — commit signing, Vercel preview lag, etc. Nothing project-specific known yet; greenfield.)*
+
+## 9. Agentic Loop
+
+Follow the Agentic Loop protocol ([Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop)) for any change touching 3+ files, or introducing a new component, new data domain/table, or user-visible structural change.
+
+## 10. References
+
+- [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop) — shared development protocol
+- `STACK_BLUEPRINT.md` — canonical stack/structure source (from NextGen-Immersion)
+- Sibling repos for pattern reference: NextGen-Scholars, NextGen-Immersion (numeric-coercion gotcha; same-origin auth pattern — not used here)
+
+**Cross-repo dependency (tracked in ROADMAP.md):** AI Projects' "Next Up" feature depends on each tracked repo having a standardized `## Next Up` section at the top of its `ROADMAP.md`. This convention does not yet exist in any sibling repo (NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop) or the Stack Blueprint. Until retrofitted, "Next Up" renders as "—". Retrofit is a separate task from this dashboard's build.
