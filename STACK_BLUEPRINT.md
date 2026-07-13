@@ -1,12 +1,12 @@
 # Stack Blueprint
 
-*Canonical source: `NextGen-Immersion` (gold-standard structure as of Phase 14/2026-07-04). Copy this file verbatim into any project's repo root and keep it in sync manually — there is no shared package linking these repos, so "sync" means re-copy when the canonical copy changes materially.*
+_Canonical source: `NextGen-Immersion` (gold-standard structure as of Phase 14/2026-07-04). Copy this file verbatim into any project's repo root and keep it in sync manually — there is no shared package linking these repos, so "sync" means re-copy when the canonical copy changes materially._
 
 ## How to use this document
 
 This file has two jobs. Use the mode that matches what you're doing:
 
-- **Scaffolding a new project** — copy the section skeleton in Part 1 into the new project's `CLAUDE.md`, filling in every `<placeholder>`. Adopt the reference patterns in Part 2 verbatim unless the new project's stack genuinely forces a different choice — if it does, write down *why* it diverges, right there in the CLAUDE.md, so the next session doesn't "fix" it back.
+- **Scaffolding a new project** — copy the section skeleton in Part 1 into the new project's `CLAUDE.md`, filling in every `<placeholder>`. Adopt the reference patterns in Part 2 verbatim unless the new project's stack genuinely forces a different choice — if it does, write down _why_ it diverges, right there in the CLAUDE.md, so the next session doesn't "fix" it back.
 - **Cleaning up an existing project's `CLAUDE.md`** — run the Part 3 checklist against it. The goal is a `CLAUDE.md` that reads like NGS-Immersion's: a living reference someone (or some future Claude session) can act on immediately, with history moved out to `ROADMAP.md` where it belongs.
 
 A `CLAUDE.md` that matches this shape should need no re-reading of the whole file to answer "where do secrets live" or "what's the one gotcha that bit us before" — those answers should be in one place each, not spread across a migration narrative.
@@ -18,33 +18,43 @@ A `CLAUDE.md` that matches this shape should need no re-reading of the whole fil
 Use this order. Skip a section only if it's genuinely not applicable (e.g. no Routes table for a single-page app) — don't reorder.
 
 ### 1. Header
+
 One-line description of what the project is and who it's for. Then bullets: repo name, live URL(s), stack one-liner, any recent cutover date worth flagging.
 
 ### 2. Stack
+
 A single code-block table — framework, frontend, routing, styling, database, auth, hosting, language, formatting. If the stack changed recently (a migration), add one short "stack history" paragraph directly under the table — one paragraph, not a changelog. The changelog lives in `ROADMAP.md`.
 
 ### 3. API Key / Security Rules
+
 **Required whenever the project touches any secret** (API keys, DB connection strings, auth secrets). A table: `Key | Prefix | Lives | Why`. Followed by one bolded **Rule:** sentence stating the boundary (e.g. "anything that touches \<third-party API\> goes through a server-side function; the browser never calls it directly").
 
 ### 4. Project Structure
+
 An annotated directory tree, real paths from the actual repo, one-line comment per entry explaining its role — not a restatement of the filename.
 
 ### 5. Environment Variables
+
 A single code block, split into server-side (no public prefix) and client-side (public-prefixed) sections. Include the actual variable names, not placeholders, plus any platform-specific gotcha (e.g. "must be enabled for both Production and Preview or `/api/me` 500s").
 
-### 6. Routes / Pages *(only for multi-route apps)*
+### 6. Routes / Pages _(only for multi-route apps)_
+
 Table: `Route | Component | Role`. Skip for single-page apps — HashRouter/App-Router internals go in Project Structure instead.
 
 ### 7. Key Rules for Claude Code
+
 The highest-value section. One bolded rule-lead-in per paragraph, each describing a specific gotcha discovered the hard way — not generic advice. Examples from real gotchas across these projects: a type-coercion quirk in the DB driver, an idempotency key requirement, a timer that must stop on specific player states, an auth model that must not be reverted to a prior broken version. If a rule doesn't reference a concrete failure mode that actually happened (or would obviously happen), it doesn't belong here — it belongs in generic engineering practice, not this file.
 
 ### 8. Working in This Environment
+
 Tooling quirks specific to running Claude Code against this repo: commit signing workarounds, CDN/cache lag after deploys, sandbox network restrictions, anything that would otherwise cause a session to falsely conclude something didn't work.
 
 ### 9. Agentic Loop
+
 **One line, linking to the canonical protocol URL.** Never paste the phase descriptions into this file — a second copy of the protocol text drifts from the source and nobody remembers to update both. State only the activation threshold (file count / new component / data layer / user-visible / time estimate) in one sentence.
 
 ### 10. References
+
 Links only — related repos, protocol docs, key third-party doc pages.
 
 ---

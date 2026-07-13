@@ -1,6 +1,6 @@
 # Personal Dashboard — Architecture
 
-*Last updated: 2026-07-13 · Greenfield scaffold. This is a living stub: the settled boundaries below are real; wherever it says "Build fills in," the actual paths/behavior get written during implementation.*
+_Last updated: 2026-07-13 · Greenfield scaffold. This is a living stub: the settled boundaries below are real; wherever it says "Build fills in," the actual paths/behavior get written during implementation._
 
 ---
 
@@ -41,15 +41,15 @@ All external calls are **read-only** except writes to this app's own Neon DB.
 
 ## Domain → Route → Data Source Map
 
-| Domain | Route | Data sources | AI? |
-|---|---|---|---|
-| Home | `/` | Neon (summary counts per domain) | No |
-| AI Projects | `/ai-projects` | Vercel API (deploy status) + GitHub (`## Next Up`) + Neon (`projects`) | No |
-| Travel | `/travel` | Neon (`trips`) + Gmail (itinerary import) | Haiku — import parse only |
-| Schedules | `/schedules` | Neon (`schedules`) | No |
-| Language | `/language` | Google Calendar (next tutor call) | No |
-| Idea Board | `/ideas` | Neon (`ideas`) | No |
-| Email | `/email` | Gmail (read-only) + Neon (`email_rules`, `email_hidden`, `app_flags`) | Haiku — Tier 2 residual only |
+| Domain      | Route          | Data sources                                                           | AI?                          |
+| ----------- | -------------- | ---------------------------------------------------------------------- | ---------------------------- |
+| Home        | `/`            | Neon (summary counts per domain)                                       | No                           |
+| AI Projects | `/ai-projects` | Vercel API (deploy status) + GitHub (`## Next Up`) + Neon (`projects`) | No                           |
+| Travel      | `/travel`      | Neon (`trips`) + Gmail (itinerary import)                              | Haiku — import parse only    |
+| Schedules   | `/schedules`   | Neon (`schedules`)                                                     | No                           |
+| Language    | `/language`    | Google Calendar (next tutor call)                                      | No                           |
+| Idea Board  | `/ideas`       | Neon (`ideas`)                                                         | No                           |
+| Email       | `/email`       | Gmail (read-only) + Neon (`email_rules`, `email_hidden`, `app_flags`)  | Haiku — Tier 2 residual only |
 
 ## Secret Isolation Boundary
 
@@ -62,7 +62,7 @@ Current tables live in `neon/schema.sql` (canonical). Settled domains have table
 ## The Three AI Patterns (kept distinct)
 
 1. **Email Tier 1** — no AI. Deterministic sender-rule from the email header.
-2. **Email Tier 2** — Haiku, *only* for the semantic residual Gmail's native categories can't express. Ongoing small per-email cost.
+2. **Email Tier 2** — Haiku, _only_ for the semantic residual Gmail's native categories can't express. Ongoing small per-email cost.
 3. **Travel import** — Haiku, one-shot extraction-and-confirm from a Gmail itinerary email. Always previewed before save.
 
-*(Build fills in: exact request/response shapes, error/fallback handling, and any caching of Vercel/GitHub responses.)*
+_(Build fills in: exact request/response shapes, error/fallback handling, and any caching of Vercel/GitHub responses.)_
