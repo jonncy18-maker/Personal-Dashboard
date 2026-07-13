@@ -14,6 +14,14 @@ _(Not dated history — live items that outlast a single session. Remove when do
 
 ---
 
+## Future Domain Ideas (unscoped)
+
+_(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
+
+- [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
 ## 2026-07-13 — Grill session #2 + base scaffold finalized (pre-first-commit)
 
 Reviewed the initial draft docs (README, ROADMAP, CLAUDE) against the NextGen-Immersion gold standard before the first commit. Locked the clean base and corrected several defects/decisions.
