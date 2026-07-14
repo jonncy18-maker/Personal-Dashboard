@@ -11,6 +11,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [ ] **`## Next Up` retrofit across sibling repos.** AI Projects' "Next Up" line parses a standardized `## Next Up` section at the top of each tracked repo's `ROADMAP.md`. This convention does not yet exist anywhere. Retrofit it into: **NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop**, and the Stack Blueprint itself. Until done, "Next Up" renders as "—". Separate task from this dashboard's build.
 - [ ] Confirm Vercel API token scope is read-only when provisioning.
 - [ ] Record exact Vercel project slugs/IDs and repo names to track in AI Projects.
+- [ ] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) and `UNSPLASH_ACCESS_KEY` in Vercel. Blocks Travel's AI-assisted Gmail itinerary import (manual itinerary entry works without it) and destination photo auto-fetch (falls back to the plain accent gradient without it).
 
 ---
 
@@ -144,6 +145,23 @@ Replaced the `/ai-projects` "Coming Soon" stub with the actual domain, per its C
 **Verified:** `next build` succeeds; dev server confirms the GitHub route's live network parse of `## Next Up` against a real sibling repo. The Neon-backed `/api/projects` route couldn't be exercised end-to-end in this sandbox (no live `DATABASE_URL` available) — the query matches the same `getDb()` pattern already used elsewhere, but running it against a real Neon project is unverified.
 
 **Left for a later session:** Home page's project count card still reads from `lib/mock-data.js`, not `/api/projects` — wiring the Home summary to real domain data is its own cross-cutting task, not bundled into this one. No delete/untrack action was added (spec only calls for "Add Project").
+
+---
+
+## 2026-07-14 — Travel domain built (trip CRUD + itinerary editor)
+
+Next roadmap item after AI Projects, following the README/ARCHITECTURE domain ordering. Built the core of Travel per `CLAUDE.md` §5/§7: trip records with the day-by-day itinerary detail view. Deliberately scoped out the AI-assisted Gmail itinerary import, since `GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN` aren't provisioned yet (tracked above) — manual entry covers the same data shape (`trips.itinerary` jsonb) in the meantime, so nothing about the schema or API needs to change once Gmail import lands.
+
+**Built:**
+
+- `lib/unsplash.js` — one-call-per-trip-change destination photo fetch, gated on `UNSPLASH_ACCESS_KEY`; returns `null` (never throws) if the key is absent or the search fails, so trip creation/editing is never blocked on it.
+- `app/api/trips/route.js` (GET/POST) and `app/api/trips/[id]/route.js` (GET/PATCH/DELETE) — full trip CRUD against the `trips` table. On create, or on edit when the destination changes while `image_source` stays `'auto'`, the route calls Unsplash server-side and caches `image_url`/`image_attribution` on the row, exactly as specified — never on page load, never client-triggered. Setting `image_source: 'manual'` (or just supplying `image_url` directly) skips the Unsplash call entirely and is never overwritten by a later auto-refresh.
+- `app/travel/page.jsx` — trip grid (photo, status pill, dates) + inline Add Trip form (destination required; dates, budget, notes optional).
+- `app/travel/[id]/page.jsx` — trip detail: editable fields, a manual day-by-day itinerary editor (date/title/notes, add/remove rows), delete trip. A disabled "Import from Gmail" affordance documents why it's not wired up yet rather than silently omitting it.
+
+**Verified:** `next build` succeeds. Neon-backed queries verified directly against the `personal-dashboard` project via the Neon MCP (insert with all fields, `jsonb` itinerary update, delete) — confirms the query shapes the API routes use are correct. Could not exercise the Next.js dev server against real Neon in this sandbox (its network egress proxy blocks the Neon host directly, same limitation noted in the AI Projects entry); the actual API-route code path is unverified end-to-end outside of Vercel.
+
+**Left for later:** Gmail-assisted itinerary import (needs the OAuth to-do above), Home/Sidebar still read trip data from `lib/mock-data.js` rather than `/api/trips` (same cross-cutting wiring gap noted for AI Projects — not bundled into single-domain PRs).
 
 ---
 
