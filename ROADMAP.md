@@ -9,8 +9,8 @@ Dated history and session-by-session notes live here, not in `CLAUDE.md`. `CLAUD
 _(Not dated history — live items that outlast a single session. Check `[x]` the box the session a step is completed, noting the date; remove the line once it's no longer useful context.)_
 
 - [ ] **`## Next Up` retrofit across sibling repos.** AI Projects' "Next Up" line parses a standardized `## Next Up` section at the top of each tracked repo's `ROADMAP.md`. This convention does not yet exist anywhere. Retrofit it into: **NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop**, and the Stack Blueprint itself. Until done, "Next Up" renders as "—". Separate task from this dashboard's build.
-- [ ] Confirm Vercel API token scope is read-only when provisioning.
-- [ ] Record exact Vercel project slugs/IDs and repo names to track in AI Projects.
+- [ ] Confirm Vercel API token scope is read-only when provisioning — optional now (see 2026-07-14 entry below): unblocks the live Ready/Building/Failed status pill only, no longer required for the card's link to appear at all.
+- [x] Record exact Vercel project slugs/IDs and repo names to track in AI Projects — 2026-07-14. Added NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning (all with their `-jonncy18.vercel.app` domains), and Agentic-Loop (GitHub only, no deployment). Deliberately left out Personal Dashboard itself and the private `Projects-Dashboard` repo (John's call — not one of the four sibling repos CLAUDE.md names).
 - [x] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — 2026-07-14. Verified end-to-end against both Calendar and Gmail (both scopes granted in one consent pass). Still blocks Travel's AI-assisted Gmail itinerary import (not built yet) and Email's Tier 2 + onboarding scan (not built yet — Tier 1 doesn't need it).
 - [ ] Provision `UNSPLASH_ACCESS_KEY` in Vercel — blocks Travel's destination photo auto-fetch; falls back to the plain accent gradient without it.
 - [ ] Build Email's Tier 2 (Haiku semantic residual rules) and the first-run onboarding scan — deliberately deferred, see 2026-07-14 entry below. `ANTHROPIC_API_KEY` is already set.
@@ -196,6 +196,16 @@ John's Google OAuth setup (Client ID/Secret/refresh token, granted with both `ca
 **Verified:** `next build` succeeds. `/api/gmail` confirmed degrading to `{"messages":[],"configured":false}` locally with no Google credentials. The `email_rules` insert/select/delete query shapes the routes use were verified directly against the real `personal-dashboard` Neon project via the Neon MCP. The actual Gmail API call itself (list + metadata fetch + domain filtering) is unverified end-to-end in this sandbox — same network limitation as every prior domain — but Calendar already proved the shared OAuth client works, and this route reuses it unchanged.
 
 **Left for later:** Tier 2 (Haiku-evaluated content rules — "hide shipping-delay notices but keep delivery confirmations"), the first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`), and Gmail-native category/search-operator use ("lean on `category:promotions` before reaching for a model"). All explicitly deferred by John's own scoping call this session, not an oversight.
+
+---
+
+## 2026-07-14 — AI Projects populated with real data + Vercel link fix
+
+John asked to add real tracked projects to AI Projects. Looked up his actual Vercel projects and their linked GitHub repos (via the Vercel MCP) and inserted four rows directly against the `personal-dashboard` Neon project: **NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning** (all with GitHub + Vercel URLs), and **Agentic-Loop** (GitHub only — it's a protocol repo with no deployment, per CLAUDE.md). Deliberately excluded Personal Dashboard itself and a private `Projects-Dashboard` Vercel project that isn't one of the four sibling repos CLAUDE.md names — both were John's explicit call, not an oversight.
+
+**Bug caught in review:** John asked why `VERCEL_API_TOKEN` was needed at all, and specifically whether it should only gate the Vercel-linked projects. Tracing through confirmed it already does — Agentic-Loop never calls the Vercel API regardless of the token, since it has no `vercel_url`. But that question surfaced a real gap: `ProjectCard` only rendered the "Live site" link when the Vercel API confirmed `status === 'READY'`, meaning _no_ link ever appeared for any project without the token configured, even though the URL was sitting right there in the DB. Fixed: the link now always renders whenever `vercel_url` exists, labeled "Live site" when status is confirmed `READY` and "Open" otherwise. The token is now purely an enhancement (adds the Ready/Building/Failed status pill) rather than a requirement for the basic link to show up — `VERCEL_API_TOKEN` provisioning is downgraded from blocking to optional in the to-do above.
+
+**Verified:** `next build` succeeds. The four project rows were verified via the Neon MCP's `RETURNING` output on insert (not through the app's own API — Vercel's deployment protection blocked automated fetches this session, an intermittent issue also seen on the Email PR).
 
 ---
 

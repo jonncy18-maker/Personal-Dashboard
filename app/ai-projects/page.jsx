@@ -85,13 +85,13 @@ function ProjectCard({ project }) {
         <a href={project.github_url} target="_blank" rel="noreferrer">
           GitHub
         </a>
-        {project.vercel_url && deploy?.status === 'READY' && (
+        {project.vercel_url && (
           <a
-            href={deploy.liveUrl || `https://${project.vercel_url}`}
+            href={deploy?.liveUrl || `https://${project.vercel_url}`}
             target="_blank"
             rel="noreferrer"
           >
-            Live site
+            {deploy?.status === 'READY' ? 'Live site' : 'Open'}
           </a>
         )}
       </div>
