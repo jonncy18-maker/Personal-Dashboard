@@ -1,12 +1,14 @@
 import { getCalendarClient } from '../../../lib/google';
 
 // Read-only. Finds the next Spanish tutor call by a plain keyword/host match
-// in the event title, location, or description — no AI (CLAUDE.md Language).
-// "italki" was the spec's example host; John's actual bookings come through a
-// different tutor and are titled "Español (n/10 John Shaw)", so match on the
-// language name too. Diacritics are stripped before matching so "español" and
-// "espanol" both hit.
-const TUTOR_KEYWORDS = ['italki', 'espanol', 'spanish'];
+// — no AI (CLAUDE.md Language). John books through more than one tutor and
+// their event titles are inconsistent (some say "Español (n/10 John Shaw)",
+// some say "CLASE n/5 JOHN KENTUCKY", one says just "John Shaw" with the only
+// signal being the organizer's email address, mucho.spanish.bruno@gmail.com).
+// So the "host match" the spec describes has to include the organizer and
+// attendee emails, not just the title/location/description. Diacritics are
+// stripped before matching so "español" and "espanol" both hit.
+const TUTOR_KEYWORDS = ['italki', 'espanol', 'spanish', 'clase'];
 
 function stripDiacritics(text) {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -30,7 +32,14 @@ export async function GET() {
     const events = res.data.items || [];
     const match = events.find((event) => {
       const haystack = stripDiacritics(
-        [event.summary, event.location, event.description, event.hangoutLink]
+        [
+          event.summary,
+          event.location,
+          event.description,
+          event.hangoutLink,
+          event.organizer?.email,
+          ...(event.attendees || []).map((a) => a.email),
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
