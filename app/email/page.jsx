@@ -98,59 +98,80 @@ function EmailRow({ message, tier2Rule, onHide, onSaveRule }) {
   );
 }
 
-function RulesManager({ rules, onUnhide }) {
-  if (rules.length === 0) return null;
+function RulesPopup({ rules, onUnhide, onClose }) {
   const tier1 = rules.filter((r) => r.tier === 1);
   const tier2 = rules.filter((r) => r.tier === 2);
 
   return (
-    <div className={styles.rulesBox}>
-      {tier1.length > 0 && (
-        <>
-          <p className={styles.rulesLabel}>Hidden senders</p>
-          <div className={styles.rulesList}>
-            {tier1.map((rule) => (
-              <span key={rule.id} className={styles.ruleChip}>
-                {rule.sender}
-                <button
-                  className={styles.ruleUndo}
-                  onClick={() => onUnhide(rule.id)}
-                  title="Unhide this sender"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        </>
-      )}
-      {tier2.length > 0 && (
-        <>
-          <p
-            className={styles.rulesLabel}
-            style={{ marginTop: tier1.length ? 12 : 0 }}
+    <div className={styles.popupScrim} onClick={onClose} role="presentation">
+      <div
+        className={styles.popup}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Email rules"
+      >
+        <div className={styles.popupHead}>
+          <p className={styles.popupTitle}>Rules</p>
+          <button
+            className={styles.popupClose}
+            onClick={onClose}
+            aria-label="Close"
           >
-            Content rules (Tier 2)
-          </p>
-          <div className={styles.rulesList}>
-            {tier2.map((rule) => (
-              <span
-                key={rule.id}
-                className={`${styles.ruleChip} ${styles.ruleChipTier2}`}
-              >
-                <strong>{rule.sender}</strong>: {rule.rule_text}
-                <button
-                  className={styles.ruleUndo}
-                  onClick={() => onUnhide(rule.id)}
-                  title="Remove this rule"
+            ×
+          </button>
+        </div>
+
+        {rules.length === 0 && (
+          <p className={styles.popupEmpty}>No rules yet.</p>
+        )}
+
+        {tier1.length > 0 && (
+          <>
+            <p className={styles.rulesLabel}>Hidden senders</p>
+            <div className={styles.rulesList}>
+              {tier1.map((rule) => (
+                <span key={rule.id} className={styles.ruleChip}>
+                  {rule.sender}
+                  <button
+                    className={styles.ruleUndo}
+                    onClick={() => onUnhide(rule.id)}
+                    title="Unhide this sender"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+        {tier2.length > 0 && (
+          <>
+            <p
+              className={styles.rulesLabel}
+              style={{ marginTop: tier1.length ? 12 : 0 }}
+            >
+              Content rules (Tier 2)
+            </p>
+            <div className={styles.rulesList}>
+              {tier2.map((rule) => (
+                <span
+                  key={rule.id}
+                  className={`${styles.ruleChip} ${styles.ruleChipTier2}`}
                 >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        </>
-      )}
+                  <strong>{rule.sender}</strong>: {rule.rule_text}
+                  <button
+                    className={styles.ruleUndo}
+                    onClick={() => onUnhide(rule.id)}
+                    title="Remove this rule"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -160,6 +181,7 @@ export default function EmailPage() {
   const [rules, setRules] = useState([]);
   const [configured, setConfigured] = useState(true);
   const [error, setError] = useState(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   function loadMessages() {
     fetch('/api/gmail')
@@ -231,8 +253,16 @@ export default function EmailPage() {
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
-        <p className="eyebrow">Email</p>
-        <h1 className={styles.title}>Inbox</h1>
+        <div>
+          <p className="eyebrow">Email</p>
+          <h1 className={styles.title}>Inbox</h1>
+        </div>
+        <button
+          className={styles.rulesButton}
+          onClick={() => setRulesOpen(true)}
+        >
+          Rules{rules.length > 0 ? ` (${rules.length})` : ''}
+        </button>
       </div>
 
       {!configured && (
@@ -245,7 +275,13 @@ export default function EmailPage() {
 
       {error && <p className={styles.note}>{error}</p>}
 
-      <RulesManager rules={rules} onUnhide={handleUnhide} />
+      {rulesOpen && (
+        <RulesPopup
+          rules={rules}
+          onUnhide={handleUnhide}
+          onClose={() => setRulesOpen(false)}
+        />
+      )}
 
       {configured && messages === null && !error && (
         <p className={styles.note}>Loading…</p>

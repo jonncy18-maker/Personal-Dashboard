@@ -227,6 +227,18 @@ Built the second tier of Email's hide-rule system, on top of Tier 1 (PR #10). Pe
 
 ---
 
+## 2026-07-14 — Fixed real bugs from live use: Calendar keyword, Email rules UI
+
+John used the deployed app for the first time and found two real problems.
+
+**Calendar wasn't matching his actual tutor calls.** `/api/calendar`'s keyword match was hardcoded to `"italki"` — `CLAUDE.md`'s example host, never verified against John's real calendar. Checked his actual events directly (Google Calendar MCP): they're titled `"Español (n/10 John Shaw)"`, booked through a tutor named Nicolas Cardoso — no "italki" anywhere. Broadened the match to `['italki', 'espanol', 'spanish']` with diacritics stripped before comparing (so "Español" and "espanol" both hit). Still a plain keyword match, no AI, per the original spec — just keywords that match reality instead of the spec's example.
+
+**Email's rules list would grow unbounded on the main screen.** As built, `RulesManager` rendered inline above the inbox and would only get longer as more Tier 1/Tier 2 rules accumulated, crowding out the actual email list. Replaced it with a "Rules" button in the header (shows a count) that opens the same content in a popup/dialog instead — main screen now stays just the inbox regardless of how many rules exist.
+
+**Verified:** `next build` succeeds. The diacritic-stripping regex verified directly in Node against the real event title pulled from John's calendar (`"Español (1/10 John Shaw)"` → matches `"espanol"`). The popup UI itself is unverified visually in this sandbox (same Vercel deployment-protection limitation as every prior PR) — next-session or John's own check should confirm it renders as expected.
+
+---
+
 ## Template for future entries
 
 ```

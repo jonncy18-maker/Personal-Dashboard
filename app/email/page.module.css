@@ -3,7 +3,26 @@
 }
 
 .header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 18px;
+}
+.rulesButton {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.rulesButton:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }
 .title {
   margin: 4px 0 0;
@@ -25,12 +44,53 @@
   border-radius: 4px;
 }
 
-.rulesBox {
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  background: var(--surface-sunken);
+.popupScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(10, 14, 24, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+}
+.popup {
+  width: 100%;
+  max-width: 480px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 16px 18px 18px;
+}
+.popupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.popupTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+.popupClose {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.popupClose:hover {
+  color: var(--ink);
+}
+.popupEmpty {
+  font-size: 13px;
+  color: var(--ink-faint);
 }
 .rulesLabel {
   margin: 0 0 8px;
