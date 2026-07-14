@@ -1,9 +1,13 @@
 import { getDb } from '../../../lib/db';
 import { getGmailClient } from '../../../lib/google';
+import { shouldHideByRule } from '../../../lib/email-tier2';
 
 // Read-only Gmail proxy — list only, no write/modify/delete calls, ever
 // (CLAUDE.md §2/§7 hard boundary). Tier 1 filtering is a plain DB lookup
-// against active sender rules; Gmail's mailbox itself is never touched.
+// against active sender rules; Tier 2 additionally asks Haiku to evaluate a
+// message against that sender's plain-language rule (lib/email-tier2.js) —
+// deliberately not run against Tier 1 senders, which are already filtered
+// out before Tier 2 ever sees them. Gmail's mailbox itself is never touched.
 
 function extractSenderDomain(fromHeader) {
   const match = /<([^>]+)>/.exec(fromHeader || '') || [
@@ -31,10 +35,17 @@ export async function GET() {
   }
 
   const sql = getDb();
-  const hiddenRules = await sql`
-    SELECT sender FROM email_rules WHERE tier = 1 AND active = true
+  const rules = await sql`
+    SELECT tier, sender, rule_text FROM email_rules WHERE active = true
   `;
-  const hiddenDomains = new Set(hiddenRules.map((r) => r.sender.toLowerCase()));
+  const tier1Domains = new Set(
+    rules.filter((r) => r.tier === 1).map((r) => r.sender.toLowerCase())
+  );
+  const tier2Rules = new Map(
+    rules
+      .filter((r) => r.tier === 2)
+      .map((r) => [r.sender.toLowerCase(), r.rule_text])
+  );
 
   try {
     const list = await gmail.users.messages.list({
@@ -56,18 +67,18 @@ export async function GET() {
     );
 
     let hiddenCount = 0;
-    const messages = [];
+    const candidates = [];
     for (const res of details) {
       const headers = res.data.payload?.headers;
       const from = header(headers, 'From');
       const domain = extractSenderDomain(from);
 
-      if (domain && hiddenDomains.has(domain)) {
+      if (domain && tier1Domains.has(domain)) {
         hiddenCount++;
         continue;
       }
 
-      messages.push({
+      candidates.push({
         id: res.data.id,
         subject: header(headers, 'Subject') || '(no subject)',
         from: extractSenderName(from),
@@ -76,6 +87,22 @@ export async function GET() {
         snippet: res.data.snippet || '',
       });
     }
+
+    const evaluated = await Promise.all(
+      candidates.map(async (message) => {
+        const ruleText = message.domain && tier2Rules.get(message.domain);
+        if (!ruleText) return message;
+        const hide = await shouldHideByRule(
+          ruleText,
+          message.subject,
+          message.snippet
+        );
+        return hide ? null : message;
+      })
+    );
+
+    const messages = evaluated.filter(Boolean);
+    hiddenCount += evaluated.length - messages.length;
 
     return Response.json({ messages, hiddenCount, configured: true });
   } catch {

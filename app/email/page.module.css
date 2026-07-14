@@ -68,6 +68,15 @@
 .ruleUndo:hover {
   color: var(--critical);
 }
+.ruleChipTier2 {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+.ruleChipTier2 strong {
+  font-weight: 700;
+}
 
 .list {
   background: var(--surface);
@@ -99,6 +108,18 @@
   margin: 0;
   font-size: 13px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tier2Tag {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: 5px;
+  padding: 1px 6px;
 }
 .rowSubject {
   margin: 2px 0;
@@ -141,4 +162,71 @@
 .hideButton:disabled {
   opacity: 0.4;
   cursor: default;
+}
+.manageButton {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+  font-size: 12px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.manageButton:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.manageButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.manageForm {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.manageInput {
+  width: 100%;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+  min-height: 52px;
+}
+.manageActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.manageSave {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.manageSave:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.manageCancel {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
