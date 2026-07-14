@@ -94,6 +94,7 @@ export async function GET() {
         if (!ruleText) return message;
         const hide = await shouldHideByRule(
           ruleText,
+          message.from,
           message.subject,
           message.snippet
         );
