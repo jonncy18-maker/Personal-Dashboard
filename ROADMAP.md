@@ -6,7 +6,7 @@ Dated history and session-by-session notes live here, not in `CLAUDE.md`. `CLAUD
 
 ## Open / Tracked To-Dos
 
-_(Not dated history — live items that outlast a single session. Remove when done.)_
+_(Not dated history — live items that outlast a single session. Check `[x]` the box the session a step is completed, noting the date; remove the line once it's no longer useful context.)_
 
 - [ ] **`## Next Up` retrofit across sibling repos.** AI Projects' "Next Up" line parses a standardized `## Next Up` section at the top of each tracked repo's `ROADMAP.md`. This convention does not yet exist anywhere. Retrofit it into: **NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop**, and the Stack Blueprint itself. Until done, "Next Up" renders as "—". Separate task from this dashboard's build.
 - [ ] Confirm Vercel API token scope is read-only when provisioning.
