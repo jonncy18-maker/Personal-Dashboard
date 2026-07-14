@@ -11,7 +11,9 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [ ] **`## Next Up` retrofit across sibling repos.** AI Projects' "Next Up" line parses a standardized `## Next Up` section at the top of each tracked repo's `ROADMAP.md`. This convention does not yet exist anywhere. Retrofit it into: **NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop**, and the Stack Blueprint itself. Until done, "Next Up" renders as "—". Separate task from this dashboard's build.
 - [ ] Confirm Vercel API token scope is read-only when provisioning.
 - [ ] Record exact Vercel project slugs/IDs and repo names to track in AI Projects.
-- [ ] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — in progress 2026-07-14, John is walking through Google Cloud Console setup. Blocks Language's live "next tutor call" card (shows "not connected" without it), Travel's AI-assisted Gmail itinerary import, and the Email domain (not yet built). Also provision `UNSPLASH_ACCESS_KEY` (blocks Travel's destination photo auto-fetch; falls back to the plain accent gradient without it).
+- [x] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — 2026-07-14. Verified end-to-end against both Calendar and Gmail (both scopes granted in one consent pass). Still blocks Travel's AI-assisted Gmail itinerary import (not built yet) and Email's Tier 2 + onboarding scan (not built yet — Tier 1 doesn't need it).
+- [ ] Provision `UNSPLASH_ACCESS_KEY` in Vercel — blocks Travel's destination photo auto-fetch; falls back to the plain accent gradient without it.
+- [ ] Build Email's Tier 2 (Haiku semantic residual rules) and the first-run onboarding scan — deliberately deferred, see 2026-07-14 entry below. `ANTHROPIC_API_KEY` is already set.
 
 ---
 
@@ -178,6 +180,22 @@ John asked to hook up Gmail and Google Calendar. Split the work: the OAuth crede
 **Verified:** `next build` succeeds; `/api/calendar` confirmed returning `{"nextCall":null,"configured":false}` against a local dev server with no Google credentials set — the graceful-degradation path works. The actual Calendar API call is unverified end-to-end since `GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN` aren't provisioned yet (tracked above).
 
 **Left for later:** Gmail (Email domain) — deliberately not started this session; it's a much bigger build (two-tier hide rules, onboarding scan, `email_rules`/`email_hidden` tables already exist in schema) better done as its own slice once Calendar is proven working end-to-end with real credentials. Travel's Gmail-assisted itinerary import also still blocked on the same OAuth setup.
+
+---
+
+## 2026-07-14 — Email domain, Tier 1 (Gmail read + sender-hide rules)
+
+John's Google OAuth setup (Client ID/Secret/refresh token, granted with both `calendar.readonly` and `gmail.readonly` in one consent pass) is confirmed working end-to-end — verified live in production via `/api/calendar`. That unblocked Email. Scoped to **Tier 1 only** this session (John's call, mirroring the earlier "Calendar first" decision): proves the Gmail read path and the deterministic sender-hide-rule flow before adding the AI-dependent Tier 2 layer and the onboarding scan on top. `ANTHROPIC_API_KEY` is already set in Vercel, so Tier 2 is unblocked whenever it's built — just not bundled into this PR.
+
+**Built:**
+
+- `app/api/gmail/route.js` — read-only Gmail proxy (list + get metadata only, per the hard read-only boundary in CLAUDE.md §7 — no write/modify/delete call exists anywhere in this codebase). Lists the 40 most recent inbox messages, parses the sender's domain out of the `From` header, and filters out any message whose sender domain matches an active Tier 1 rule — a plain DB lookup against `email_rules`, no AI.
+- `app/api/email-rules/route.js` (GET/POST) and `app/api/email-rules/[id]/route.js` (DELETE) — Tier 1 rule CRUD. Clicking the "×" on an email in the UI parses the sender's domain from the header client already has and POSTs it as a new tier-1 rule; DELETE is the "undo" (unhides the sender going forward).
+- `app/email/page.jsx` (+ `page.module.css`) — replaces the Coming Soon stub. Read-only inbox list (from/subject/snippet/date) with a hide button per row, plus a compact "Hidden senders" management strip (chips with an undo ×) above the list.
+
+**Verified:** `next build` succeeds. `/api/gmail` confirmed degrading to `{"messages":[],"configured":false}` locally with no Google credentials. The `email_rules` insert/select/delete query shapes the routes use were verified directly against the real `personal-dashboard` Neon project via the Neon MCP. The actual Gmail API call itself (list + metadata fetch + domain filtering) is unverified end-to-end in this sandbox — same network limitation as every prior domain — but Calendar already proved the shared OAuth client works, and this route reuses it unchanged.
+
+**Left for later:** Tier 2 (Haiku-evaluated content rules — "hide shipping-delay notices but keep delivery confirmations"), the first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`), and Gmail-native category/search-operator use ("lean on `category:promotions` before reaching for a model"). All explicitly deferred by John's own scoping call this session, not an oversight.
 
 ---
 
