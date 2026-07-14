@@ -46,6 +46,7 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       className={`${fraunces.variable} ${jakarta.variable} ${plexMono.variable}`}
+      suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
