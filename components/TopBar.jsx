@@ -20,12 +20,25 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
   const [greeting, setGreeting] = useState('Hello');
 
   useEffect(() => {
-    setTheme(document.documentElement.getAttribute('data-theme') || 'light');
+    setTheme(currentTheme());
     setGreeting(timeOfDayGreeting());
   }, []);
 
+  // Read the theme actually in effect: the data-theme attribute if set,
+  // otherwise the OS preference (mirrors the init script + CSS fallback).
+  // Deriving from the DOM instead of React state means a click always flips
+  // what's visually on screen, even if state ever desyncs (e.g. after a
+  // hydration recovery re-render).
+  function currentTheme() {
+    const attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark' || attr === 'light') return attr;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  }
+
   function toggleTheme() {
-    const next = theme === 'dark' ? 'light' : 'dark';
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
     setTheme(next);
     document.documentElement.setAttribute('data-theme', next);
     try {
