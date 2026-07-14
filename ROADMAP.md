@@ -130,6 +130,23 @@ Scoped conversationally before any code was written. Key decisions locked at sco
 
 ---
 
+## 2026-07-14 — AI Projects domain built (first real domain page)
+
+Replaced the `/ai-projects` "Coming Soon" stub with the actual domain, per its CLAUDE.md §5/§7 spec. Chosen as the next roadmap item because it's listed first in every domain ordering (README, ARCHITECTURE, route table), the README's own "Status" note already described it as intended to be "the most built-out domain," its schema (`projects` table) has existed since `001_initial.sql`, and — unlike Travel/Language/Email — it needs no Google OAuth setup, just the already-scoped read-only `VERCEL_API_TOKEN`.
+
+**Built:**
+
+- `app/api/projects/route.js` — GET (list) / POST (create) against the `projects` table. `POST` validates `github_url` is required and matches `https://github.com/owner/repo`; `vercel_url` stays optional, exactly the two-field "Add Project" flow the spec calls for (no auto-detection).
+- `app/api/github/route.js` — public, unauthenticated GitHub Contents API call per project, parses the `## Next Up` section out of that repo's `ROADMAP.md`. Renders "—" (via `null`) when the section doesn't exist yet, per the cross-repo dependency tracked below — confirmed live against `Agentic-Loop`, which doesn't have the section yet, so this returns `null` today as expected.
+- `app/api/vercel/route.js` — server-side, read-only Vercel API proxy gated on `VERCEL_API_TOKEN`. Resolves a tracked `vercel_url` to a Vercel project (by name guess, falling back to a deployment-alias search) and returns its latest deployment's `readyState` + live URL. Returns `{status: null}` gracefully if the token isn't configured — never a broken page.
+- `app/ai-projects/page.jsx` (+ `page.module.css`) — client component: card grid per tracked project (GitHub link, Vercel status pill or a "Protocol / library" badge, Next Up line), plus the Add Project form (two fields, inline, no modal library).
+
+**Verified:** `next build` succeeds; dev server confirms the GitHub route's live network parse of `## Next Up` against a real sibling repo. The Neon-backed `/api/projects` route couldn't be exercised end-to-end in this sandbox (no live `DATABASE_URL` available) — the query matches the same `getDb()` pattern already used elsewhere, but running it against a real Neon project is unverified.
+
+**Left for a later session:** Home page's project count card still reads from `lib/mock-data.js`, not `/api/projects` — wiring the Home summary to real domain data is its own cross-cutting task, not bundled into this one. No delete/untrack action was added (spec only calls for "Add Project").
+
+---
+
 ## Template for future entries
 
 ```
