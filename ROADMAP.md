@@ -249,6 +249,21 @@ Checked John's real calendar directly again (Google Calendar MCP) rather than gu
 
 ---
 
+## 2026-07-14 — Calendar match: third tutor (italki) needed Unicode + vocabulary fixes
+
+Turns out John has a **third** Spanish tutor, through italki itself (Daniel Bermúdez) — separate from the two direct-booking tutors found earlier. italki lessons don't create Calendar events at all (they happen in italki's own in-app classroom); John found the confirmation email himself and added it to Calendar manually via Gmail's "Add to calendar." That auto-created event exposed two more real gaps:
+
+1. Its title got truncated by Gmail's import to `"with 𝐃𝐀𝐍𝐈✨ ( Estudiantes avanzados B1-C2)"` — missing the `"✨SPANISH"` prefix the original italki course name has.
+2. What text _did_ survive uses stylized Unicode "mathematical bold" letters (𝐃𝐀𝐍𝐈, not DANI) that diacritic-stripping alone doesn't normalize.
+
+Fixed both: added `text.normalize('NFKC')` before the existing NFD-diacritics-strip, which folds stylized Unicode letters to plain ASCII (𝐒𝐏𝐀𝐍𝐈𝐒𝐇 → SPANISH). And added `"estudiantes"` (Spanish for "students," present in the surviving plain-text portion of this event's title) to the keyword list, since the title alone — even normalized — still doesn't contain any of the existing keywords for this specific truncated case.
+
+**Verified:** confirmed directly in Node against the real event pulled from John's calendar, plus re-ran all three prior real patterns (Bruno/organizer-email, Nicolas "CLASE", Nicolas "Español") and a control non-matching event — all five behave correctly.
+
+**Note for future sessions:** Calendar-based matching is inherently fragile against however each tutor happens to title their invites — this is now the fourth fix to the same keyword list in one day, each time triggered by a real event this session hadn't seen. If a fifth tutor or naming pattern turns up, consider whether keyword whack-a-mole is still the right approach versus something more structural (e.g. an explicit allow-list of known tutor emails, editable from the UI, instead of guessing from event text).
+
+---
+
 ## Template for future entries
 
 ```

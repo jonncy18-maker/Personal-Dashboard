@@ -1,17 +1,20 @@
 import { getCalendarClient } from '../../../lib/google';
 
 // Read-only. Finds the next Spanish tutor call by a plain keyword/host match
-// — no AI (CLAUDE.md Language). John books through more than one tutor and
-// their event titles are inconsistent (some say "Español (n/10 John Shaw)",
-// some say "CLASE n/5 JOHN KENTUCKY", one says just "John Shaw" with the only
-// signal being the organizer's email address, mucho.spanish.bruno@gmail.com).
-// So the "host match" the spec describes has to include the organizer and
-// attendee emails, not just the title/location/description. Diacritics are
-// stripped before matching so "español" and "espanol" both hit.
-const TUTOR_KEYWORDS = ['italki', 'espanol', 'spanish', 'clase'];
+// — no AI (CLAUDE.md Language). John books through three different tutors and
+// their event titles are inconsistent: "Español (n/10 John Shaw)", "CLASE n/5
+// JOHN KENTUCKY", just "John Shaw" (the only signal is the organizer's email,
+// mucho.spanish.bruno@gmail.com), and — for italki lessons manually added to
+// Calendar from Gmail's "Add to calendar" — a truncated title in stylized
+// Unicode letters, e.g. "with 𝐃𝐀𝐍𝐈✨ ( Estudiantes avanzados B1-C2)". So the
+// "host match" the spec describes has to include the organizer/attendee
+// emails, not just the title/location/description; text is NFKC-normalized
+// first to fold stylized Unicode letters (𝐒𝐏𝐀𝐍𝐈𝐒𝐇 → SPANISH) before
+// diacritics are stripped (so "español" and "espanol" both hit).
+const TUTOR_KEYWORDS = ['italki', 'espanol', 'spanish', 'clase', 'estudiantes'];
 
-function stripDiacritics(text) {
-  return text.normalize('NFD').replace(/[̀-ͯ]/g, '');
+function normalizeText(text) {
+  return text.normalize('NFKC').normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 export async function GET() {
@@ -31,7 +34,7 @@ export async function GET() {
 
     const events = res.data.items || [];
     const match = events.find((event) => {
-      const haystack = stripDiacritics(
+      const haystack = normalizeText(
         [
           event.summary,
           event.location,
