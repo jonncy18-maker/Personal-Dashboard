@@ -13,7 +13,8 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Record exact Vercel project slugs/IDs and repo names to track in AI Projects — 2026-07-14. Added NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning (all with their `-jonncy18.vercel.app` domains), and Agentic-Loop (GitHub only, no deployment). Deliberately left out Personal Dashboard itself and the private `Projects-Dashboard` repo (John's call — not one of the four sibling repos CLAUDE.md names).
 - [x] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — 2026-07-14. Verified end-to-end against both Calendar and Gmail (both scopes granted in one consent pass). Still blocks Travel's AI-assisted Gmail itinerary import (not built yet) and Email's Tier 2 + onboarding scan (not built yet — Tier 1 doesn't need it).
 - [ ] Provision `UNSPLASH_ACCESS_KEY` in Vercel — blocks Travel's destination photo auto-fetch; falls back to the plain accent gradient without it.
-- [ ] Build Email's Tier 2 (Haiku semantic residual rules) and the first-run onboarding scan — deliberately deferred, see 2026-07-14 entry below. `ANTHROPIC_API_KEY` is already set.
+- [x] Build Email's Tier 2 (Haiku semantic residual rules) — 2026-07-14, see entry below. First-run onboarding scan is still deferred (separate feature, not bundled in).
+- [ ] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything; just not built yet.
 
 ---
 
@@ -206,6 +207,23 @@ John asked to add real tracked projects to AI Projects. Looked up his actual Ver
 **Bug caught in review:** John asked why `VERCEL_API_TOKEN` was needed at all, and specifically whether it should only gate the Vercel-linked projects. Tracing through confirmed it already does — Agentic-Loop never calls the Vercel API regardless of the token, since it has no `vercel_url`. But that question surfaced a real gap: `ProjectCard` only rendered the "Live site" link when the Vercel API confirmed `status === 'READY'`, meaning _no_ link ever appeared for any project without the token configured, even though the URL was sitting right there in the DB. Fixed: the link now always renders whenever `vercel_url` exists, labeled "Live site" when status is confirmed `READY` and "Open" otherwise. The token is now purely an enhancement (adds the Ready/Building/Failed status pill) rather than a requirement for the basic link to show up — `VERCEL_API_TOKEN` provisioning is downgraded from blocking to optional in the to-do above.
 
 **Verified:** `next build` succeeds. The four project rows were verified via the Neon MCP's `RETURNING` output on insert (not through the app's own API — Vercel's deployment protection blocked automated fetches this session, an intermittent issue also seen on the Email PR).
+
+---
+
+## 2026-07-14 — Email Tier 2 (Haiku semantic residual rules)
+
+Built the second tier of Email's hide-rule system, on top of Tier 1 (PR #10). Per CLAUDE.md §7, Tier 2 is deliberately scoped to the residual Gmail's own categories can't express — e.g. "hide shipping-delay notices but keep delivery confirmations" from a sender you otherwise want. Not applied to Tier 1 senders, since those are already filtered out of the list before Tier 2 ever runs.
+
+**Built:**
+
+- `lib/email-tier2.js` — `shouldHideByRule(ruleText, subject, snippet)`, a single Haiku call (`claude-haiku-4-5`, already the pinned model in `lib/anthropic.js`) that answers HIDE or KEEP for one email against one rule. Defaults to KEEP on any error, missing key, or ambiguous response — a wrongly-kept email is recoverable by re-reading the inbox; a wrongly-hidden one is invisible, so the failure mode is deliberately asymmetric.
+- `app/api/email-rules/route.js` — extended to handle both tiers. Tier 1 POSTs now dedupe (return the existing active rule instead of inserting a duplicate). Tier 2 POSTs enforce **one active rule per sender** — managing a sender again deactivates the prior rule and inserts the new one, rather than accumulating rules per sender. GET now returns both tiers for the management view.
+- `app/api/gmail/route.js` — after Tier 1 filtering, remaining messages whose sender has an active Tier 2 rule get evaluated in parallel via `shouldHideByRule` against that sender's subject + snippet (not full body — kept cheap, and sufficient for the kind of judgment calls Tier 2 rules describe).
+- `app/email/page.jsx` — added a "⚙ Manage" action per row (separate from Tier 1's "×") that opens an inline rule editor; existing Tier 2 senders show a small "Tier 2" tag. The rules management strip now shows Tier 1 (hidden senders) and Tier 2 (content rules, with their rule text) as two distinct groups, both with undo/delete.
+
+**Verified:** `next build` succeeds. The Tier 2 insert/dedupe-replace query shapes verified directly against the real Neon project via the Neon MCP (insert, deactivate-prior, re-insert, confirm only one active row remains). The actual Haiku evaluation call and its effect on `/api/gmail`'s filtering is unverified end-to-end in this sandbox — no network path to Anthropic's API here either — but reuses the exact `getAnthropic()` client already scaffolded and pinned to Haiku.
+
+**Left for later:** the first-run onboarding scan (frequency `GROUP BY` over recent senders, proposes Tier 1 candidates, one-time via `app_flags`) — a separate, non-AI feature, tracked above, not bundled into this PR.
 
 ---
 
