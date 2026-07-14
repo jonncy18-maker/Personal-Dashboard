@@ -1,0 +1,84 @@
+.wrap {
+  max-width: 480px;
+  padding: 64px 8px 32px;
+}
+.icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--card-soft);
+  color: var(--card-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.icon svg {
+  width: 22px;
+  height: 22px;
+}
+.title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+}
+.note {
+  margin: 0 0 28px;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.callCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
+  border-left: 3px solid var(--card-accent);
+}
+.callEyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--card-accent);
+}
+.callWhen {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+.callTime {
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.callTitle {
+  margin: 4px 0 12px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+.callLink {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--card-accent);
+}
+.callLink:hover {
+  text-decoration: underline;
+}
+
+.callNote {
+  font-size: 13px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
+.callNote code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--surface-sunken);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
