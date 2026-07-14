@@ -239,6 +239,16 @@ John used the deployed app for the first time and found two real problems.
 
 ---
 
+## 2026-07-14 — Calendar match broadened again: John has multiple tutors
+
+The previous fix (matching `espanol`/`spanish` in the event title) still missed real events: John books through **two** tutors, and one of them (Bruno, `mucho.spanish.bruno@gmail.com`) titles every event just `"John Shaw"` — no language keyword anywhere in the title, location, or description. The only signal is the organizer's email address. A third pattern turned up too: some of the other tutor's bookings are titled `"CLASE n/5 JOHN KENTUCKY"` (Spanish for "class"), which the prior keyword list also missed.
+
+Checked John's real calendar directly again (Google Calendar MCP) rather than guessing. Fixed by widening the match to also check `event.organizer.email` and every `event.attendees[].email`, not just title/location/description/hangoutLink, and adding `"clase"` to the keyword list. This is still the "host match" the original spec describes — CLAUDE.md's phrasing ("keyword/host match... e.g. italki") already anticipated matching on who's hosting, not just the title text; title-only matching just turned out to be insufficient for how John's tutors actually name events.
+
+**Verified:** confirmed directly in Node against all three real patterns pulled from John's calendar — "John Shaw" (Bruno, organizer-email match), "CLASE 1/5 JOHN LOUISVILLE" (Nicolas), "Español (1/10 John Shaw)" (Nicolas) — all three now match, and a control "Dentist appointment" event does not.
+
+---
+
 ## Template for future entries
 
 ```
