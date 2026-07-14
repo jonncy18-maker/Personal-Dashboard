@@ -11,7 +11,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [ ] **`## Next Up` retrofit across sibling repos.** AI Projects' "Next Up" line parses a standardized `## Next Up` section at the top of each tracked repo's `ROADMAP.md`. This convention does not yet exist anywhere. Retrofit it into: **NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop**, and the Stack Blueprint itself. Until done, "Next Up" renders as "—". Separate task from this dashboard's build.
 - [ ] Confirm Vercel API token scope is read-only when provisioning.
 - [ ] Record exact Vercel project slugs/IDs and repo names to track in AI Projects.
-- [ ] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) and `UNSPLASH_ACCESS_KEY` in Vercel. Blocks Travel's AI-assisted Gmail itinerary import (manual itinerary entry works without it) and destination photo auto-fetch (falls back to the plain accent gradient without it).
+- [ ] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — in progress 2026-07-14, John is walking through Google Cloud Console setup. Blocks Language's live "next tutor call" card (shows "not connected" without it), Travel's AI-assisted Gmail itinerary import, and the Email domain (not yet built). Also provision `UNSPLASH_ACCESS_KEY` (blocks Travel's destination photo auto-fetch; falls back to the plain accent gradient without it).
 
 ---
 
@@ -162,6 +162,22 @@ Next roadmap item after AI Projects, following the README/ARCHITECTURE domain or
 **Verified:** `next build` succeeds. Neon-backed queries verified directly against the `personal-dashboard` project via the Neon MCP (insert with all fields, `jsonb` itinerary update, delete) — confirms the query shapes the API routes use are correct. Could not exercise the Next.js dev server against real Neon in this sandbox (its network egress proxy blocks the Neon host directly, same limitation noted in the AI Projects entry); the actual API-route code path is unverified end-to-end outside of Vercel.
 
 **Left for later:** Gmail-assisted itinerary import (needs the OAuth to-do above), Home/Sidebar still read trip data from `lib/mock-data.js` rather than `/api/trips` (same cross-cutting wiring gap noted for AI Projects — not bundled into single-domain PRs).
+
+---
+
+## 2026-07-14 — Google Calendar wired up (Language's next tutor call)
+
+John asked to hook up Gmail and Google Calendar. Split the work: the OAuth credential setup (Google Cloud Console project, enabling the Calendar + Gmail APIs, generating a Client ID/Secret, and minting a refresh token via the OAuth Playground) has to happen in John's own browser/Google account — not something this session can do on his behalf. Scoped the code side to Calendar first, since it's the smaller surface (one read-only endpoint, no new DB tables) and proves the shared OAuth plumbing before building out the much larger Email domain (Tier 1/2 hide rules, onboarding scan) on top of Gmail.
+
+**Built:**
+
+- `lib/google.js` — shared OAuth2 client (`googleapis`, already a dependency), gated on `GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN` all being present. Returns `null` rather than throwing when unconfigured, so both Calendar and (later) Gmail callers degrade the same way the Vercel/Unsplash integrations already do.
+- `app/api/calendar/route.js` — read-only. Lists upcoming primary-calendar events and finds the next Spanish tutor call via a plain keyword match ("italki") against the event title/location/description/hangout link — no AI, per CLAUDE.md Language. Returns `{configured: false}` when credentials aren't set, distinct from `{nextCall: null}` (configured, but nothing upcoming matched) so the UI can show the right message either way.
+- `app/language/page.jsx` (+ `page.module.css`) — replaces the Coming Soon stub. Still mostly a placeholder (Language's broader shape is unscoped, per CLAUDE.md), but now has the one live piece the spec calls for: a card showing the next tutor call, or a clear "not connected yet" / "nothing found" state.
+
+**Verified:** `next build` succeeds; `/api/calendar` confirmed returning `{"nextCall":null,"configured":false}` against a local dev server with no Google credentials set — the graceful-degradation path works. The actual Calendar API call is unverified end-to-end since `GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN` aren't provisioned yet (tracked above).
+
+**Left for later:** Gmail (Email domain) — deliberately not started this session; it's a much bigger build (two-tier hide rules, onboarding scan, `email_rules`/`email_hidden` tables already exist in schema) better done as its own slice once Calendar is proven working end-to-end with real credentials. Travel's Gmail-assisted itinerary import also still blocked on the same OAuth setup.
 
 ---
 
