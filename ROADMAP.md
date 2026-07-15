@@ -9,11 +9,11 @@ Dated history and session-by-session notes live here, not in `CLAUDE.md`. `CLAUD
 _(Not dated history — live items that outlast a single session. Check `[x]` the box the session a step is completed, noting the date; remove the line once it's no longer useful context.)_
 
 - [x] **`## Next Up` retrofit across sibling repos** — 2026-07-15. Added a standardized `## Next Up` section to the top of each tracked repo's `ROADMAP.md`, each seeded from that repo's own current roadmap state (not invented) and placed so the dashboard's parser captures only the intended text (bounded by the next `## ` heading): NextGen-Scholars #218 (Play Store native rollout), NextGen-Immersion #110 (Phase 32 TWA→Play), AI-Capital-Planning #153 (post-migration hardening / no test suite), Agentic-Loop #1 (created a ROADMAP.md — it had none — Next Up = cut the first `v1.0` tag). All merged. AI Projects cards now show real "Next Up" lines. _(The Stack Blueprint isn't a tracked AI Projects repo, so it needs no `## Next Up` for parsing; propagating the convention there is a docs nicety, not done here.)_
-- [x] **Build weekly Gmail trip auto-detection** — scoped then built 2026-07-15 (see entries below). Weekly Vercel Cron + manual "Scan Gmail" button → read-only Gmail search → Haiku detection → `trip_suggestions` (migration 003) → review banner + Home-card warning + bell notification → Approve (creates trip + auto-runs itinerary import) / Dismiss. **John's open step:** set `CRON_SECRET` in Vercel to protect the cron GET (optional; the manual scan works without it).
+- [x] **Build weekly Gmail trip auto-detection** — scoped then built 2026-07-15 (see entries below). Weekly Vercel Cron + manual "Scan Gmail" button → read-only Gmail search → Haiku detection → `trip_suggestions` (migration 003) → review banner + Home-card warning + bell notification → Approve (creates trip + auto-runs itinerary import) / Dismiss. **`CRON_SECRET` provisioned 2026-07-15** — cron GET is now protected.
 - [ ] Confirm Vercel API token scope is read-only when provisioning — optional now (see 2026-07-14 entry below): unblocks the live Ready/Building/Failed status pill only, no longer required for the card's link to appear at all.
 - [x] Record exact Vercel project slugs/IDs and repo names to track in AI Projects — 2026-07-14. Added NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning (all with their `-jonncy18.vercel.app` domains), and Agentic-Loop (GitHub only, no deployment). Deliberately left out Personal Dashboard itself and the private `Projects-Dashboard` repo (John's call — not one of the four sibling repos CLAUDE.md names).
 - [x] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — 2026-07-14. Verified end-to-end against both Calendar and Gmail (both scopes granted in one consent pass). Still blocks Travel's AI-assisted Gmail itinerary import (not built yet) and Email's Tier 2 + onboarding scan (not built yet — Tier 1 doesn't need it).
-- [ ] Provision `UNSPLASH_ACCESS_KEY` in Vercel — blocks Travel's destination photo auto-fetch; falls back to the plain accent gradient without it.
+- [x] Provision `UNSPLASH_ACCESS_KEY` in Vercel — 2026-07-15. Surfaced (and fixed, see entry below) a PATCH retry bug that kept pre-key trips permanently stuck without a photo even after the key was added.
 - [x] Build Email's Tier 2 (Haiku semantic residual rules) — 2026-07-14, see entry below. First-run onboarding scan is still deferred (separate feature, not bundled in).
 - [x] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything. **2026-07-15, see entry below.**
 
@@ -24,6 +24,14 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 (cont'd 5) — Fix: pre-key trips never retried their photo fetch
+
+John provisioned `UNSPLASH_ACCESS_KEY` and `CRON_SECRET` in Vercel, then re-saved an existing trip (Panama Cruise, created before the key existed) — still no photo. Root cause in `app/api/trips/[id]/route.js`'s `PATCH`: the auto-fetch retry only fired on a **destination change** or a switch **back to `auto`** from `manual`. A trip already sitting at `image_source = 'auto'` with a `null` `image_url` (because the key didn't exist at creation time) never matched either condition — re-saving with the same destination was a no-op for the photo, so it was **permanently stuck** regardless of the key being added later.
+
+**Fix:** added a third retry condition — `!existing.image_url` — so auto mode also retries whenever it simply hasn't produced a photo yet. One-line change, no schema/API-shape change. John's four in-flight trips (Morehead, Denver, Panama Cruise, Cebu) will pick up real photos the next time each is opened and saved.
 
 ---
 
