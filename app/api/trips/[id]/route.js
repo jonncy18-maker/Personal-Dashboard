@@ -68,8 +68,13 @@ export async function PATCH(request, { params }) {
     if (body.image_attribution !== undefined)
       imageAttribution = body.image_attribution || null;
   } else if (
+    // Re-fetch on a destination change, a switch back to auto, or — the case
+    // that matters for a trip created before UNSPLASH_ACCESS_KEY was set —
+    // when auto mode has simply never produced a photo yet.
     imageSource === 'auto' &&
-    (destination !== existing.destination || existing.image_source !== 'auto')
+    (destination !== existing.destination ||
+      existing.image_source !== 'auto' ||
+      !existing.image_url)
   ) {
     const photo = await fetchDestinationPhoto(destination);
     if (photo) {
