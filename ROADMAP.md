@@ -26,6 +26,27 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-07-15 (cont'd) — Travel Gmail itinerary import + a scoping refinement on where AI belongs
+
+Built the AI-assisted Gmail itinerary import — the last unbuilt dashboard feature — but first re-grilled the "does AI belong here?" question, since AI-minimalism is this project's whole ethos. The documented flow (CLAUDE.md §7) says "Haiku searches Gmail … then parses," bundling two steps. Splitting them gives opposite answers:
+
+- **Finding the email → NO AI.** This is the Email Tier 1 lesson exactly: Gmail's own search operators do it deterministically and for free. A trip already has a destination; a `(itinerary OR confirmation OR reservation OR booking OR e-ticket OR boarding) {destination}` query surfaces candidates, and John picks one — which is precisely the human fallback the flow already specified for the low-confidence case. No model earns its keep here.
+- **Extracting the itinerary → YES, AI.** Confirmation emails are wildly heterogeneous (cruise HTML port tables, airline text segments, hotel prose); no deterministic parser generalizes across providers. This is genuine unstructured→structured extraction — the one thing CLAUDE.md §7 explicitly reserves for Haiku. And note the consequence of dropping it: without the parse, an "import" is just the manual day editor that already exists. **The extraction *is* the feature.**
+
+John chose this split (deterministic find + Haiku parse). So Haiku is now scoped to the residual here too, mirroring Email — not applied to the step Gmail search already handles.
+
+**Shape:**
+
+- `GET /api/travel-import?tripId=` — deterministic Gmail search (read-only, same hard boundary as Email), returns up to 12 candidate emails (from/subject/date/snippet). No model.
+- `POST /api/travel-import` `{ tripId, messageId }` — fetches the ONE chosen email full body (prefers `text/plain`, falls back to stripped `text/html`, bounded to 12k chars), runs Haiku (`lib/travel-import.js`) to extract `{date,title,notes}[]`, returns it. Defensive JSON parse tolerates fences/prose; never invents a date.
+- **Never auto-saves.** The parsed days render as a preview modal; "Add N days to itinerary" drops them into the *unsaved* itinerary editor, and only the existing trip `PATCH` persists them when John clicks "Save changes." Confirm/edit-before-save gate intact.
+
+**Files:** new `lib/travel-import.js` + `app/api/travel-import/route.js`; `app/travel/[id]/page.jsx` / `page.module.css` gain the `ImportModal` (candidate picker → preview) and replace the old disabled stub button. Reuses `lib/email-sender.js`'s header helpers and the existing trip PATCH — no new save path, no schema change. `next build` clean.
+
+**Status:** all six domains are now built to their v1 scope. Remaining tracked work is non-code: the cross-repo `## Next Up` retrofit and `UNSPLASH_ACCESS_KEY` provisioning (both at the top of this file). Live end-to-end parse quality is unverified until exercised against John's real Gmail on the deploy.
+
+---
+
 ## 2026-07-15 — Email first-run onboarding scan (last Email v1 piece)
 
 Built the deferred onboarding scan — the final remaining slice of the Email domain. On the first-ever visit to `/email`, the noisiest recent senders are proposed as one-pass Tier 1 hide candidates, checked-by-default; John unchecks any to keep and hits "Hide N senders" (or "Skip"). It never runs again.
