@@ -16,6 +16,12 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Provision `UNSPLASH_ACCESS_KEY` in Vercel — 2026-07-15. Surfaced (and fixed, see entry below) a PATCH retry bug that kept pre-key trips permanently stuck without a photo even after the key was added.
 - [x] Build Email's Tier 2 (Haiku semantic residual rules) — 2026-07-14, see entry below. First-run onboarding scan is still deferred (separate feature, not bundled in).
 - [x] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything. **2026-07-15, see entry below.**
+- [x] Build the Schedules domain (was still a `ComingSoon` stub despite the `schedules` table existing since `001_initial.sql`) — **2026-07-15, see entry below.**
+- [ ] Build the Idea Board domain — still a `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql`. Same shape as the gap Schedules just closed: title/notes/status/domain-tag CRUD, no due date. Natural next slice.
+- [x] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data — **2026-07-15, see entry below.** `lib/mock-data.js` deleted. Email's home-card count is intentionally still `null` ("—"), documented as a deliberate scope cut, not a placeholder left behind.
+- [x] **Language Gmail wiring** — John chose the weekly-auto-scan pattern (mirroring Travel's trip-suggestions). Built 2026-07-15, see entry below. Turned out to need **no AI** — see that entry for why.
+- [x] **Fix: date-only fields showing the wrong relative day/weekday for negative-UTC-offset viewers (e.g. Eastern)** — 2026-07-15, see entry below. Real bug in every Schedules due_date / Travel start_date-end_date display.
+- [ ] **Known, not yet fixed:** `app/api/trip-scan/route.js`'s `matchesExistingTrip` dedupe compares `trips` rows' raw `start_date`/`end_date` (DB `Date` objects) against a candidate's plain `"YYYY-MM-DD"` strings with `<=`/`>=`. Found while fixing the date-timezone bug above but out of scope for that fix (it's an internal dedupe heuristic, not a display path) — a `Date` object compared with `<=` against a string coerces via `.toString()`, not the ISO form, so the comparison is not reliably correct. Worth a follow-up pass.
 
 ---
 
@@ -24,6 +30,85 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 (cont'd 9) — Fix: date-only fields showed the wrong day for anyone west of UTC
+
+John noticed the Morehead trip's "Up Next" card said "Tomorrow" when the trip is actually Thursday and tomorrow (from where he sat, Eastern) is Wednesday — a real off-by-one, not a misunderstanding.
+
+**Root cause.** Postgres `DATE` columns (Travel `start_date`/`end_date`, Schedules `due_date`) come back from the Neon driver as a JS `Date` fixed at UTC midnight for the stored calendar day. Left as-is, `Response.json()` serializes "July 16" as `"2026-07-16T00:00:00.000Z"`. In Eastern time (UTC-4/5), that UTC instant is actually **8-9pm the evening before** — so any client-side code that re-localizes it (`new Date(that string)` + `.setHours(0,0,0,0)`, which `lib/format.js`'s `relativeDay`/`absoluteDate`/`daysUntil` all did) silently rolls the calendar day back by one for any negative UTC offset — i.e. all of the continental US. Reproduced directly: with the pre-fix code, in `America/New_York`, a stored `2026-07-16` rendered as **"Today"** instead of "Tomorrow" for a same-day "now" — an even more visible case of the same bug John spotted.
+
+**Fix — two layers, same "coerce at the API boundary" pattern CLAUDE.md §7 already establishes for `num()`:**
+
+- `lib/db.js` — new `dateOnly(value)`: converts a DATE column's `Date`/string value to a bare `"YYYY-MM-DD"` string. Applied at the boundary in every route that returns `trips.start_date/end_date`, `schedules.due_date`, or `trip_suggestions.start_date/end_date` (`app/api/trips`, `app/api/trips/[id]`, `app/api/schedules`, `app/api/schedules/[id]`, `app/api/home-summary`, `app/api/trip-suggestions`, `app/api/trip-suggestions/[id]`).
+- `lib/format.js` — new (exported) `parseDateInput()`: a bare `"YYYY-MM-DD"` is parsed from its Y-M-D components directly into **local** midnight, never through the UTC-then-relocalize path. A full timestamp (e.g. a Language tutor call, which carries a real moment in time and _should_ convert across zones) still goes through ordinary `new Date()` parsing unchanged. `startOfDay`, `absoluteDate`, `absoluteDateTime`, `monthLabel`, `relativeDay`, `daysUntil` all route through this now. `lib/agenda.js`'s own date-vs-timestamp sort key had the identical bug (a bare-date regex check that could never actually match before this fix, since the API was emitting `"...T00:00:00.000Z"` — now it does) and now uses the same shared parser.
+
+**Verified:** reproduced the bug and confirmed the fix directly in Node with `TZ=America/New_York` — pre-fix, `relativeDay('2026-07-16T00:00:00.000Z', <Jul-15-9am-local>)` returned `"Today"`; post-fix, `relativeDay('2026-07-16', <same now>)` returns `"Tomorrow"` and `absoluteDate('2026-07-16')` returns `"Thu, Jul 16"` — correct on both counts. `next build` clean, Prettier passes.
+
+**Left as a known gap, not fixed here** (see tracked to-do above): `trip-scan`'s existing-trip dedupe compares raw DB `Date` objects against plain-string candidate dates with `<=`/`>=`, which isn't guaranteed correct — it's an internal heuristic, not a display bug, so out of scope for this pass, but worth a follow-up.
+
+---
+
+## 2026-07-15 (cont'd 8) — Language's Gmail wiring: weekly italki-scan, deliberately no AI
+
+John asked for Language to get "the same Gmail wiring as Travel." Travel has two distinct Gmail patterns; asked which one — John chose the weekly auto-scan → suggestion → approve/dismiss pattern (mirroring `trip_suggestions`), not the one-shot manual import.
+
+**Re-grilled "does AI belong here?" before building — same discipline as the original Travel-import scoping (2026-07-15 cont'd entry below) — and this time the answer for extraction is different.** Searched John's real Gmail (Gmail MCP, read-only) to find the actual pain point instead of guessing: of the three tutors, two (Nicolas, Bruno) already flow through Calendar directly — Nicolas's scheduling-tool booking emails and Bruno's Calendar invite both already produce real Calendar events, which the existing keyword/host match already finds (that's the whole history of the four Calendar-match fixes earlier this file). The actual gap is only italki (Daniel Bermúdez): italki lessons happen in italki's own in-app classroom and never create a Calendar event on their own — John has had to manually "Add to calendar" from the confirmation email before.
+
+Pulled and read real italki "Your lesson request has been accepted by \<teacher>" emails. Every one is the **same fixed template from the same sender** with a labeled `Lesson Date/Time: Wednesday, 01 Jul 2026 10:00AM (UTC -04:00)` line. Unlike Travel's itinerary emails (heterogeneous providers — cruise HTML tables, airline text, hotel prose — genuinely needing Haiku to generalize across them), this is one homogeneous template: a regex parse is exact, not a heuristic. Verified the parse against two real emails by checking the extracted UTC instant against italki's own embedded "Add to calendar" link timestamp in the same email — both matched exactly. So: **deterministic search, deterministic parse, no AI at all** — the same reasoning CLAUDE.md §7 already applies to Email Tier 1's sender-header parse, just newly applied here.
+
+**Built:**
+
+- `neon/migrations/004_language_calls.sql` + `schema.sql` — Language's first table (the domain's broader shape is still otherwise unscoped — this table exists only for this one slice). `language_calls`: `tutor`, `start_at`, `source_gmail_id` (unique, dedupe key), `status` pending/approved/dismissed. No `raw` column (no AI response to keep) and no `end_at` (not used anywhere in the UI).
+- `lib/language-detect.js` — `parseItalkiAcceptance(text)`, pure regex, no network/API call.
+- `app/api/language-scan/route.js` — GET (Vercel Cron, weekly `15 8 * * 1`, offset 15 min from the trip-scan cron; gated by `CRON_SECRET` when set) and POST (manual "Scan Gmail" button) both run `runScan()`: deterministic Gmail search `from:noreply@italki.com subject:"has been accepted"` over the last 60 days (verified this exact query against John's real inbox — 4 matches, 0 noise), skip already-suggested message ids, parse, skip anything in the past or unparseable, insert pending.
+- `app/api/language-suggestions` (GET pending) and `[id]` (POST approve, DELETE dismiss). Approve just flips `status` — unlike Travel, there's no second table to create into; the row itself **is** the record.
+- `lib/tutor-call.js` — `findNextTutorCall()` now merges the Calendar match with the soonest approved `language_calls` row and returns whichever is sooner. `configured` still reflects Calendar specifically (for the "Calendar not connected" message), but an approved italki booking can supply `nextCall` even without Calendar credentials.
+- `app/language/page.jsx` (+ `page.module.css`) — "Scan Gmail" button and a review banner (Add / Dismiss per row), same shape as Travel's `SuggestionsBanner`.
+- `vercel.json` — added the second weekly cron entry.
+
+**Boundaries held:** read-only Gmail throughout (`messages.list` / `get` only, same as every other Gmail feature). Nothing is auto-added — every booking still goes through John's Approve click, even though the parse itself needed no confirmation-worthy judgment call.
+
+**Verified:** `next build` clean. The italki search query and both sample "accepted" emails were pulled from John's real inbox via the Gmail MCP (read-only) this session — not simulated. The regex parse was checked against both samples' embedded calendar-link timestamps and matched exactly both times. The `language_calls` table and all four query shapes (insert, pending-list, approve, soonest-approved-lookup) were run directly against the live `personal-dashboard` Neon project via the Neon MCP using a temporary test row (removed after verification). Not exercised through the deployed Next.js app itself in this sandbox — same limitation as every prior domain build.
+
+---
+
+## 2026-07-15 (cont'd 7) — Wired Home/Sidebar/TopBar to real data; dropped the fabricated language "weekly goal" stat
+
+John flagged two real problems: the "Up Next" agenda linked to hard-coded mock items instead of what's actually next, and the Home page's Language card showed a hard-coded call time instead of the real Calendar-backed one already live on `/language`. Root cause for both: `app/page.jsx`, `Sidebar.jsx`, and `TopBar.jsx` all read from `lib/mock-data.js` — a placeholder module noted as a known gap in several earlier entries, never actually closed.
+
+**Built:**
+
+- `lib/tutor-call.js` (new) — extracted `findNextTutorCall()` out of `app/api/calendar/route.js` so the Calendar match logic (all five tutor-keyword fixes from earlier sessions, unchanged) has exactly one implementation, now shared by `/api/calendar` and the new aggregator below.
+- `app/api/home-summary/route.js` (new) — one aggregator route, five queries run via `Promise.all` (four real Neon queries — `projects` count, the single soonest-upcoming trip, open `schedules` count/soonest-due/items, `ideas` count — plus the shared Calendar lookup). Email is deliberately left as `{ important_count: null }`: no honest cheap count exists without a live Gmail call on every Home visit, which this app's own precedent (Unsplash, Vercel) says not to do. The UI renders `—` for it rather than a fabricated number.
+- `lib/agenda.js` (new) — pure `buildAgenda(summary)`, replacing the merge logic that used to live in `mock-data.js`'s `getUpcomingAgenda`. Same sort behavior (bare dates rank end-of-day), now fed by real data.
+- `lib/useHomeSummary.js` (new) — a small client hook with a module-scoped cached fetch, so Sidebar + TopBar + the Home page (all mounted together) cost one `/api/home-summary` round trip, not three.
+- `app/page.jsx`, `components/Sidebar.jsx`, `components/TopBar.jsx` — switched from the mock functions to `useHomeSummary()` + `buildAgenda()`. `lib/mock-data.js` is now unused and was deleted.
+- `components/DomainGrid.jsx` — Language card now renders the real next call (or "No upcoming call found" / "Calendar not connected", matching the Language page's own states) instead of the old hard-coded time. **Dropped the "weekly goal" progress ring entirely** — it had no backing data source or feature anywhere in the spec; keeping a fabricated stat around while fixing two other fabricated stats would have been inconsistent. Schedules and Email cards also gained honest empty/unknown states (no open tasks, no email count) instead of assuming data is always present.
+
+**Verified:** `next build` clean; Prettier passes. The new query shapes (`projects` count, next-upcoming-trip select, `schedules` open aggregate + items, `ideas` count) were run directly against the live `personal-dashboard` Neon project via the Neon MCP and match the API route exactly — confirmed real current state (4 projects, 0 open schedules, 0 open ideas, Morehead as the next trip). Not exercised through the actual deployed Next.js app in this sandbox (no `DATABASE_URL`/Google credentials here), same limitation as every prior domain build.
+
+**Left open:** John's third ask this session — give Language "the same Gmail wiring as Travel" — needs scoping before Build. Posed as a question in chat; tracked above until answered.
+
+---
+
+## 2026-07-15 (cont'd 6) — Built the Schedules domain (was still a stub)
+
+Picked as the next roadmap item: despite the 2026-07-15 "Travel Gmail itinerary import" entry below declaring "all six domains are now built to their v1 scope," `/schedules` was still rendering the `ComingSoon` placeholder, and no `app/api/schedules` route existed — even though the `schedules` table has been in `neon/schema.sql` since `001_initial.sql`. That status line was aspirational, not accurate; this closes the real gap.
+
+Built to the CLAUDE.md §5/§7 spec: title, notes, required `due_date`, status (`open`/`in_progress`/`done`), optional link to a Travel trip **or** an AI project (mutually exclusive, not both).
+
+**Built:**
+
+- `app/api/schedules/route.js` (GET list, joined with `trips.destination` / `projects.github_url` for display — POST create) and `app/api/schedules/[id]/route.js` (PATCH/DELETE), matching the CRUD shape already used by `/api/trips`.
+- `app/schedules/page.jsx` (+ `page.module.css`) — replaces the `ComingSoon` stub. A checkbox-style task list (open items first, sorted by due date), an inline "Add task" form with an optional trip/project link dropdown, a due-date chip that flags overdue items, and a small link badge on any task tied to a trip or project.
+
+**Scoped out for now:** the spec's "a linked item's own card shows a small indicator when it has open Schedules tasks" (i.e. a dot on the Travel/AI Projects cards) — that's a small follow-up once Schedules has real usage, kept separate the same way Travel's manual-photo-override UI landed in its own later PR rather than being bundled into the first build.
+
+**Verified:** `next build` clean; `/api/schedules` and `/api/schedules/[id]` registered; Prettier passes. Not exercised against live Neon in this sandbox (no `DATABASE_URL` here) — same limitation noted on every prior domain build; the query shapes mirror `/api/trips`, which was verified directly via the Neon MCP.
+
+**Left for later:** the Idea Board domain has the identical gap (table exists, still a stub) — natural next item, tracked above. The Home/Sidebar/TopBar mock-data wiring gap (also tracked above) is unrelated cross-cutting work, not bundled into this single-domain PR.
 
 ---
 

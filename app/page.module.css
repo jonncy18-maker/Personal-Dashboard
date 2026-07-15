@@ -4,3 +4,12 @@
 .sectionLabel {
   margin: 0 0 14px;
 }
+.loading,
+.loadError {
+  padding: 16px 0;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+}
+.loadError {
+  color: var(--critical);
+}

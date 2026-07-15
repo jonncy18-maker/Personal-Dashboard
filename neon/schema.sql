@@ -9,7 +9,8 @@
 --   • After applying a migration, update THIS file to match the sum of all of them.
 --   • All DDL is idempotent (IF NOT EXISTS) so re-running is safe.
 --
--- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions
+-- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
+--                      004_language_calls
 --
 -- Run on a fresh Neon project via the Neon MCP or the Neon SQL editor.
 
@@ -137,8 +138,25 @@ DROP TRIGGER IF EXISTS trip_suggestions_set_updated_at ON trip_suggestions;
 CREATE TRIGGER trip_suggestions_set_updated_at
   BEFORE UPDATE ON trip_suggestions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- ─── Language Learning (UNSETTLED — no schema yet) ────────────────────────────
--- Intentionally empty. The v1 "next Spanish tutor call" card reads live from
--- Google Calendar and needs NO table. The broader domain shape is undecided;
--- when it settles, add a new migration (e.g. 002_language.sql) and update this
--- file. Do NOT invent tables here speculatively.
+-- ─── Language Learning ──────────────────────────────────────────────────────
+-- The broader domain shape is still undecided (this table exists only to
+-- support the one settled v1 slice below — do not add more Language tables
+-- speculatively). The "next tutor call" card primarily reads live from Google
+-- Calendar; this table is the review queue for the one gap Calendar can't
+-- cover (italki lessons never create a Calendar event) — see the weekly scan
+-- in app/api/language-scan and 004_language_calls.sql.
+CREATE TABLE IF NOT EXISTS language_calls (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tutor            text,
+  start_at         timestamptz NOT NULL,
+  source_gmail_id  text UNIQUE,
+  source_subject   text,
+  status           text NOT NULL DEFAULT 'pending'
+                   CHECK (status IN ('pending', 'approved', 'dismissed')),
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS language_calls_status_idx ON language_calls (status);
+DROP TRIGGER IF EXISTS language_calls_set_updated_at ON language_calls;
+CREATE TRIGGER language_calls_set_updated_at
+  BEFORE UPDATE ON language_calls FOR EACH ROW EXECUTE FUNCTION set_updated_at();

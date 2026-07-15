@@ -47,7 +47,7 @@ All external calls are **read-only** except writes to this app's own Neon DB.
 | AI Projects | `/ai-projects` | Vercel API (deploy status) + GitHub (`## Next Up`) + Neon (`projects`) | No                           |
 | Travel      | `/travel`      | Neon (`trips`) + Gmail (itinerary import)                              | Haiku — import parse only    |
 | Schedules   | `/schedules`   | Neon (`schedules`)                                                     | No                           |
-| Language    | `/language`    | Google Calendar (next tutor call)                                      | No                           |
+| Language    | `/language`    | Google Calendar (next tutor call) + Gmail (italki booking scan)        | No                           |
 | Idea Board  | `/ideas`       | Neon (`ideas`)                                                         | No                           |
 | Email       | `/email`       | Gmail (read-only) + Neon (`email_rules`, `email_hidden`, `app_flags`)  | Haiku — Tier 2 residual only |
 

@@ -11,7 +11,8 @@ import {
   IdeasIcon,
   EmailIcon,
 } from './icons';
-import { getHomeSummary, getUpcomingAgenda } from '../lib/mock-data';
+import { useHomeSummary } from '../lib/useHomeSummary';
+import { buildAgenda } from '../lib/agenda';
 import { daysUntil, relativeDay } from '../lib/format';
 import TripPhoto from './TripPhoto';
 import styles from './Sidebar.module.css';
@@ -28,12 +29,12 @@ const NAV = [
 
 export default function Sidebar({ collapsed, drawerOpen, onCloseDrawer }) {
   const pathname = usePathname();
-  const summary = getHomeSummary();
-  const agenda = getUpcomingAgenda();
+  const { summary } = useHomeSummary();
+  const agenda = summary ? buildAgenda(summary) : [];
   const todayItems = agenda.filter(
     (item) => relativeDay(item.when) === 'Today'
   );
-  const trip = summary.trips[0];
+  const trip = summary?.trips?.[0];
 
   function renderBody(isCollapsed) {
     return (
