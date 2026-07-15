@@ -228,6 +228,7 @@ export default function TripDetailPage() {
           status: data.trip.status || 'upcoming',
           budget: data.trip.budget ?? '',
           notes: data.trip.notes || '',
+          image_url: data.trip.image_url || '',
         });
         setItinerary(
           Array.isArray(data.trip.itinerary) ? data.trip.itinerary : []
@@ -262,6 +263,10 @@ export default function TripDetailPage() {
     setError(null);
     setSaving(true);
     try {
+      // A pasted photo URL pins the image (image_source='manual'); clearing it
+      // hands control back to the auto-fetch (image_source='auto'), which the
+      // PATCH route re-runs since the source changed.
+      const manualPhoto = form.image_url.trim();
       const res = await fetch(`/api/trips/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -273,6 +278,8 @@ export default function TripDetailPage() {
           budget: form.budget === '' ? null : form.budget,
           notes: form.notes || null,
           itinerary,
+          image_source: manualPhoto ? 'manual' : 'auto',
+          image_url: manualPhoto || null,
         }),
       });
       const data = await res.json();
@@ -397,6 +404,18 @@ export default function TripDetailPage() {
             value={form.notes}
             onChange={(e) => updateField('notes', e.target.value)}
           />
+        </label>
+        <label className={styles.field} style={{ marginBottom: 12 }}>
+          <span>Photo URL (optional)</span>
+          <input
+            type="url"
+            placeholder="Paste an image URL to override the auto photo"
+            value={form.image_url}
+            onChange={(e) => updateField('image_url', e.target.value)}
+          />
+          <span className={styles.fieldHint}>
+            Leave blank to auto-fetch a photo of the destination.
+          </span>
         </label>
 
         {error && <p className={styles.formError}>{error}</p>}
