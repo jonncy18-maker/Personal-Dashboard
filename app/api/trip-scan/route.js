@@ -13,16 +13,31 @@ import { detectTripFromEmail } from '../../../lib/trip-detect';
 // trip. Runs on a weekly Vercel Cron (GET) and on the manual "Scan now" button
 // (POST) — both call runScan().
 
+// High-precision travel PHRASES, not bare words. The scan has no destination to
+// anchor on (it's discovering trips), so bare "booking"/"confirmation"/
+// "reservation" matched every order receipt, bank alert, and personal email —
+// which both wasted Haiku calls and (Gmail returns newest-first) pushed real
+// older confirmations past the candidate cap. Verified against a real inbox:
+// this cut a 30-day match set from ~200 to ~50 and surfaced a Singapore Airlines
+// booking that the bare-word query had truncated. (Distinct from travel-import's
+// terms, which can stay broad because a destination narrows them.)
 const SEARCH_TERMS = [
+  '"booking confirmation"',
+  '"flight confirmation"',
+  '"trip confirmation"',
+  '"travel confirmation"',
+  '"reservation confirmation"',
+  '"hotel confirmation"',
+  '"cruise confirmation"',
+  '"e-ticket"',
+  '"boarding pass"',
+  '"your itinerary"',
+  '"travel itinerary"',
+  '"flight itinerary"',
   'itinerary',
-  'confirmation',
-  'reservation',
-  'booking',
-  'e-ticket',
-  'boarding',
 ];
 const LOOKBACK_DAYS = 30;
-const MAX_CANDIDATES = 20;
+const MAX_CANDIDATES = 40; // headroom so real confirmations aren't truncated
 const MIN_CONFIDENCE = 0.6;
 
 function lookbackQuery() {
