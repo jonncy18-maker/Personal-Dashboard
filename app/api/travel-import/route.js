@@ -49,7 +49,16 @@ function buildQuery(destination) {
     (w) => !GENERIC_DEST_WORDS.has(w.toLowerCase())
   );
   const destWord = (meaningful.length ? meaningful : words).slice(-1)[0] || '';
-  return destWord ? `${keywords} ${destWord}` : keywords;
+  // Exclude promotional/social mail: a real booking confirmation is
+  // transactional, but travel senders (esp. cruise lines) flood the inbox with
+  // marketing that also matches "booking/confirmation/itinerary". Since Gmail
+  // returns matches newest-first, that noise would otherwise bury an older
+  // confirmation (e.g. a cruise booked months before sailing) below the result
+  // cap. Leaning on Gmail's native categories here mirrors the Email domain.
+  const filters = '-category:promotions -category:social';
+  return destWord
+    ? `${keywords} ${destWord} ${filters}`
+    : `${keywords} ${filters}`;
 }
 
 export async function GET(request) {
@@ -71,7 +80,7 @@ export async function GET(request) {
     const list = await gmail.users.messages.list({
       userId: 'me',
       q: buildQuery(destination),
-      maxResults: 12,
+      maxResults: 30,
     });
 
     const ids = list.data.messages || [];
