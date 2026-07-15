@@ -19,7 +19,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Build the Schedules domain (was still a `ComingSoon` stub despite the `schedules` table existing since `001_initial.sql`) — **2026-07-15, see entry below.**
 - [ ] Build the Idea Board domain — still a `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql`. Same shape as the gap Schedules just closed: title/notes/status/domain-tag CRUD, no due date. Natural next slice.
 - [x] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data — **2026-07-15, see entry below.** `lib/mock-data.js` deleted. Email's home-card count is intentionally still `null` ("—"), documented as a deliberate scope cut, not a placeholder left behind.
-- [ ] **Scoping question, not yet answered:** John asked for Language to get "the same Gmail wiring as Travel." Travel has two distinct Gmail features (one-shot itinerary import from a chosen email; weekly auto-scan → suggestion → approve/dismiss for new trips) and CLAUDE.md currently documents Language as Calendar-only, no AI. Need John to say which pattern (or something else) he means before building — see the question posed in chat this session.
+- [x] **Language Gmail wiring** — John chose the weekly-auto-scan pattern (mirroring Travel's trip-suggestions). Built 2026-07-15, see entry below. Turned out to need **no AI** — see that entry for why.
 
 ---
 
@@ -28,6 +28,30 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 (cont'd 8) — Language's Gmail wiring: weekly italki-scan, deliberately no AI
+
+John asked for Language to get "the same Gmail wiring as Travel." Travel has two distinct Gmail patterns; asked which one — John chose the weekly auto-scan → suggestion → approve/dismiss pattern (mirroring `trip_suggestions`), not the one-shot manual import.
+
+**Re-grilled "does AI belong here?" before building — same discipline as the original Travel-import scoping (2026-07-15 cont'd entry below) — and this time the answer for extraction is different.** Searched John's real Gmail (Gmail MCP, read-only) to find the actual pain point instead of guessing: of the three tutors, two (Nicolas, Bruno) already flow through Calendar directly — Nicolas's scheduling-tool booking emails and Bruno's Calendar invite both already produce real Calendar events, which the existing keyword/host match already finds (that's the whole history of the four Calendar-match fixes earlier this file). The actual gap is only italki (Daniel Bermúdez): italki lessons happen in italki's own in-app classroom and never create a Calendar event on their own — John has had to manually "Add to calendar" from the confirmation email before.
+
+Pulled and read real italki "Your lesson request has been accepted by \<teacher>" emails. Every one is the **same fixed template from the same sender** with a labeled `Lesson Date/Time: Wednesday, 01 Jul 2026 10:00AM (UTC -04:00)` line. Unlike Travel's itinerary emails (heterogeneous providers — cruise HTML tables, airline text, hotel prose — genuinely needing Haiku to generalize across them), this is one homogeneous template: a regex parse is exact, not a heuristic. Verified the parse against two real emails by checking the extracted UTC instant against italki's own embedded "Add to calendar" link timestamp in the same email — both matched exactly. So: **deterministic search, deterministic parse, no AI at all** — the same reasoning CLAUDE.md §7 already applies to Email Tier 1's sender-header parse, just newly applied here.
+
+**Built:**
+
+- `neon/migrations/004_language_calls.sql` + `schema.sql` — Language's first table (the domain's broader shape is still otherwise unscoped — this table exists only for this one slice). `language_calls`: `tutor`, `start_at`, `source_gmail_id` (unique, dedupe key), `status` pending/approved/dismissed. No `raw` column (no AI response to keep) and no `end_at` (not used anywhere in the UI).
+- `lib/language-detect.js` — `parseItalkiAcceptance(text)`, pure regex, no network/API call.
+- `app/api/language-scan/route.js` — GET (Vercel Cron, weekly `15 8 * * 1`, offset 15 min from the trip-scan cron; gated by `CRON_SECRET` when set) and POST (manual "Scan Gmail" button) both run `runScan()`: deterministic Gmail search `from:noreply@italki.com subject:"has been accepted"` over the last 60 days (verified this exact query against John's real inbox — 4 matches, 0 noise), skip already-suggested message ids, parse, skip anything in the past or unparseable, insert pending.
+- `app/api/language-suggestions` (GET pending) and `[id]` (POST approve, DELETE dismiss). Approve just flips `status` — unlike Travel, there's no second table to create into; the row itself **is** the record.
+- `lib/tutor-call.js` — `findNextTutorCall()` now merges the Calendar match with the soonest approved `language_calls` row and returns whichever is sooner. `configured` still reflects Calendar specifically (for the "Calendar not connected" message), but an approved italki booking can supply `nextCall` even without Calendar credentials.
+- `app/language/page.jsx` (+ `page.module.css`) — "Scan Gmail" button and a review banner (Add / Dismiss per row), same shape as Travel's `SuggestionsBanner`.
+- `vercel.json` — added the second weekly cron entry.
+
+**Boundaries held:** read-only Gmail throughout (`messages.list` / `get` only, same as every other Gmail feature). Nothing is auto-added — every booking still goes through John's Approve click, even though the parse itself needed no confirmation-worthy judgment call.
+
+**Verified:** `next build` clean. The italki search query and both sample "accepted" emails were pulled from John's real inbox via the Gmail MCP (read-only) this session — not simulated. The regex parse was checked against both samples' embedded calendar-link timestamps and matched exactly both times. The `language_calls` table and all four query shapes (insert, pending-list, approve, soonest-approved-lookup) were run directly against the live `personal-dashboard` Neon project via the Neon MCP using a temporary test row (removed after verification). Not exercised through the deployed Next.js app itself in this sandbox — same limitation as every prior domain build.
 
 ---
 
