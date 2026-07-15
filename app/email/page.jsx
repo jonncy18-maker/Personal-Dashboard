@@ -98,6 +98,85 @@ function EmailRow({ message, tier2Rule, onHide, onSaveRule }) {
   );
 }
 
+function OnboardingPopup({ candidates, onFinish }) {
+  // One-pass approve/reject over the noisiest recent senders (CLAUDE.md §7).
+  // Every candidate starts selected; John unchecks any he wants to keep.
+  const [selected, setSelected] = useState(
+    () => new Set(candidates.map((c) => c.domain))
+  );
+  const [saving, setSaving] = useState(false);
+
+  function toggle(domain) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(domain)) next.delete(domain);
+      else next.add(domain);
+      return next;
+    });
+  }
+
+  async function finish(approved) {
+    setSaving(true);
+    await onFinish(approved);
+    setSaving(false);
+  }
+
+  return (
+    <div className={styles.popupScrim} role="presentation">
+      <div
+        className={styles.popup}
+        role="dialog"
+        aria-label="Set up inbox hide rules"
+      >
+        <div className={styles.popupHead}>
+          <p className={styles.popupTitle}>Quiet down your inbox</p>
+        </div>
+        <p className={styles.onboardIntro}>
+          These senders show up most often in your recent inbox. Pick the ones
+          to hide from now on — you can undo any of them later from Rules.
+        </p>
+
+        <div className={styles.onboardList}>
+          {candidates.map((c) => (
+            <label key={c.domain} className={styles.onboardRow}>
+              <input
+                type="checkbox"
+                className={styles.onboardCheck}
+                checked={selected.has(c.domain)}
+                onChange={() => toggle(c.domain)}
+              />
+              <span className={styles.onboardName}>{c.name || c.domain}</span>
+              <span className={styles.onboardDomain}>{c.domain}</span>
+              <span className={styles.onboardCount}>{c.count}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className={styles.onboardActions}>
+          <button
+            className={styles.manageSave}
+            disabled={saving}
+            onClick={() => finish([...selected])}
+          >
+            {saving
+              ? 'Saving…'
+              : selected.size > 0
+                ? `Hide ${selected.size} sender${selected.size === 1 ? '' : 's'}`
+                : 'Done'}
+          </button>
+          <button
+            className={styles.manageCancel}
+            disabled={saving}
+            onClick={() => finish([])}
+          >
+            Skip
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RulesPopup({ rules, onUnhide, onClose }) {
   const tier1 = rules.filter((r) => r.tier === 1);
   const tier2 = rules.filter((r) => r.tier === 2);
@@ -182,6 +261,7 @@ export default function EmailPage() {
   const [configured, setConfigured] = useState(true);
   const [error, setError] = useState(null);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [onboarding, setOnboarding] = useState(null);
 
   function loadMessages() {
     fetch('/api/gmail')
@@ -204,7 +284,28 @@ export default function EmailPage() {
   useEffect(() => {
     loadMessages();
     loadRules();
+    // First-run onboarding scan (CLAUDE.md §7) — one-time; the API records
+    // completion so this returns done:true on every later visit.
+    fetch('/api/email-onboarding')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.done && data.candidates && data.candidates.length > 0) {
+          setOnboarding(data.candidates);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  async function finishOnboarding(approved) {
+    setOnboarding(null);
+    await fetch('/api/email-onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved }),
+    });
+    loadRules();
+    loadMessages();
+  }
 
   async function handleHide(message) {
     setMessages((prev) => prev.filter((m) => m.id !== message.id));
@@ -274,6 +375,10 @@ export default function EmailPage() {
       )}
 
       {error && <p className={styles.note}>{error}</p>}
+
+      {onboarding && (
+        <OnboardingPopup candidates={onboarding} onFinish={finishOnboarding} />
+      )}
 
       {rulesOpen && (
         <RulesPopup

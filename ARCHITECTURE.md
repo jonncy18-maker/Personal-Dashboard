@@ -25,7 +25,7 @@ No public access, no multi-user model — **no auth layer** (see `CLAUDE.md` §7
 │  ┌───────────────────────────▼──────────────────────────────┐ │
 │  │  app/api/* route handlers — SECRETS LIVE HERE ONLY         │ │
 │  │  vercel · github · calendar · gmail · email-rules ·        │ │
-│  │  travel-import · schedules                                 │ │
+│  │  email-onboarding · travel-import · schedules             │ │
 │  └──┬────────┬────────┬────────┬────────┬───────────────────┘ │
 └─────┼────────┼────────┼────────┼────────┼──────────────────────┘
       │        │        │        │        │

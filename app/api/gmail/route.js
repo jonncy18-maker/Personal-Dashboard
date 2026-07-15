@@ -1,6 +1,11 @@
 import { getDb } from '../../../lib/db';
 import { getGmailClient } from '../../../lib/google';
 import { shouldHideByRule } from '../../../lib/email-tier2';
+import {
+  extractSenderDomain,
+  extractSenderName,
+  header,
+} from '../../../lib/email-sender';
 
 // Read-only Gmail proxy — list only, no write/modify/delete calls, ever
 // (CLAUDE.md §2/§7 hard boundary). Tier 1 filtering is a plain DB lookup
@@ -8,25 +13,6 @@ import { shouldHideByRule } from '../../../lib/email-tier2';
 // message against that sender's plain-language rule (lib/email-tier2.js) —
 // deliberately not run against Tier 1 senders, which are already filtered
 // out before Tier 2 ever sees them. Gmail's mailbox itself is never touched.
-
-function extractSenderDomain(fromHeader) {
-  const match = /<([^>]+)>/.exec(fromHeader || '') || [
-    null,
-    (fromHeader || '').trim(),
-  ];
-  const email = (match[1] || '').toLowerCase();
-  const at = email.lastIndexOf('@');
-  return at === -1 ? null : email.slice(at + 1);
-}
-
-function extractSenderName(fromHeader) {
-  const match = /^([^<]+)</.exec(fromHeader || '');
-  return match ? match[1].trim().replace(/^"|"$/g, '') : fromHeader || '';
-}
-
-function header(headers, name) {
-  return headers?.find((h) => h.name === name)?.value || '';
-}
 
 export async function GET() {
   const gmail = getGmailClient();
