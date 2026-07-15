@@ -16,6 +16,9 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Provision `UNSPLASH_ACCESS_KEY` in Vercel — 2026-07-15. Surfaced (and fixed, see entry below) a PATCH retry bug that kept pre-key trips permanently stuck without a photo even after the key was added.
 - [x] Build Email's Tier 2 (Haiku semantic residual rules) — 2026-07-14, see entry below. First-run onboarding scan is still deferred (separate feature, not bundled in).
 - [x] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything. **2026-07-15, see entry below.**
+- [x] Build the Schedules domain (was still a `ComingSoon` stub despite the `schedules` table existing since `001_initial.sql`) — **2026-07-15, see entry below.**
+- [ ] Build the Idea Board domain — still a `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql`. Same shape as the gap Schedules just closed: title/notes/status/domain-tag CRUD, no due date. Natural next slice.
+- [ ] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data (noted as deferred in the AI Projects, Travel, and weekly-Gmail-scan entries below — the top-bar's "Need attention"/"Emails flagged" counts and the sidebar's "Next trip" card are still placeholders; only the bell's suggestion count is real).
 
 ---
 
@@ -24,6 +27,25 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 (cont'd 6) — Built the Schedules domain (was still a stub)
+
+Picked as the next roadmap item: despite the 2026-07-15 "Travel Gmail itinerary import" entry below declaring "all six domains are now built to their v1 scope," `/schedules` was still rendering the `ComingSoon` placeholder, and no `app/api/schedules` route existed — even though the `schedules` table has been in `neon/schema.sql` since `001_initial.sql`. That status line was aspirational, not accurate; this closes the real gap.
+
+Built to the CLAUDE.md §5/§7 spec: title, notes, required `due_date`, status (`open`/`in_progress`/`done`), optional link to a Travel trip **or** an AI project (mutually exclusive, not both).
+
+**Built:**
+
+- `app/api/schedules/route.js` (GET list, joined with `trips.destination` / `projects.github_url` for display — POST create) and `app/api/schedules/[id]/route.js` (PATCH/DELETE), matching the CRUD shape already used by `/api/trips`.
+- `app/schedules/page.jsx` (+ `page.module.css`) — replaces the `ComingSoon` stub. A checkbox-style task list (open items first, sorted by due date), an inline "Add task" form with an optional trip/project link dropdown, a due-date chip that flags overdue items, and a small link badge on any task tied to a trip or project.
+
+**Scoped out for now:** the spec's "a linked item's own card shows a small indicator when it has open Schedules tasks" (i.e. a dot on the Travel/AI Projects cards) — that's a small follow-up once Schedules has real usage, kept separate the same way Travel's manual-photo-override UI landed in its own later PR rather than being bundled into the first build.
+
+**Verified:** `next build` clean; `/api/schedules` and `/api/schedules/[id]` registered; Prettier passes. Not exercised against live Neon in this sandbox (no `DATABASE_URL` here) — same limitation noted on every prior domain build; the query shapes mirror `/api/trips`, which was verified directly via the Neon MCP.
+
+**Left for later:** the Idea Board domain has the identical gap (table exists, still a stub) — natural next item, tracked above. The Home/Sidebar/TopBar mock-data wiring gap (also tracked above) is unrelated cross-cutting work, not bundled into this single-domain PR.
 
 ---
 

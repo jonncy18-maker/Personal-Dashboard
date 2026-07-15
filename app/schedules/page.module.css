@@ -1,0 +1,232 @@
+.wrap {
+  max-width: 720px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.title {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+.count {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.addButton {
+  flex: 0 0 auto;
+  background: var(--dom-schedules);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.addButton:hover {
+  filter: brightness(1.05);
+}
+
+.addForm {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fieldRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  flex: 1 1 160px;
+}
+.field input,
+.field select {
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.formActions {
+  display: flex;
+  gap: 8px;
+}
+.saveButton {
+  background: var(--dom-schedules);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cancelButton {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-muted);
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.formError {
+  color: var(--critical);
+  font-size: 13px;
+}
+
+.empty {
+  padding: 40px 8px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.emptySub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.rowDone {
+  opacity: 0.55;
+}
+.rowDone .rowTitle {
+  text-decoration: line-through;
+}
+
+.checkbox {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rowDone .checkbox {
+  background: var(--dom-schedules);
+  border-color: var(--dom-schedules);
+}
+
+.rowBody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.rowTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.rowNotes {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+.rowMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+}
+.dueChip {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.dueOverdue {
+  color: #fff;
+  background: var(--critical);
+}
+.linkBadge {
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.linkTravel {
+  color: var(--dom-travel);
+  background: var(--dom-travel-soft);
+}
+.linkProjects {
+  color: var(--dom-projects);
+  background: var(--dom-projects-soft);
+}
+
+.rowActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.statusSelect {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+}
+.deleteButton {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.deleteButton:hover {
+  color: var(--critical);
+}
