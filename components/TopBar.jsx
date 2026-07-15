@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   MenuIcon,
   SearchIcon,
@@ -18,10 +19,16 @@ import styles from './TopBar.module.css';
 export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
   const [theme, setTheme] = useState(null);
   const [greeting, setGreeting] = useState('Hello');
+  const [suggestions, setSuggestions] = useState([]);
+  const [bellOpen, setBellOpen] = useState(false);
 
   useEffect(() => {
     setTheme(currentTheme());
     setGreeting(timeOfDayGreeting());
+    fetch('/api/trip-suggestions')
+      .then((res) => res.json())
+      .then((data) => setSuggestions(data.suggestions || []))
+      .catch(() => {});
   }, []);
 
   // Read the theme actually in effect: the data-theme attribute if set,
@@ -108,13 +115,50 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
         <button className={styles.iconBtn} aria-label="Search">
           <SearchIcon />
         </button>
-        <button
-          className={`${styles.iconBtn} ${styles.bellBtn}`}
-          aria-label="Notifications"
-        >
-          <BellIcon />
-          <span className={`${styles.badge} tabular`}>3</span>
-        </button>
+        <div className={styles.bellWrap}>
+          <button
+            className={`${styles.iconBtn} ${styles.bellBtn}`}
+            aria-label="Notifications"
+            onClick={() => setBellOpen((v) => !v)}
+          >
+            <BellIcon />
+            {suggestions.length > 0 && (
+              <span className={`${styles.badge} tabular`}>
+                {suggestions.length}
+              </span>
+            )}
+          </button>
+          {bellOpen && (
+            <>
+              <button
+                className={styles.bellBackdrop}
+                aria-label="Close notifications"
+                onClick={() => setBellOpen(false)}
+              />
+              <div className={styles.bellMenu} role="dialog">
+                <p className={styles.bellTitle}>Notifications</p>
+                {suggestions.length === 0 && (
+                  <p className={styles.bellEmpty}>Nothing new to review.</p>
+                )}
+                {suggestions.map((s) => (
+                  <Link
+                    key={s.id}
+                    href="/travel"
+                    className={styles.bellItem}
+                    onClick={() => setBellOpen(false)}
+                  >
+                    <span className={styles.bellItemName}>
+                      Suggested trip: {s.destination}
+                    </span>
+                    <span className={styles.bellItemMeta}>
+                      Review in Travel
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         <button
           className={styles.iconBtn}
           onClick={toggleTheme}

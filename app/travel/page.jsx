@@ -150,16 +150,120 @@ function AddTripForm({ onAdded }) {
   );
 }
 
+function SuggestionsBanner({ suggestions, onApprove, onDismiss }) {
+  const [busy, setBusy] = useState(null); // id being approved/dismissed
+
+  async function act(id, fn) {
+    setBusy(id);
+    try {
+      await fn(id);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className={styles.suggestBanner}>
+      <p className={styles.suggestHead}>
+        <span className={styles.suggestDot} aria-hidden="true" />
+        {suggestions.length} suggested{' '}
+        {suggestions.length === 1 ? 'trip' : 'trips'} found in your inbox —
+        review before adding.
+      </p>
+      <div className={styles.suggestList}>
+        {suggestions.map((s) => (
+          <div className={styles.suggestRow} key={s.id}>
+            <div className={styles.suggestInfo}>
+              <p className={styles.suggestName}>{s.destination}</p>
+              <p className={styles.suggestMeta}>
+                {s.start_date ? absoluteDate(s.start_date) : 'Dates unclear'}
+                {s.end_date ? ` – ${absoluteDate(s.end_date)}` : ''}
+              </p>
+              {s.source_subject && (
+                <p className={styles.suggestSource}>From: {s.source_subject}</p>
+              )}
+            </div>
+            <div className={styles.suggestActions}>
+              <button
+                className={styles.suggestApprove}
+                disabled={busy === s.id}
+                onClick={() => act(s.id, onApprove)}
+              >
+                {busy === s.id ? 'Adding…' : 'Add trip'}
+              </button>
+              <button
+                className={styles.suggestDismiss}
+                disabled={busy === s.id}
+                onClick={() => act(s.id, onDismiss)}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TravelPage() {
   const [trips, setTrips] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState(null);
+
+  function loadSuggestions() {
+    fetch('/api/trip-suggestions')
+      .then((res) => res.json())
+      .then((data) => setSuggestions(data.suggestions || []))
+      .catch(() => {});
+  }
 
   useEffect(() => {
     fetch('/api/trips')
       .then((res) => res.json())
       .then((data) => setTrips(data.trips || []))
       .catch(() => setLoadError('Could not load trips.'));
+    loadSuggestions();
   }, []);
+
+  async function handleScan() {
+    setScanning(true);
+    setScanNote(null);
+    try {
+      const res = await fetch('/api/trip-scan', { method: 'POST' });
+      const data = await res.json();
+      if (data.configured === false) {
+        setScanNote('Gmail isn’t connected yet.');
+      } else {
+        setScanNote(
+          data.created > 0
+            ? `Found ${data.created} new ${data.created === 1 ? 'trip' : 'trips'}.`
+            : 'No new trips found.'
+        );
+      }
+      loadSuggestions();
+    } catch {
+      setScanNote('Scan failed — try again.');
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function approveSuggestion(id) {
+    const res = await fetch(`/api/trip-suggestions/${id}`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.trip) {
+      setTrips((prev) => [data.trip, ...(prev || [])]);
+    }
+    setSuggestions((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  async function dismissSuggestion(id) {
+    setSuggestions((prev) => prev.filter((s) => s.id !== id));
+    await fetch(`/api/trip-suggestions/${id}`, { method: 'DELETE' });
+  }
 
   return (
     <div className={styles.wrap}>
@@ -168,10 +272,29 @@ export default function TravelPage() {
           <p className="eyebrow">Travel</p>
           <h1 className={styles.title}>Trips</h1>
         </div>
-        <AddTripForm
-          onAdded={(trip) => setTrips((prev) => [trip, ...(prev || [])])}
-        />
+        <div className={styles.headerActions}>
+          <button
+            className={styles.scanButton}
+            onClick={handleScan}
+            disabled={scanning}
+          >
+            {scanning ? 'Scanning…' : 'Scan Gmail'}
+          </button>
+          <AddTripForm
+            onAdded={(trip) => setTrips((prev) => [trip, ...(prev || [])])}
+          />
+        </div>
       </div>
+
+      {scanNote && <p className={styles.scanNote}>{scanNote}</p>}
+
+      {suggestions.length > 0 && (
+        <SuggestionsBanner
+          suggestions={suggestions}
+          onApprove={approveSuggestion}
+          onDismiss={dismissSuggestion}
+        />
+      )}
 
       {loadError && <p className={styles.formError}>{loadError}</p>}
 

@@ -131,6 +131,64 @@
   align-items: center;
   justify-content: center;
 }
+.bellWrap {
+  position: relative;
+}
+.bellBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: transparent;
+  border: none;
+  cursor: default;
+}
+.bellMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 61;
+  width: 260px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 10px;
+}
+.bellTitle {
+  margin: 2px 4px 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+.bellEmpty {
+  margin: 4px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+.bellItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 8px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+.bellItem:hover {
+  background: var(--surface-sunken);
+}
+.bellItemName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.bellItemMeta {
+  font-size: 11px;
+  color: var(--accent-ink);
+}
 .avatar {
   width: 36px;
   height: 36px;

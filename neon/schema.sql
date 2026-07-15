@@ -9,7 +9,7 @@
 --   • After applying a migration, update THIS file to match the sum of all of them.
 --   • All DDL is idempotent (IF NOT EXISTS) so re-running is safe.
 --
--- Applied migrations: 001_initial, 002_trip_images
+-- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions
 --
 -- Run on a fresh Neon project via the Neon MCP or the Neon SQL editor.
 
@@ -117,6 +117,25 @@ CREATE TABLE IF NOT EXISTS app_flags (
   key    text PRIMARY KEY,
   value  jsonb NOT NULL DEFAULT '{}'::jsonb
 );
+
+-- ─── Travel trip suggestions (weekly Gmail auto-detection) ────────────────────
+CREATE TABLE IF NOT EXISTS trip_suggestions (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  destination      text NOT NULL,
+  start_date       date,
+  end_date         date,
+  source_gmail_id  text UNIQUE,     -- the Gmail message this came from (dedupe key)
+  source_subject   text,
+  status           text NOT NULL DEFAULT 'pending'
+                   CHECK (status IN ('pending', 'approved', 'dismissed')),
+  raw              jsonb,           -- Haiku's raw extraction, for the review preview
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS trip_suggestions_status_idx ON trip_suggestions (status);
+DROP TRIGGER IF EXISTS trip_suggestions_set_updated_at ON trip_suggestions;
+CREATE TRIGGER trip_suggestions_set_updated_at
+  BEFORE UPDATE ON trip_suggestions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ─── Language Learning (UNSETTLED — no schema yet) ────────────────────────────
 -- Intentionally empty. The v1 "next Spanish tutor call" card reads live from
