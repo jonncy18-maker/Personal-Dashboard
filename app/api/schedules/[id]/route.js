@@ -1,4 +1,4 @@
-import { getDb } from '../../../../lib/db';
+import { getDb, dateOnly } from '../../../../lib/db';
 
 export async function PATCH(request, { params }) {
   const { id } = await params;
@@ -45,7 +45,9 @@ export async function PATCH(request, { params }) {
     RETURNING id, title, notes, due_date, status, linked_trip_id,
               linked_project_id, created_at, updated_at
   `;
-  return Response.json({ schedule: row });
+  return Response.json({
+    schedule: { ...row, due_date: dateOnly(row.due_date) },
+  });
 }
 
 export async function DELETE(request, { params }) {

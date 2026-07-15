@@ -1,9 +1,13 @@
-import { getDb } from '../../../lib/db';
+import { getDb, dateOnly } from '../../../lib/db';
 
 // Schedules CRUD — the cross-domain task list. Distinct from Idea Board by
 // having a required due_date (see CLAUDE.md §7). Optional link to a Travel
 // trip or AI project; the two link columns are mutually exclusive but not
 // DB-enforced since only this route ever writes them.
+
+function serialize(row) {
+  return { ...row, due_date: dateOnly(row.due_date) };
+}
 
 export async function GET() {
   const sql = getDb();
@@ -18,7 +22,7 @@ export async function GET() {
     LEFT JOIN projects p ON p.id = s.linked_project_id
     ORDER BY (s.status = 'done'), s.due_date ASC, s.created_at DESC
   `;
-  return Response.json({ schedules: rows });
+  return Response.json({ schedules: rows.map(serialize) });
 }
 
 export async function POST(request) {
@@ -51,5 +55,5 @@ export async function POST(request) {
     RETURNING id, title, notes, due_date, status, linked_trip_id,
               linked_project_id, created_at, updated_at
   `;
-  return Response.json({ schedule: row }, { status: 201 });
+  return Response.json({ schedule: serialize(row) }, { status: 201 });
 }

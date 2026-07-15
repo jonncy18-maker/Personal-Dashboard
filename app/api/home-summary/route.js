@@ -1,4 +1,4 @@
-import { getDb, num } from '../../../lib/db';
+import { getDb, num, dateOnly } from '../../../lib/db';
 import { findNextTutorCall } from '../../../lib/tutor-call';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -48,6 +48,8 @@ export async function GET() {
   const trips = tripRows.map((t) => ({
     ...t,
     nights: nightsBetween(t.start_date, t.end_date),
+    start_date: dateOnly(t.start_date),
+    end_date: dateOnly(t.end_date),
   }));
 
   return Response.json({
@@ -55,8 +57,11 @@ export async function GET() {
     trips,
     schedules: {
       open_count: num(scheduleAgg.open_count),
-      soonest_due: scheduleAgg.soonest_due,
-      items: scheduleItems,
+      soonest_due: dateOnly(scheduleAgg.soonest_due),
+      items: scheduleItems.map((s) => ({
+        ...s,
+        due_date: dateOnly(s.due_date),
+      })),
     },
     language: tutorCall,
     ideas: { count: num(ideaRow.count), note: 'Someday / maybe backlog' },

@@ -1,4 +1,4 @@
-import { getDb } from '../../../lib/db';
+import { getDb, dateOnly } from '../../../lib/db';
 
 // Pending trip suggestions produced by the weekly scan (app/api/trip-scan).
 // The Travel banner, the Home Travel-card warning, and the top-bar bell all
@@ -12,5 +12,10 @@ export async function GET() {
     WHERE status = 'pending'
     ORDER BY start_date IS NULL, start_date ASC, created_at DESC
   `;
-  return Response.json({ suggestions: rows, count: rows.length });
+  const suggestions = rows.map((r) => ({
+    ...r,
+    start_date: dateOnly(r.start_date),
+    end_date: dateOnly(r.end_date),
+  }));
+  return Response.json({ suggestions, count: suggestions.length });
 }

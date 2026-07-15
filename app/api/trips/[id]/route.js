@@ -1,8 +1,13 @@
-import { getDb, num } from '../../../../lib/db';
+import { getDb, num, dateOnly } from '../../../../lib/db';
 import { fetchDestinationPhoto } from '../../../../lib/unsplash';
 
 function serialize(row) {
-  return { ...row, budget: num(row.budget) };
+  return {
+    ...row,
+    budget: num(row.budget),
+    start_date: dateOnly(row.start_date),
+    end_date: dateOnly(row.end_date),
+  };
 }
 
 export async function GET(request, { params }) {

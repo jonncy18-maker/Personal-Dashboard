@@ -20,6 +20,8 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [ ] Build the Idea Board domain — still a `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql`. Same shape as the gap Schedules just closed: title/notes/status/domain-tag CRUD, no due date. Natural next slice.
 - [x] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data — **2026-07-15, see entry below.** `lib/mock-data.js` deleted. Email's home-card count is intentionally still `null` ("—"), documented as a deliberate scope cut, not a placeholder left behind.
 - [x] **Language Gmail wiring** — John chose the weekly-auto-scan pattern (mirroring Travel's trip-suggestions). Built 2026-07-15, see entry below. Turned out to need **no AI** — see that entry for why.
+- [x] **Fix: date-only fields showing the wrong relative day/weekday for negative-UTC-offset viewers (e.g. Eastern)** — 2026-07-15, see entry below. Real bug in every Schedules due_date / Travel start_date-end_date display.
+- [ ] **Known, not yet fixed:** `app/api/trip-scan/route.js`'s `matchesExistingTrip` dedupe compares `trips` rows' raw `start_date`/`end_date` (DB `Date` objects) against a candidate's plain `"YYYY-MM-DD"` strings with `<=`/`>=`. Found while fixing the date-timezone bug above but out of scope for that fix (it's an internal dedupe heuristic, not a display path) — a `Date` object compared with `<=` against a string coerces via `.toString()`, not the ISO form, so the comparison is not reliably correct. Worth a follow-up pass.
 
 ---
 
@@ -28,6 +30,23 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 (cont'd 9) — Fix: date-only fields showed the wrong day for anyone west of UTC
+
+John noticed the Morehead trip's "Up Next" card said "Tomorrow" when the trip is actually Thursday and tomorrow (from where he sat, Eastern) is Wednesday — a real off-by-one, not a misunderstanding.
+
+**Root cause.** Postgres `DATE` columns (Travel `start_date`/`end_date`, Schedules `due_date`) come back from the Neon driver as a JS `Date` fixed at UTC midnight for the stored calendar day. Left as-is, `Response.json()` serializes "July 16" as `"2026-07-16T00:00:00.000Z"`. In Eastern time (UTC-4/5), that UTC instant is actually **8-9pm the evening before** — so any client-side code that re-localizes it (`new Date(that string)` + `.setHours(0,0,0,0)`, which `lib/format.js`'s `relativeDay`/`absoluteDate`/`daysUntil` all did) silently rolls the calendar day back by one for any negative UTC offset — i.e. all of the continental US. Reproduced directly: with the pre-fix code, in `America/New_York`, a stored `2026-07-16` rendered as **"Today"** instead of "Tomorrow" for a same-day "now" — an even more visible case of the same bug John spotted.
+
+**Fix — two layers, same "coerce at the API boundary" pattern CLAUDE.md §7 already establishes for `num()`:**
+
+- `lib/db.js` — new `dateOnly(value)`: converts a DATE column's `Date`/string value to a bare `"YYYY-MM-DD"` string. Applied at the boundary in every route that returns `trips.start_date/end_date`, `schedules.due_date`, or `trip_suggestions.start_date/end_date` (`app/api/trips`, `app/api/trips/[id]`, `app/api/schedules`, `app/api/schedules/[id]`, `app/api/home-summary`, `app/api/trip-suggestions`, `app/api/trip-suggestions/[id]`).
+- `lib/format.js` — new (exported) `parseDateInput()`: a bare `"YYYY-MM-DD"` is parsed from its Y-M-D components directly into **local** midnight, never through the UTC-then-relocalize path. A full timestamp (e.g. a Language tutor call, which carries a real moment in time and _should_ convert across zones) still goes through ordinary `new Date()` parsing unchanged. `startOfDay`, `absoluteDate`, `absoluteDateTime`, `monthLabel`, `relativeDay`, `daysUntil` all route through this now. `lib/agenda.js`'s own date-vs-timestamp sort key had the identical bug (a bare-date regex check that could never actually match before this fix, since the API was emitting `"...T00:00:00.000Z"` — now it does) and now uses the same shared parser.
+
+**Verified:** reproduced the bug and confirmed the fix directly in Node with `TZ=America/New_York` — pre-fix, `relativeDay('2026-07-16T00:00:00.000Z', <Jul-15-9am-local>)` returned `"Today"`; post-fix, `relativeDay('2026-07-16', <same now>)` returns `"Tomorrow"` and `absoluteDate('2026-07-16')` returns `"Thu, Jul 16"` — correct on both counts. `next build` clean, Prettier passes.
+
+**Left as a known gap, not fixed here** (see tracked to-do above): `trip-scan`'s existing-trip dedupe compares raw DB `Date` objects against plain-string candidate dates with `<=`/`>=`, which isn't guaranteed correct — it's an internal heuristic, not a display bug, so out of scope for this pass, but worth a follow-up.
 
 ---
 
