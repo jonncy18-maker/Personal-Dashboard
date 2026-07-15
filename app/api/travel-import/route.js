@@ -21,17 +21,34 @@ const SEARCH_TERMS = [
   'boarding',
 ];
 
+// Generic trip-type words carry no location signal — a trip named "Panama
+// Cruise" should search Gmail for "Panama", not "Cruise" (which would match
+// every cruise email). Stripped before we pick the destination anchor.
+const GENERIC_DEST_WORDS = new Set([
+  'cruise',
+  'trip',
+  'vacation',
+  'holiday',
+  'tour',
+  'getaway',
+  'trek',
+  'expedition',
+  'the',
+  'and',
+]);
+
 function buildQuery(destination) {
   const dest = (destination || '').trim();
   const keywords = `(${SEARCH_TERMS.join(' OR ')})`;
-  // Match the destination loosely — a full city/region phrase is often written
-  // differently in the email than on the trip, so key off its most specific
-  // word (e.g. "Juneau" from "Juneau, Alaska") rather than an exact quote.
-  const destWord =
-    dest
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .slice(-1)[0] || '';
+  // Key off the destination's most specific real place-word — a full phrase is
+  // often written differently in the email than on the trip. Drop generic
+  // trip-type words first (so "Panama Cruise" → "Panama", "Alaska Cruise" →
+  // "Alaska"); fall back to the raw last word if that leaves nothing.
+  const words = dest.split(/[,\s]+/).filter(Boolean);
+  const meaningful = words.filter(
+    (w) => !GENERIC_DEST_WORDS.has(w.toLowerCase())
+  );
+  const destWord = (meaningful.length ? meaningful : words).slice(-1)[0] || '';
   return destWord ? `${keywords} ${destWord}` : keywords;
 }
 
