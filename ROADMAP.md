@@ -14,7 +14,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — 2026-07-14. Verified end-to-end against both Calendar and Gmail (both scopes granted in one consent pass). Still blocks Travel's AI-assisted Gmail itinerary import (not built yet) and Email's Tier 2 + onboarding scan (not built yet — Tier 1 doesn't need it).
 - [ ] Provision `UNSPLASH_ACCESS_KEY` in Vercel — blocks Travel's destination photo auto-fetch; falls back to the plain accent gradient without it.
 - [x] Build Email's Tier 2 (Haiku semantic residual rules) — 2026-07-14, see entry below. First-run onboarding scan is still deferred (separate feature, not bundled in).
-- [ ] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything; just not built yet.
+- [x] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything. **2026-07-15, see entry below.**
 
 ---
 
@@ -23,6 +23,22 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 — Email first-run onboarding scan (last Email v1 piece)
+
+Built the deferred onboarding scan — the final remaining slice of the Email domain. On the first-ever visit to `/email`, the noisiest recent senders are proposed as one-pass Tier 1 hide candidates, checked-by-default; John unchecks any to keep and hits "Hide N senders" (or "Skip"). It never runs again.
+
+**Held to the AI-minimal design (CLAUDE.md §7):**
+
+- **No model.** The "candidate" list is a plain in-memory frequency count of sender domains over the last ~100 read-only inbox messages (the "GROUP BY") — the same header parse Tier 1 already uses, no Haiku anywhere. Only domains seen ≥3 times qualify, top 12 by count, and any domain already carrying an active Tier 1 rule is excluded so the scan never re-proposes what's hidden.
+- **One-time, tracked in `app_flags`.** This is `app_flags`' first consumer (the table was scaffolded in 001 for exactly this). `GET /api/email-onboarding` short-circuits on `email_onboarding_done`; the `POST` sets the flag whether John approved everything, some, or nothing (Skip posts an empty list), so it can't re-trigger on the next load.
+- **Read-only boundary intact.** Approving a candidate just inserts a Tier 1 `email_rules` row (idempotent guard against duplicates) exactly like clicking "×" on a message — the Gmail mailbox is never touched.
+
+**Files:** new `lib/email-sender.js` (extracted the shared `From`-header parse helpers out of `app/api/gmail/route.js` so the scan and the inbox proxy can't drift), new `app/api/email-onboarding/route.js` (GET scan + POST finish), and `app/email/page.jsx` / `page.module.css` (first-run `OnboardingPopup`). No schema change — `app_flags` already existed. `next build` clean.
+
+**Status:** Email v1 is now complete (Tier 1, Tier 2, onboarding scan all built). Remaining unbuilt dashboard work is Travel's AI-assisted Gmail itinerary import; the cross-repo `## Next Up` retrofit and the `UNSPLASH_ACCESS_KEY` provisioning stay tracked at the top of this file.
 
 ---
 
