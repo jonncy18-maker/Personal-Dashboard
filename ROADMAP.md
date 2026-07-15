@@ -18,7 +18,8 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything. **2026-07-15, see entry below.**
 - [x] Build the Schedules domain (was still a `ComingSoon` stub despite the `schedules` table existing since `001_initial.sql`) — **2026-07-15, see entry below.**
 - [ ] Build the Idea Board domain — still a `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql`. Same shape as the gap Schedules just closed: title/notes/status/domain-tag CRUD, no due date. Natural next slice.
-- [ ] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data (noted as deferred in the AI Projects, Travel, and weekly-Gmail-scan entries below — the top-bar's "Need attention"/"Emails flagged" counts and the sidebar's "Next trip" card are still placeholders; only the bell's suggestion count is real).
+- [x] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data — **2026-07-15, see entry below.** `lib/mock-data.js` deleted. Email's home-card count is intentionally still `null` ("—"), documented as a deliberate scope cut, not a placeholder left behind.
+- [ ] **Scoping question, not yet answered:** John asked for Language to get "the same Gmail wiring as Travel." Travel has two distinct Gmail features (one-shot itinerary import from a chosen email; weekly auto-scan → suggestion → approve/dismiss for new trips) and CLAUDE.md currently documents Language as Calendar-only, no AI. Need John to say which pattern (or something else) he means before building — see the question posed in chat this session.
 
 ---
 
@@ -27,6 +28,25 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 (cont'd 7) — Wired Home/Sidebar/TopBar to real data; dropped the fabricated language "weekly goal" stat
+
+John flagged two real problems: the "Up Next" agenda linked to hard-coded mock items instead of what's actually next, and the Home page's Language card showed a hard-coded call time instead of the real Calendar-backed one already live on `/language`. Root cause for both: `app/page.jsx`, `Sidebar.jsx`, and `TopBar.jsx` all read from `lib/mock-data.js` — a placeholder module noted as a known gap in several earlier entries, never actually closed.
+
+**Built:**
+
+- `lib/tutor-call.js` (new) — extracted `findNextTutorCall()` out of `app/api/calendar/route.js` so the Calendar match logic (all five tutor-keyword fixes from earlier sessions, unchanged) has exactly one implementation, now shared by `/api/calendar` and the new aggregator below.
+- `app/api/home-summary/route.js` (new) — one aggregator route, five queries run via `Promise.all` (four real Neon queries — `projects` count, the single soonest-upcoming trip, open `schedules` count/soonest-due/items, `ideas` count — plus the shared Calendar lookup). Email is deliberately left as `{ important_count: null }`: no honest cheap count exists without a live Gmail call on every Home visit, which this app's own precedent (Unsplash, Vercel) says not to do. The UI renders `—` for it rather than a fabricated number.
+- `lib/agenda.js` (new) — pure `buildAgenda(summary)`, replacing the merge logic that used to live in `mock-data.js`'s `getUpcomingAgenda`. Same sort behavior (bare dates rank end-of-day), now fed by real data.
+- `lib/useHomeSummary.js` (new) — a small client hook with a module-scoped cached fetch, so Sidebar + TopBar + the Home page (all mounted together) cost one `/api/home-summary` round trip, not three.
+- `app/page.jsx`, `components/Sidebar.jsx`, `components/TopBar.jsx` — switched from the mock functions to `useHomeSummary()` + `buildAgenda()`. `lib/mock-data.js` is now unused and was deleted.
+- `components/DomainGrid.jsx` — Language card now renders the real next call (or "No upcoming call found" / "Calendar not connected", matching the Language page's own states) instead of the old hard-coded time. **Dropped the "weekly goal" progress ring entirely** — it had no backing data source or feature anywhere in the spec; keeping a fabricated stat around while fixing two other fabricated stats would have been inconsistent. Schedules and Email cards also gained honest empty/unknown states (no open tasks, no email count) instead of assuming data is always present.
+
+**Verified:** `next build` clean; Prettier passes. The new query shapes (`projects` count, next-upcoming-trip select, `schedules` open aggregate + items, `ideas` count) were run directly against the live `personal-dashboard` Neon project via the Neon MCP and match the API route exactly — confirmed real current state (4 projects, 0 open schedules, 0 open ideas, Morehead as the next trip). Not exercised through the actual deployed Next.js app in this sandbox (no `DATABASE_URL`/Google credentials here), same limitation as every prior domain build.
+
+**Left open:** John's third ask this session — give Language "the same Gmail wiring as Travel" — needs scoping before Build. Posed as a question in chat; tracked above until answered.
 
 ---
 

@@ -12,7 +12,8 @@ import {
   SunIcon,
   MoonIcon,
 } from './icons';
-import { getHomeSummary, getUpcomingAgenda } from '../lib/mock-data';
+import { useHomeSummary } from '../lib/useHomeSummary';
+import { buildAgenda } from '../lib/agenda';
 import { timeOfDayGreeting, daysUntil } from '../lib/format';
 import styles from './TopBar.module.css';
 
@@ -55,14 +56,15 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
     }
   }
 
-  const summary = getHomeSummary();
-  const agenda = getUpcomingAgenda();
+  const { summary } = useHomeSummary();
+  const agenda = summary ? buildAgenda(summary) : [];
   const needAttention = agenda.filter(
     (item) => daysUntil(item.when) <= 7
   ).length;
   const eventsToday = agenda.filter(
     (item) => daysUntil(item.when) === 0
   ).length;
+  const emailCount = summary?.email?.important_count;
 
   function handleMenuClick() {
     onToggleSidebar();
@@ -86,8 +88,12 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
         </h1>
         <p className={styles.greetingFocus}>
           <strong>{needAttention} things</strong> need attention{' '}
-          <span className={styles.dotSep}>·</span>{' '}
-          <strong>{summary.email.important_count} emails</strong> flagged
+          {emailCount != null && (
+            <>
+              <span className={styles.dotSep}>·</span>{' '}
+              <strong>{emailCount} emails</strong> flagged
+            </>
+          )}
         </p>
       </div>
 
@@ -100,7 +106,7 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
         <div className={styles.stat}>
           <EmailIcon className={styles.statIcon} />
           <span className={`${styles.statNum} tabular`}>
-            {summary.email.important_count}
+            {emailCount ?? '—'}
           </span>
           <span className={styles.statLabel}>Emails flagged</span>
         </div>

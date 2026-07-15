@@ -41,28 +41,6 @@ function WeekStrip({ dueDate }) {
   );
 }
 
-function GoalRing({ pct }) {
-  const r = 20;
-  const c = 2 * Math.PI * r;
-  const offset = c - (c * pct) / 100;
-  return (
-    <div className={styles.ringWrap}>
-      <svg viewBox="0 0 48 48" className={styles.ring}>
-        <circle cx="24" cy="24" r={r} className={styles.ringTrack} />
-        <circle
-          cx="24"
-          cy="24"
-          r={r}
-          className={styles.ringProgress}
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-        />
-      </svg>
-      <span className={`${styles.ringLabel} tabular`}>{pct}%</span>
-    </div>
-  );
-}
-
 const CARD_VARIANT = {
   projects: styles.cardProjects,
   travel: styles.cardTravel,
@@ -96,7 +74,7 @@ function Card({ domain, pill, children, figure }) {
 }
 
 export default function DomainGrid({ summary }) {
-  const trip = summary.trips[0];
+  const trip = summary.trips?.[0];
 
   return (
     <div className={styles.grid}>
@@ -148,33 +126,50 @@ export default function DomainGrid({ summary }) {
           <span className={styles.metricUnit}>open</span>
         </div>
         <p className={styles.detail}>
-          Next due{' '}
-          <strong>{absoluteDate(summary.schedules.soonest_due)}</strong>
+          {summary.schedules.soonest_due ? (
+            <>
+              Next due{' '}
+              <strong>{absoluteDate(summary.schedules.soonest_due)}</strong>
+            </>
+          ) : (
+            'Nothing open'
+          )}
         </p>
-        <WeekStrip dueDate={summary.schedules.soonest_due} />
+        {summary.schedules.soonest_due && (
+          <WeekStrip dueDate={summary.schedules.soonest_due} />
+        )}
       </Card>
 
       <Card domain="language" pill="Focus">
-        <div className={styles.langRow}>
-          <div>
+        {summary.language.nextCall ? (
+          <>
             <p className={styles.detail}>Next tutor call</p>
             <p className={styles.tripNameSm} style={{ fontSize: 13 }}>
-              {new Date(summary.language.next_call_at).toLocaleDateString(
+              {new Date(summary.language.nextCall.start).toLocaleDateString(
                 'en-US',
-                { weekday: 'short' }
+                { weekday: 'short', month: 'short', day: 'numeric' }
               )}
-              {' · '}
-              {new Date(summary.language.next_call_at).toLocaleTimeString(
-                'en-US',
-                {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                }
+              {summary.language.nextCall.start.includes('T') && (
+                <>
+                  {' · '}
+                  {new Date(summary.language.nextCall.start).toLocaleTimeString(
+                    'en-US',
+                    {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    }
+                  )}
+                </>
               )}
             </p>
-          </div>
-          <GoalRing pct={summary.language.weekly_goal_pct} />
-        </div>
+          </>
+        ) : (
+          <p className={styles.detail}>
+            {summary.language.configured
+              ? 'No upcoming call found'
+              : 'Calendar not connected'}
+          </p>
+        )}
       </Card>
 
       <Card domain="ideas" pill="Pending">
@@ -190,11 +185,13 @@ export default function DomainGrid({ summary }) {
       <Card domain="email" pill="Review">
         <div className={styles.metric}>
           <span className={`${styles.metricNum} tabular`}>
-            {summary.email.important_count}
+            {summary.email.important_count ?? '—'}
           </span>
           <span className={styles.metricUnit}>important</span>
         </div>
-        <p className={styles.detail}>{summary.email.note}</p>
+        <p className={styles.detail}>
+          {summary.email.note || 'Tier 1/2 hide rules applied'}
+        </p>
       </Card>
     </div>
   );

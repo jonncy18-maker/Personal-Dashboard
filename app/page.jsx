@@ -1,19 +1,23 @@
+'use client';
+
 import UpNextAgenda from '../components/UpNextAgenda';
 import DomainGrid from '../components/DomainGrid';
-import { getHomeSummary, getUpcomingAgenda } from '../lib/mock-data';
+import { useHomeSummary } from '../lib/useHomeSummary';
+import { buildAgenda } from '../lib/agenda';
 import styles from './page.module.css';
 
 export default function HomePage() {
-  const summary = getHomeSummary();
-  const agenda = getUpcomingAgenda();
+  const { summary, error } = useHomeSummary();
 
   return (
     <div className={styles.home}>
       <p className={`eyebrow ${styles.sectionLabel}`}>Up Next</p>
-      <UpNextAgenda items={agenda} />
+      {error && <p className={styles.loadError}>{error}</p>}
+      {!summary && !error && <p className={styles.loading}>Loading…</p>}
+      {summary && <UpNextAgenda items={buildAgenda(summary)} />}
 
       <p className={`eyebrow ${styles.sectionLabel}`}>Browse by domain</p>
-      <DomainGrid summary={summary} />
+      {summary && <DomainGrid summary={summary} />}
     </div>
   );
 }
