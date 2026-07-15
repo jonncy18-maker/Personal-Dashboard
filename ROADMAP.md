@@ -9,7 +9,7 @@ Dated history and session-by-session notes live here, not in `CLAUDE.md`. `CLAUD
 _(Not dated history — live items that outlast a single session. Check `[x]` the box the session a step is completed, noting the date; remove the line once it's no longer useful context.)_
 
 - [x] **`## Next Up` retrofit across sibling repos** — 2026-07-15. Added a standardized `## Next Up` section to the top of each tracked repo's `ROADMAP.md`, each seeded from that repo's own current roadmap state (not invented) and placed so the dashboard's parser captures only the intended text (bounded by the next `## ` heading): NextGen-Scholars #218 (Play Store native rollout), NextGen-Immersion #110 (Phase 32 TWA→Play), AI-Capital-Planning #153 (post-migration hardening / no test suite), Agentic-Loop #1 (created a ROADMAP.md — it had none — Next Up = cut the first `v1.0` tag). All merged. AI Projects cards now show real "Next Up" lines. _(The Stack Blueprint isn't a tracked AI Projects repo, so it needs no `## Next Up` for parsing; propagating the convention there is a docs nicety, not done here.)_
-- [ ] **Build weekly Gmail trip auto-detection (scoped 2026-07-15, see entry below).** A weekly cron scans Gmail read-only for likely new trips, Haiku extracts destination + dates, and proposals surface for one-tap approve/dismiss — never auto-created. Design is drafted; four open questions (below) need John's answer before Build.
+- [x] **Build weekly Gmail trip auto-detection** — scoped then built 2026-07-15 (see entries below). Weekly Vercel Cron + manual "Scan Gmail" button → read-only Gmail search → Haiku detection → `trip_suggestions` (migration 003) → review banner + Home-card warning + bell notification → Approve (creates trip + auto-runs itinerary import) / Dismiss. **John's open step:** set `CRON_SECRET` in Vercel to protect the cron GET (optional; the manual scan works without it).
 - [ ] Confirm Vercel API token scope is read-only when provisioning — optional now (see 2026-07-14 entry below): unblocks the live Ready/Building/Failed status pill only, no longer required for the card's link to appear at all.
 - [x] Record exact Vercel project slugs/IDs and repo names to track in AI Projects — 2026-07-14. Added NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning (all with their `-jonncy18.vercel.app` domains), and Agentic-Loop (GitHub only, no deployment). Deliberately left out Personal Dashboard itself and the private `Projects-Dashboard` repo (John's call — not one of the four sibling repos CLAUDE.md names).
 - [x] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — 2026-07-14. Verified end-to-end against both Calendar and Gmail (both scopes granted in one consent pass). Still blocks Travel's AI-assisted Gmail itinerary import (not built yet) and Email's Tier 2 + onboarding scan (not built yet — Tier 1 doesn't need it).
@@ -24,6 +24,30 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-15 (cont'd 4) — Built weekly Gmail trip auto-detection
+
+Built the feature scoped in the previous entry, after John answered the four open questions:
+
+1. **Surface:** Travel-page review banner **+** a warning badge on the Home Travel card **+** a bell notification item (John's refinement — all three, not just one).
+2. **Cadence:** weekly cron **+** a manual "Scan Gmail" button on Travel.
+3. **On approve:** create the trip **and** auto-run the itinerary import from the same email, so it lands populated.
+4. **Look-back:** last 30 days per scan.
+
+**Shape as built (same AI-split as itinerary import — deterministic find, Haiku only for the residual):**
+
+- **`neon/migrations/003_trip_suggestions.sql`** + `schema.sql` — new `trip_suggestions` table (`destination`, dates, `source_gmail_id` UNIQUE, `status` pending|approved|dismissed, `raw` jsonb). First status-tracked suggestion queue; dismissed rows are remembered so the scan never re-proposes them.
+- **`app/api/trip-scan`** — `GET` (Vercel Cron, weekly `0 8 * * 1` in `vercel.json`) and `POST` (manual button) both run `runScan()`: read-only Gmail search over the last 30 days (`travel-import`'s terms + `-category:promotions/social`), skip already-suggested message ids, `detectTripFromEmail` (Haiku, `lib/trip-detect.js`) per candidate, keep confident hits with a real start date, dedupe against existing trips (shared place-word + date overlap), insert pending. Cron GET is gated by `CRON_SECRET` when set.
+- **`app/api/trip-suggestions`** (GET pending + count) and **`[id]`** (POST approve → create trip w/ auto photo + auto-run itinerary import, mark approved; DELETE → mark dismissed).
+- **UI:** `SuggestionsBanner` on `/travel` (Add trip / Dismiss per row) + "Scan Gmail" button; `components/TripAlertBadge.jsx` red "N to review" badge on the Home Travel card; top-bar bell now shows a real count + a dropdown of suggestions linking to Travel (replacing the hard-coded `3`).
+
+**Refactors along the way (kept the codebase DRY as the Gmail surface grew):** extracted the Gmail body-text walker into `lib/gmail-body.js` and the whole "fetch a message → parse its itinerary (incl. PDFs)" flow into `lib/itinerary-import.js` (`parseItineraryForMessage`), now shared by the manual import route **and** the approve route. Extended `lib/destination.js` (from the photo fix) is reused by the scan's dedupe.
+
+**Boundaries held:** read-only Gmail throughout (search + `messages.get` + `attachments.get` only); nothing is auto-created — every trip still goes through John's Approve click.
+
+**Unverified live:** built + `next build` clean, but the scan/detect/approve loop hasn't run against real Gmail (no creds here) — worth a preview pass. Also note the top-bar's _other_ counts ("Need attention", "Emails flagged") remain `mock-data` placeholders; only the bell's suggestion count is now real.
 
 ---
 

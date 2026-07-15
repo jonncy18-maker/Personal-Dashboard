@@ -3,6 +3,7 @@ import { ChevronRightIcon } from './icons';
 import { DOMAIN_META } from './domain-meta';
 import { absoluteDate } from '../lib/format';
 import TripPhoto from './TripPhoto';
+import TripAlertBadge from './TripAlertBadge';
 import styles from './DomainGrid.module.css';
 
 function WeekStrip({ dueDate }) {
@@ -113,16 +114,19 @@ export default function DomainGrid({ summary }) {
         domain="travel"
         pill="Next trip"
         figure={
-          trip && (
-            <>
-              <TripPhoto
-                src={trip.image_url}
-                className={styles.tripPhotoBg}
-                fallback={<div className={styles.tripPhotoBgFallback} />}
-              />
-              <div className={styles.tripScrim} />
-            </>
-          )
+          <>
+            {trip && (
+              <>
+                <TripPhoto
+                  src={trip.image_url}
+                  className={styles.tripPhotoBg}
+                  fallback={<div className={styles.tripPhotoBgFallback} />}
+                />
+                <div className={styles.tripScrim} />
+              </>
+            )}
+            <TripAlertBadge />
+          </>
         }
       >
         {trip && (
