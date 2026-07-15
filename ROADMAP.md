@@ -8,7 +8,8 @@ Dated history and session-by-session notes live here, not in `CLAUDE.md`. `CLAUD
 
 _(Not dated history — live items that outlast a single session. Check `[x]` the box the session a step is completed, noting the date; remove the line once it's no longer useful context.)_
 
-- [ ] **`## Next Up` retrofit across sibling repos.** AI Projects' "Next Up" line parses a standardized `## Next Up` section at the top of each tracked repo's `ROADMAP.md`. This convention does not yet exist anywhere. Retrofit it into: **NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop**, and the Stack Blueprint itself. Until done, "Next Up" renders as "—". Separate task from this dashboard's build.
+- [x] **`## Next Up` retrofit across sibling repos** — 2026-07-15. Added a standardized `## Next Up` section to the top of each tracked repo's `ROADMAP.md`, each seeded from that repo's own current roadmap state (not invented) and placed so the dashboard's parser captures only the intended text (bounded by the next `## ` heading): NextGen-Scholars #218 (Play Store native rollout), NextGen-Immersion #110 (Phase 32 TWA→Play), AI-Capital-Planning #153 (post-migration hardening / no test suite), Agentic-Loop #1 (created a ROADMAP.md — it had none — Next Up = cut the first `v1.0` tag). All merged. AI Projects cards now show real "Next Up" lines. _(The Stack Blueprint isn't a tracked AI Projects repo, so it needs no `## Next Up` for parsing; propagating the convention there is a docs nicety, not done here.)_
+- [ ] **Build weekly Gmail trip auto-detection (scoped 2026-07-15, see entry below).** A weekly cron scans Gmail read-only for likely new trips, Haiku extracts destination + dates, and proposals surface for one-tap approve/dismiss — never auto-created. Design is drafted; four open questions (below) need John's answer before Build.
 - [ ] Confirm Vercel API token scope is read-only when provisioning — optional now (see 2026-07-14 entry below): unblocks the live Ready/Building/Failed status pill only, no longer required for the card's link to appear at all.
 - [x] Record exact Vercel project slugs/IDs and repo names to track in AI Projects — 2026-07-14. Added NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning (all with their `-jonncy18.vercel.app` domains), and Agentic-Loop (GitHub only, no deployment). Deliberately left out Personal Dashboard itself and the private `Projects-Dashboard` repo (John's call — not one of the four sibling repos CLAUDE.md names).
 - [x] Provision Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) in Vercel — 2026-07-14. Verified end-to-end against both Calendar and Gmail (both scopes granted in one consent pass). Still blocks Travel's AI-assisted Gmail itinerary import (not built yet) and Email's Tier 2 + onboarding scan (not built yet — Tier 1 doesn't need it).
@@ -26,12 +27,40 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-07-15 (cont'd 3) — Travel photo fix + scoped weekly trip auto-detection
+
+Two things after the itinerary-import work landed: a concrete photo fix, and a scoping pass on automating trip entry.
+
+**Travel destination photo — query cleaning + manual override (built).** John's "Panama Cruise" trip rendered the plain gradient. Two causes: (1) `UNSPLASH_ACCESS_KEY` still isn't provisioned in Vercel (the tracked to-do above — without it _every_ trip is the gradient, since `fetchDestinationPhoto` bails on a missing key); (2) even with the key, the query was the literal destination, so "Panama Cruise" would search for cruise-ship stock rather than Panama. Fixes:
+
+- Extracted the generic-trip-word stripping into `lib/destination.js` (`meaningfulWords` / `cleanDestination`) and used it in **both** the Unsplash query (`lib/unsplash.js`) and the Gmail itinerary-import anchor (`app/api/travel-import`) so they can't drift. "Panama Cruise" → "Panama".
+- Added a **Photo URL (optional)** field to the trip editor: a pasted URL pins the image (`image_source='manual'`); clearing it hands control back to auto-fetch (`image_source='auto'`, which the PATCH route re-runs on the source change). This closes the gap where the manual-override backend existed but had no UI. No schema change.
+- **Still John's step:** provision `UNSPLASH_ACCESS_KEY` (Production + Preview) — until then, auto-fetch returns nothing and trips show the gradient unless a manual URL is pasted.
+
+**Weekly Gmail trip auto-detection — SCOPED (build deferred pending John's answers).** John asked for automation: instead of manually creating a trip then manually importing its itinerary, have the app periodically scan Gmail, propose trips it finds, and ask for confirmation. This is a natural fit — the same AI-assisted, human-confirmed pattern as itinerary import and the email onboarding scan. Drafted design:
+
+- **Trigger:** a weekly Vercel Cron → a protected `app/api/trip-scan` route. (Possibly also a manual "Scan now" button — open question.)
+- **Detection (AI-split, same as import):** deterministic Gmail search for travel confirmations (reuse `travel-import`'s `SEARCH_TERMS` + `-category:promotions`), then Haiku extracts `{destination, start_date, end_date, confidence, source_gmail_id}` from each candidate. Only propose confident hits with real dates. Read-only Gmail throughout.
+- **Storage:** a new `trip_suggestions` table (`destination`, `start_date`, `end_date`, `source_gmail_id` unique, `status` pending|approved|dismissed, `raw` jsonb). Dedupe against already-suggested `source_gmail_id` and against existing `trips` (destination + overlapping dates). Dismissed suggestions are remembered so they never re-appear — first real consumer of a status-tracked suggestion queue.
+- **Surface + approval:** a pending count/list where John reviews each proposal (destination, dates, source email subject) → **Approve** (creates a real trip via the existing `POST /api/trips`, auto-fetch photo, optionally kick off itinerary import) or **Dismiss**. Never auto-creates a trip — the human gate is the whole point.
+
+**Blocking open questions (need John before Build):**
+
+1. **Notification surface.** The Home top-bar counts ("Need attention", "Emails flagged") and the sidebar "Next Trip" are currently **`lib/mock-data.js` placeholders, not live** (confirmed this session). So suggestions can't just "increment the existing count." Do we (a) make that top bar real and route suggestions through it, or (b) use a dedicated banner on the Travel page for v1? (a) is more work but fixes the placeholder bar; (b) ships faster.
+2. **Cadence.** Weekly cron only, or also a manual "Scan now" button on Travel?
+3. **On approve — auto-run the itinerary import immediately, or leave it a separate step John triggers?**
+4. **Look-back window.** How far back should each weekly scan read (e.g. last 30 days of inbox) to catch new bookings without re-surfacing old ones?
+
+Once John answers, this is a ~4-file build (migration for `trip_suggestions`, the cron + scan route, the suggestion/approve UI, and either the top-bar wiring or a Travel banner).
+
+---
+
 ## 2026-07-15 (cont'd) — Travel Gmail itinerary import + a scoping refinement on where AI belongs
 
 Built the AI-assisted Gmail itinerary import — the last unbuilt dashboard feature — but first re-grilled the "does AI belong here?" question, since AI-minimalism is this project's whole ethos. The documented flow (CLAUDE.md §7) says "Haiku searches Gmail … then parses," bundling two steps. Splitting them gives opposite answers:
 
 - **Finding the email → NO AI.** This is the Email Tier 1 lesson exactly: Gmail's own search operators do it deterministically and for free. A trip already has a destination; a `(itinerary OR confirmation OR reservation OR booking OR e-ticket OR boarding) {destination}` query surfaces candidates, and John picks one — which is precisely the human fallback the flow already specified for the low-confidence case. No model earns its keep here.
-- **Extracting the itinerary → YES, AI.** Confirmation emails are wildly heterogeneous (cruise HTML port tables, airline text segments, hotel prose); no deterministic parser generalizes across providers. This is genuine unstructured→structured extraction — the one thing CLAUDE.md §7 explicitly reserves for Haiku. And note the consequence of dropping it: without the parse, an "import" is just the manual day editor that already exists. **The extraction *is* the feature.**
+- **Extracting the itinerary → YES, AI.** Confirmation emails are wildly heterogeneous (cruise HTML port tables, airline text segments, hotel prose); no deterministic parser generalizes across providers. This is genuine unstructured→structured extraction — the one thing CLAUDE.md §7 explicitly reserves for Haiku. And note the consequence of dropping it: without the parse, an "import" is just the manual day editor that already exists. **The extraction _is_ the feature.**
 
 John chose this split (deterministic find + Haiku parse). So Haiku is now scoped to the residual here too, mirroring Email — not applied to the step Gmail search already handles.
 
@@ -39,7 +68,7 @@ John chose this split (deterministic find + Haiku parse). So Haiku is now scoped
 
 - `GET /api/travel-import?tripId=` — deterministic Gmail search (read-only, same hard boundary as Email), returns up to 12 candidate emails (from/subject/date/snippet). No model.
 - `POST /api/travel-import` `{ tripId, messageId }` — fetches the ONE chosen email full body (prefers `text/plain`, falls back to stripped `text/html`, bounded to 12k chars), runs Haiku (`lib/travel-import.js`) to extract `{date,title,notes}[]`, returns it. Defensive JSON parse tolerates fences/prose; never invents a date.
-- **Never auto-saves.** The parsed days render as a preview modal; "Add N days to itinerary" drops them into the *unsaved* itinerary editor, and only the existing trip `PATCH` persists them when John clicks "Save changes." Confirm/edit-before-save gate intact.
+- **Never auto-saves.** The parsed days render as a preview modal; "Add N days to itinerary" drops them into the _unsaved_ itinerary editor, and only the existing trip `PATCH` persists them when John clicks "Save changes." Confirm/edit-before-save gate intact.
 
 **Files:** new `lib/travel-import.js` + `app/api/travel-import/route.js`; `app/travel/[id]/page.jsx` / `page.module.css` gain the `ImportModal` (candidate picker → preview) and replace the old disabled stub button. Reuses `lib/email-sender.js`'s header helpers and the existing trip PATCH — no new save path, no schema change. `next build` clean.
 

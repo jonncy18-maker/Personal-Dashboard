@@ -2,6 +2,7 @@ import { getDb } from '../../../lib/db';
 import { getGmailClient } from '../../../lib/google';
 import { extractSenderName, header } from '../../../lib/email-sender';
 import { parseItineraryFromEmail } from '../../../lib/travel-import';
+import { meaningfulWords } from '../../../lib/destination';
 
 // Travel itinerary import (CLAUDE.md §7) — read-only Gmail, the same hard
 // boundary as the Email domain (no write/modify/delete calls, ever). Two steps,
@@ -21,34 +22,13 @@ const SEARCH_TERMS = [
   'boarding',
 ];
 
-// Generic trip-type words carry no location signal — a trip named "Panama
-// Cruise" should search Gmail for "Panama", not "Cruise" (which would match
-// every cruise email). Stripped before we pick the destination anchor.
-const GENERIC_DEST_WORDS = new Set([
-  'cruise',
-  'trip',
-  'vacation',
-  'holiday',
-  'tour',
-  'getaway',
-  'trek',
-  'expedition',
-  'the',
-  'and',
-]);
-
 function buildQuery(destination) {
-  const dest = (destination || '').trim();
   const keywords = `(${SEARCH_TERMS.join(' OR ')})`;
   // Key off the destination's most specific real place-word — a full phrase is
-  // often written differently in the email than on the trip. Drop generic
-  // trip-type words first (so "Panama Cruise" → "Panama", "Alaska Cruise" →
-  // "Alaska"); fall back to the raw last word if that leaves nothing.
-  const words = dest.split(/[,\s]+/).filter(Boolean);
-  const meaningful = words.filter(
-    (w) => !GENERIC_DEST_WORDS.has(w.toLowerCase())
-  );
-  const destWord = (meaningful.length ? meaningful : words).slice(-1)[0] || '';
+  // often written differently in the email than on the trip. Generic trip-type
+  // words are stripped first (so "Panama Cruise" → "Panama", "Alaska Cruise" →
+  // "Alaska"); see lib/destination.js, shared with the Unsplash photo query.
+  const destWord = meaningfulWords(destination).slice(-1)[0] || '';
   // Exclude promotional/social mail: a real booking confirmation is
   // transactional, but travel senders (esp. cruise lines) flood the inbox with
   // marketing that also matches "booking/confirmation/itinerary". Since Gmail
