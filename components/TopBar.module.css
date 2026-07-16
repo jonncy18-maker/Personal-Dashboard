@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  text-wrap: balance;
+  white-space: nowrap;
 }
 .liveDot {
   width: 7px;
@@ -62,7 +62,9 @@
 
 .stats {
   display: flex;
-  gap: 22px;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
   padding: 0 20px;
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
