@@ -1,17 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PROJECT_STATUSES } from '../../lib/projects';
+import { PROJECT_STATUSES, PROJECT_STATUS_META } from '../../lib/projects';
 import styles from './page.module.css';
 
-const STATUS_META = {
-  planning: { label: 'Planning', color: 'var(--accent)' },
-  active: { label: 'Active', color: 'var(--good)' },
-  needs_attention: { label: 'Needs attention', color: 'var(--warn)' },
-  on_hold: { label: 'On hold', color: 'var(--ink-faint)' },
-  blocked: { label: 'Blocked', color: 'var(--critical)' },
-  completed: { label: 'Completed', color: '#a789f2' },
-};
+const STATUS_META = PROJECT_STATUS_META;
 const STATUS_ORDER = PROJECT_STATUSES;
 const TABS = [
   { key: 'all', label: 'All' },

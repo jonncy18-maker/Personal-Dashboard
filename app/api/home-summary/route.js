@@ -17,14 +17,15 @@ export const GET = route(async () => {
   const sql = getDb();
 
   const [
-    [projectRow],
+    projectRows,
     tripRows,
     [scheduleAgg],
     scheduleItems,
-    [ideaRow],
+    ideaRows,
     tutorCall,
   ] = await Promise.all([
-    sql`SELECT COUNT(*)::int AS count FROM projects`,
+    // Statuses (not just a count) so the Home card can render a status-dot row.
+    sql`SELECT status FROM projects ORDER BY created_at DESC`,
     sql`
         SELECT id, destination, start_date, end_date, image_url,
                image_attribution, image_source
@@ -42,7 +43,9 @@ export const GET = route(async () => {
         FROM schedules WHERE status != 'done'
         ORDER BY due_date ASC LIMIT 5
       `,
-    sql`SELECT COUNT(*)::int AS count FROM ideas WHERE status != 'done'`,
+    // Tag + status for every idea, so the card can show an open/done split and
+    // a count-by-tag breakdown (both aggregated in JS below — the set is tiny).
+    sql`SELECT domain_tag, status FROM ideas`,
     findNextTutorCall(),
   ]);
 
@@ -53,8 +56,23 @@ export const GET = route(async () => {
     end_date: dateOnly(t.end_date),
   }));
 
+  // Idea Board: open/done split + open-idea counts per domain tag (desc).
+  const openIdeas = ideaRows.filter((i) => i.status !== 'done');
+  const ideaTagCounts = openIdeas.reduce((acc, i) => {
+    const tag = i.domain_tag || 'general';
+    acc[tag] = (acc[tag] || 0) + 1;
+    return acc;
+  }, {});
+  const ideaByTag = Object.entries(ideaTagCounts)
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count);
+
   return Response.json({
-    projects: { count: num(projectRow.count), note: 'Vercel + GitHub sourced' },
+    projects: {
+      count: projectRows.length,
+      note: 'Vercel + GitHub sourced',
+      statuses: projectRows.map((p) => p.status),
+    },
     trips,
     schedules: {
       open_count: num(scheduleAgg.open_count),
@@ -65,7 +83,13 @@ export const GET = route(async () => {
       })),
     },
     language: tutorCall,
-    ideas: { count: num(ideaRow.count), note: 'Someday / maybe backlog' },
+    ideas: {
+      count: openIdeas.length, // open count — kept as the card's live metric
+      open_count: openIdeas.length,
+      done_count: ideaRows.length - openIdeas.length,
+      by_tag: ideaByTag,
+      note: 'Someday / maybe backlog',
+    },
     // Not wired yet — a real count needs a live Gmail call, which the rest of
     // this app deliberately avoids doing on every page load (see CLAUDE.md
     // §7 and the Unsplash/Vercel "never per page load" precedent).

@@ -32,7 +32,7 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 
 - [x] **AI Projects redesign** — 2026-07-16, see entry below. From John's ChatGPT mock, run through the honest-data pass: stat bar + featured panel + tabbed project list with a **hover detail popover** (holding the status setter) + a real recent-activity rail. Wired to real GitHub/Vercel data (description, language, topics, last commit, open issues, deploy status, milestone-based progress, merged activity feed); a thin manual layer (`status`, `featured` — migration 007) covers what GitHub can't know. Dropped the mock's fabricated progress numbers + "↑5% this week" trend.
 - [x] **Idea Board quick-capture popup** — 2026-07-16, see entry below. Clicking the Home Idea Board card opens a popup: a free-write box (first line → title, rest → notes) + optional domain-tag chip on top, the existing ideas listed below with done-toggle / inline edit / delete. Scoping resolved with John: **keep** the `/ideas` route (popup is an additional quick surface; a cmd/ctrl-click on the card still opens the full page), **single free-write box**, **combined** write + list in one popup. Front-end only — `/api/ideas` unchanged.
-- [ ] **Richer card design — AI Projects, Language, Idea Board Home cards** — _needs scoping._ These three Home domain cards (`components/DomainGrid.jsx`) read as sparse next to the others; John wants more visual design on them. Direction TBD — grill for what each should surface (e.g. AI Projects: per-project status dots / deploy state; Language: next-call context; Idea Board: recent idea titles or count-by-tag) before committing to a look.
+- [x] **Richer card design — AI Projects, Language, Idea Board Home cards** — 2026-07-16, see entry below. Scoped with John first: **AI Projects** → per-project status-dot row; **Language** → countdown to next call + tutor/context line; **Idea Board** → open/done split + count-by-tag chips. All real-data, no new schema, front-end + one home-summary query change.
 - [x] **TopBar greeting should not wrap** — 2026-07-16 (#28). `.greetingTitle` now `white-space: nowrap`.
 - [x] **TopBar stat trio should stack vertically** — 2026-07-16 (#28). `.stats` is now a flex column.
 - [x] **Home page redesign + time-of-day hero** — 2026-07-16, see entry below. Dark layout from a ChatGPT mock: a hero photo that changes with the local time of day (Unsplash, cached per band per day), greeting + daily rotating unattributed quote, real stat tiles, two-column Up Next / At-a-glance. Dropped the mock's fabricated "focus %" rings and sidebar weather (no data source).
@@ -48,6 +48,30 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-16 (cont'd 7) — Richer Home domain cards (AI Projects / Language / Idea Board)
+
+First item off the Design/UX backlog after the design-review cleanup (#35) merged. The three cards read sparse next to Travel/Schedules; scoped with John what each should surface, holding to the no-fabricated-data rule (every value traces to a real source).
+
+**Scoped decisions:**
+
+- **AI Projects** → a **status-dot row**: one dot per tracked project, colored by lifecycle status (`PROJECT_STATUS_META`). DB-only, no external GitHub/Vercel call on the Home load (deploy-state dots were an option but rejected here to keep Home cheap — that lives on the `/ai-projects` page).
+- **Language** → **countdown to next call** (`relativeDay` — "In 3 days") as the headline, plus the **tutor/context line** (the real event title, truncated; italki bookings read "Spanish lesson with …", Calendar matches show their actual summary — not a parsed-out name, which those inconsistent titles can't give honestly).
+- **Idea Board** → **open/done split** ("6 open · 3 done") + **count-by-tag chips** (a `GROUP BY`-equivalent over `domain_tag`, top 4).
+
+**Built:**
+
+- `app/api/home-summary/route.js` — projects query now returns `statuses[]` (not just a count); ideas query returns `domain_tag, status` for every idea, aggregated in JS into `open_count` / `done_count` / `by_tag` (set is tiny). One extra column each, no new query round trips.
+- `lib/projects.js` — hoisted `PROJECT_STATUS_META` (label + color per status) here so the Home dots and the AI Projects page share one source; the page now imports it instead of its own copy.
+- `components/DomainGrid.jsx` + `.module.css` — `StatusDots` (capped at 10 + "+N"), the Language countdown/context block, and `IdeaTagChips`. The Idea Board card's open count stays live off the popup's `onCountChange`; the done-count and tag chips refresh on the next Home load (acceptable minor staleness for a glance card).
+
+**Note:** the Email card was deliberately left sparse — still no honest count without a live Gmail call on every Home load (unchanged from before, CLAUDE.md §7).
+
+**Follow-on (same PR) — diagonal hue treatment.** John then asked for a subtle diagonal color wash on the cards + page background. Mocked two intensities × both themes in an artifact first; he picked "Option B (Lift)". Each of the five non-photo cards (`cardProjects/cardSchedules/cardLanguage/cardIdeas/cardEmail`) gets a `::before` painting a tint of its own domain hue in the top-left corner and a neighbouring hue in the bottom-right (indigo→cyan, amber→coral, emerald→lime, yellow→gold, violet→magenta), fading to the plain surface through the middle. Strength is a theme token `--card-hue-alpha` (0.14 light / 0.26 dark). **Travel is excluded** — it already carries the trip photo. The page background (`html`) gets the same idea desaturated (`--bg-grad`: cool blue → soft lavender / navy → plum), fixed to the viewport. Verified by rendering the real page headlessly in both themes.
+
+**Verified:** `next build` clean; Prettier passes. **Rendered the real Home page headlessly (Chromium) against a mocked `/api/home-summary`, in both light and dark** — the status dots (all six status colors), the "In 3 days" countdown + truncated tutor line, and the "6 open · 3 done" + Travel/AI/General tag chips all lay out correctly in both themes. Live Neon not exercised in the sandbox (no `DATABASE_URL`, proxy blocks outbound) — but this adds no migration, so there's nothing to apply: the new fields are derived from existing columns and surface on the deployed preview immediately.
 
 ---
 

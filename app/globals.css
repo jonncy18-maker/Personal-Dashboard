@@ -3,6 +3,11 @@
   --bg-sidebar: #ffffff;
   --surface: #ffffff;
   --surface-sunken: #f3f5fa;
+  /* App background: a faint top-left → bottom-right hue drift (cool blue →
+     soft lavender), desaturated so it frames the cards without clashing. */
+  --bg-grad: linear-gradient(135deg, #e6ebfa 0%, #eef1f8 50%, #f4ebf3 100%);
+  /* Corner-tint strength for the domain cards' diagonal hue treatment. */
+  --card-hue-alpha: 0.14;
   --ink: #171d2e;
   --ink-muted: #667088;
   --ink-faint: #97a0b8;
@@ -46,6 +51,8 @@
   --bg-sidebar: #0b1220;
   --surface: #131b2e;
   --surface-sunken: #0e1526;
+  --bg-grad: linear-gradient(135deg, #0a1124 0%, #0b1220 50%, #120f1f 100%);
+  --card-hue-alpha: 0.26;
   --ink: #f2f4fa;
   --ink-muted: #8b96b3;
   --ink-faint: #5c6584;
@@ -133,8 +140,18 @@ body {
   padding: 0;
 }
 
+/* App background lives on <html> so it backs the whole canvas — no white
+   sliver on overscroll or a document taller than the viewport. A faint
+   top-left → bottom-right hue drift (var(--bg-grad)), fixed to the viewport
+   so it stays put while the content scrolls. */
+html {
+  min-height: 100%;
+  background: var(--bg-grad);
+  background-attachment: fixed;
+}
+
 body {
-  background: var(--bg);
+  min-height: 100vh;
   color: var(--ink);
   font-family:
     var(--font-sans),

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronRightIcon } from './icons';
 import { DOMAIN_META } from './domain-meta';
-import { absoluteDate } from '../lib/format';
+import { PROJECT_STATUS_META } from '../lib/projects';
+import { absoluteDate, relativeDay } from '../lib/format';
 import TripPhoto from './TripPhoto';
 import TripAlertBadge from './TripAlertBadge';
 import IdeaBoardPopup from './IdeaBoardPopup';
@@ -45,11 +46,63 @@ function WeekStrip({ dueDate }) {
   );
 }
 
+// One dot per tracked project, colored by lifecycle status — a glanceable read
+// on portfolio health. Colors come from the shared PROJECT_STATUS_META so the
+// dots match the AI Projects page exactly.
+function StatusDots({ statuses }) {
+  if (!statuses.length) {
+    return <p className={styles.detail}>No projects tracked yet</p>;
+  }
+  const MAX = 10;
+  const shown = statuses.slice(0, MAX);
+  const extra = statuses.length - shown.length;
+  return (
+    <div className={styles.dotRow}>
+      {shown.map((s, i) => {
+        const meta = PROJECT_STATUS_META[s] || PROJECT_STATUS_META.active;
+        return (
+          <span
+            key={i}
+            className={styles.projDot}
+            style={{ background: meta.color }}
+            title={meta.label}
+          />
+        );
+      })}
+      {extra > 0 && <span className={styles.dotMore}>+{extra}</span>}
+    </div>
+  );
+}
+
+// Short labels for the Idea Board count-by-tag chips.
+const IDEA_TAG_LABEL = {
+  general: 'General',
+  ai_projects: 'AI',
+  travel: 'Travel',
+  schedules: 'Schedules',
+  language: 'Language',
+};
+
+function IdeaTagChips({ byTag }) {
+  if (!byTag.length) {
+    return <p className={styles.detail}>Quick-add or review</p>;
+  }
+  return (
+    <div className={styles.tagChips}>
+      {byTag.slice(0, 4).map((t) => (
+        <span className={styles.tagChip} key={t.tag}>
+          {IDEA_TAG_LABEL[t.tag] || t.tag} <b>{t.count}</b>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 const CARD_VARIANT = {
   projects: styles.cardProjects,
   travel: styles.cardTravel,
-  schedules: '',
-  language: '',
+  schedules: styles.cardSchedules,
+  language: styles.cardLanguage,
   ideas: styles.cardIdeas,
   email: styles.cardEmail,
 };
@@ -101,7 +154,7 @@ export default function DomainGrid({ summary }) {
             </span>
             <span className={styles.metricUnit}>tracked</span>
           </div>
-          <p className={styles.detail}>{summary.projects.note}</p>
+          <StatusDots statuses={summary.projects.statuses || []} />
         </Card>
 
         <Card
@@ -159,8 +212,17 @@ export default function DomainGrid({ summary }) {
         <Card domain="language" pill="Focus">
           {summary.language.nextCall ? (
             <>
-              <p className={styles.detail}>Next tutor call</p>
-              <p className={styles.tripNameSm} style={{ fontSize: 13 }}>
+              <p className={styles.cdHead}>
+                {relativeDay(summary.language.nextCall.start)}
+              </p>
+              <p
+                className={styles.cdContext}
+                title={summary.language.nextCall.title}
+              >
+                {summary.language.nextCall.title}
+              </p>
+              <p className={styles.detail}>
+                Next tutor call ·{' '}
                 {new Date(summary.language.nextCall.start).toLocaleDateString(
                   'en-US',
                   { weekday: 'short', month: 'short', day: 'numeric' }
@@ -190,9 +252,14 @@ export default function DomainGrid({ summary }) {
         <Card domain="ideas" pill="Pending" onClick={openIdeas}>
           <div className={styles.metric}>
             <span className={`${styles.metricNum} tabular`}>{ideaCount}</span>
-            <span className={styles.metricUnit}>ideas</span>
+            <span className={styles.metricUnit}>
+              open
+              {summary.ideas.done_count > 0 && (
+                <> · {summary.ideas.done_count} done</>
+              )}
+            </span>
           </div>
-          <p className={styles.detail}>Quick-add or review</p>
+          <IdeaTagChips byTag={summary.ideas.by_tag || []} />
         </Card>
 
         <Card domain="email" pill="Review">

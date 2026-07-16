@@ -32,6 +32,64 @@
   font-size: 15px;
   font-weight: 700;
 }
+
+/* ── AI Projects status dots ────────────────────────────────── */
+.dotRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.projDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.dotMore {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  margin-left: 1px;
+}
+
+/* ── Language countdown ─────────────────────────────────────── */
+.cdHead {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.cdContext {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Idea Board tag chips ───────────────────────────────────── */
+.tagChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.tagChip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: var(--card-soft);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+.tagChip b {
+  color: var(--card-accent);
+  font-weight: 800;
+}
 @media (max-width: 980px) {
   .grid {
     grid-template-columns: repeat(2, 1fr);
@@ -150,32 +208,51 @@
   opacity: 1;
 }
 
+/* Diagonal hue drift — a tint of each card's own domain color in the top-left
+   corner and a neighbouring hue in the bottom-right, both fading to the plain
+   surface through the middle. Strength is the theme token --card-hue-alpha.
+   Travel is deliberately excluded: it carries the trip photo instead. */
 .cardProjects::before,
+.cardSchedules::before,
+.cardLanguage::before,
 .cardIdeas::before,
 .cardEmail::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 0;
-  opacity: 0.5;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      135deg,
+      rgb(var(--hue-tl) / var(--card-hue-alpha)) 0%,
+      transparent 58%
+    ),
+    linear-gradient(
+      315deg,
+      rgb(var(--hue-br) / var(--card-hue-alpha)) 0%,
+      transparent 58%
+    );
 }
-.cardProjects::before {
-  background: repeating-linear-gradient(
-    115deg,
-    var(--card-soft) 0px,
-    var(--card-soft) 1px,
-    transparent 1px,
-    transparent 14px
-  );
-  mask-image: linear-gradient(to top, black, transparent 75%);
+.cardProjects {
+  --hue-tl: 90 79 224; /* indigo */
+  --hue-br: 47 159 224; /* cyan */
 }
-.cardIdeas::before,
-.cardEmail::before {
-  background: radial-gradient(
-    circle at 100% 0%,
-    var(--card-soft),
-    transparent 60%
-  );
+.cardSchedules {
+  --hue-tl: 224 167 47; /* amber */
+  --hue-br: 224 84 47; /* coral */
+}
+.cardLanguage {
+  --hue-tl: 31 158 122; /* emerald */
+  --hue-br: 138 176 47; /* lime */
+}
+.cardIdeas {
+  --hue-tl: 212 192 25; /* yellow */
+  --hue-br: 212 150 25; /* gold */
+}
+.cardEmail {
+  --hue-tl: 109 83 209; /* violet */
+  --hue-br: 183 79 191; /* magenta */
 }
 
 .cardTravel {
