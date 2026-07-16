@@ -25,6 +25,18 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 
 ---
 
+## Design / UX Backlog
+
+_(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards — separate from the domain-build work, which is now complete. Items marked **needs scoping** get a grill session or a mockup from John before Build, per the project's scope-before-build convention; items marked **build-ready** are concrete enough to just do.)_
+
+- [ ] **AI Projects detail view redesign** — _needs scoping._ The tracked-projects detail view (the popup listing each project's Vercel/GitHub status + "Next Up" line) "does not look great." Rework the layout and presentation. John will either grill the direction here or provide ChatGPT mockups to work from. Hold Build until there's a design to build to.
+- [ ] **Idea Board as a popup, not a standalone page** — _needs scoping._ Adding an idea should be more convenient than navigating to `/ideas`. John's sketch: clicking the Home Idea Board card opens a **popup** to free-write and save an idea directly; an "Ideas" control inside the card opens the existing list to view/edit/delete. He questions whether the separate `/ideas` route is needed at all — he sees this as popup-first. Open questions to resolve before Build: does the popup fully replace the `/ideas` route or does the route stay as a fallback/deep-link target; where does the "free write" text map onto the existing `title`/`notes`/`domain_tag` fields (single free-text box vs. keep structured fields); does the card popup reuse the current CRUD or get a slimmer quick-add. (API layer `/api/ideas` is done and unaffected — this is a front-end interaction change.)
+- [ ] **Richer card design — AI Projects, Language, Idea Board Home cards** — _needs scoping._ These three Home domain cards (`components/DomainGrid.jsx`) read as sparse next to the others; John wants more visual design on them. Direction TBD — grill for what each should surface (e.g. AI Projects: per-project status dots / deploy state; Language: next-call context; Idea Board: recent idea titles or count-by-tag) before committing to a look.
+- [ ] **TopBar greeting should not wrap** — _build-ready._ "Good evening, John" (`components/TopBar.jsx` `.greetingTitle`) should stay on a single horizontal line rather than wrapping. CSS-only fix in `TopBar.module.css`.
+- [ ] **TopBar stat trio should stack vertically** — _build-ready._ "Need attention / Emails flagged / Events today" (the `.stats` block in `components/TopBar.jsx`) should be lined up vertically instead of in a horizontal row. CSS-only fix in `TopBar.module.css`.
+
+---
+
 ## Future Domain Ideas (unscoped)
 
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
