@@ -12,9 +12,22 @@
 -- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
 --                      004_language_calls, 005_travel_map_brief
 --
--- Run on a fresh Neon project via the Neon MCP or the Neon SQL editor.
+-- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
+-- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
+-- and records each in schema_migrations. That script is the source of truth
+-- for "has this been applied" going forward; this file is the source of truth
+-- for "what does the schema look like" — the two are kept in sync by hand.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Tracks which neon/migrations/*.sql files have been applied to this database
+-- (see scripts/migrate.js). Not itself created by a migration file — the
+-- runner creates it on first use — but listed here so schema.sql stays the
+-- complete picture of the live schema.
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  filename    text PRIMARY KEY,
+  applied_at  timestamptz NOT NULL DEFAULT now()
+);
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger AS $$
