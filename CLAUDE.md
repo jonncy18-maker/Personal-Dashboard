@@ -106,13 +106,17 @@ NEXT_PUBLIC_APP_URL=       # Same-origin base URL
 
 ## 6. Schema & Migrations
 
-Lightweight convention — no ORM, no migration framework (overkill for one user):
+Lightweight convention — no ORM (overkill for one user), but a small runner closes the "migration file merged, database never updated" gap:
 
 - **`neon/schema.sql` is the single source of truth** for the current DB shape. Read that one file; never reassemble state from migration history.
 - **Every change is a new numbered file** in `neon/migrations/` (`001_initial.sql`, `002_*.sql`, …). Applied migrations are **immutable** — never edit one. A later change (settling Language, adding a new domain) is always a new file.
 - **After applying a migration, update `schema.sql`** to reflect the sum of all migrations, and bump its "Applied migrations:" line.
-- **All DDL is idempotent** (`CREATE TABLE IF NOT EXISTS`).
+- **All DDL is idempotent** (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `DROP TRIGGER IF EXISTS` + recreate). Re-running a migration is always safe.
 - **Settled domains have tables now; undecided ones don't.** Language Learning has no table yet (its v1 card reads live from Calendar). Do not add speculative tables — a new domain later is a 2-file operation (new migration + update `schema.sql`), not something to pre-guess.
+
+**`npm run migrate` (`scripts/migrate.js`) applies pending migrations — run it explicitly, never automatically.** It tracks applied files in a `schema_migrations` table and runs any `neon/migrations/*.sql` not yet recorded, in filename order. It is a plain script, not a framework (no Prisma/Drizzle) — splitting each file into individual statements itself, since the Neon serverless driver accepts one statement per call.
+
+**Deliberately NOT wired into the Vercel build.** Surfaced 2026-07-15/16: Preview and Production deployments share **one** Neon database here (no per-branch DB). Auto-running migrations on every build — the normal move for apps with a branched/staging DB — would mean an unmerged, unreviewed PR's schema change lands on the live database the moment its preview builds. Instead: **after merging a PR that adds a migration, run `npm run migrate` (or ask Claude Code to, via the Neon MCP) before relying on the deployed code that needs it.** This was a real outage during the Travel redesign (PR #29): the code shipped expecting new columns that didn't exist yet in Neon, and `/travel` 500'd until the migration was applied by hand.
 
 ## 7. Key Rules for Claude Code
 
