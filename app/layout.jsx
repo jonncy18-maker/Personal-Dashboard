@@ -27,6 +27,25 @@ const plexMono = IBM_Plex_Mono({
 export const metadata = {
   title: 'Personal Dashboard',
   description: "John's personal planning hub",
+  applicationName: 'Personal OS',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Personal OS',
+  },
+  icons: {
+    icon: '/icons/icon-192.png',
+    apple: '/icons/apple-touch-icon.png',
+  },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#eef1f8' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b1220' },
+  ],
 };
 
 // Runs before paint so the stored theme choice applies with no flash of the

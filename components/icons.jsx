@@ -88,6 +88,17 @@ export function MenuIcon(props) {
   );
 }
 
+export function RefreshIcon(props) {
+  return (
+    <Svg {...props}>
+      <path d="M20 11a8 8 0 0 0-14-4.5L3 9" />
+      <path d="M3 4v5h5" />
+      <path d="M4 13a8 8 0 0 0 14 4.5L21 15" />
+      <path d="M21 20v-5h-5" />
+    </Svg>
+  );
+}
+
 export function ChevronRightIcon(props) {
   return (
     <Svg {...props}>
