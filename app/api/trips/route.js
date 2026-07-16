@@ -1,19 +1,10 @@
-import { getDb, num, dateOnly } from '../../../lib/db';
+import { getDb } from '../../../lib/db';
+import { route } from '../../../lib/route';
+import { serializeTrip } from '../../../lib/trips';
 import { fetchDestinationPhoto } from '../../../lib/unsplash';
 import { geocodeDestination } from '../../../lib/geocode';
 
-function serialize(row) {
-  return {
-    ...row,
-    budget: num(row.budget),
-    latitude: num(row.latitude),
-    longitude: num(row.longitude),
-    start_date: dateOnly(row.start_date),
-    end_date: dateOnly(row.end_date),
-  };
-}
-
-export async function GET() {
+export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
     SELECT id, destination, start_date, end_date, status, notes, budget,
@@ -22,10 +13,10 @@ export async function GET() {
     FROM trips
     ORDER BY start_date IS NULL, start_date ASC, created_at DESC
   `;
-  return Response.json({ trips: rows.map(serialize) });
-}
+  return Response.json({ trips: rows.map(serializeTrip) });
+});
 
-export async function POST(request) {
+export const POST = route(async (request) => {
   const body = await request.json();
   const destination = (body.destination || '').trim();
   if (!destination) {
@@ -71,5 +62,5 @@ export async function POST(request) {
               itinerary, image_url, image_attribution, image_source,
               latitude, longitude, created_at, updated_at
   `;
-  return Response.json({ trip: serialize(row) }, { status: 201 });
-}
+  return Response.json({ trip: serializeTrip(row) }, { status: 201 });
+});

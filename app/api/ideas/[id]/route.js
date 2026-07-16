@@ -1,4 +1,5 @@
 import { getDb } from '../../../../lib/db';
+import { route } from '../../../../lib/route';
 
 const STATUSES = ['open', 'in_progress', 'done'];
 const DOMAIN_TAGS = [
@@ -9,7 +10,7 @@ const DOMAIN_TAGS = [
   'general',
 ];
 
-export async function PATCH(request, { params }) {
+export const PATCH = route(async (request, { params }) => {
   const { id } = await params;
   const body = await request.json();
   const sql = getDb();
@@ -39,11 +40,11 @@ export async function PATCH(request, { params }) {
     RETURNING id, title, notes, status, domain_tag, created_at, updated_at
   `;
   return Response.json({ idea: row });
-}
+});
 
-export async function DELETE(request, { params }) {
+export const DELETE = route(async (request, { params }) => {
   const { id } = await params;
   const sql = getDb();
   await sql`DELETE FROM ideas WHERE id = ${id}`;
   return new Response(null, { status: 204 });
-}
+});

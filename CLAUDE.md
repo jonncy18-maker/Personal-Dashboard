@@ -156,6 +156,8 @@ Lightweight convention — no ORM (overkill for one user), but a small runner cl
 
 **Numeric-string coercion (Neon driver).** `NUMERIC`/`DECIMAL` columns (e.g. Travel `budget`) come back as strings. Coerce with `num()` from `lib/db.js` at the API boundary, never in a component.
 
+**API error-handling convention — two shapes, one boundary.** _User-input CRUD routes_ (`trips`, `ideas`, `schedules`, `projects` + their `[id]` variants, `home-summary`) wrap their handler in `route()` from `lib/route.js` so an unexpected throw returns a JSON `{ error }` 500 the client can parse — not an opaque framework error page. Validation still returns explicit `400`/`404` from inside the handler. _External-source routes_ (`github`, `vercel`, `gmail`, `calendar`, the AI routes) instead **fail soft**: they catch internally and return the success shape with `null`/`[]` payloads (a dead repo or missing token must never break the view). When adding a route, pick the matching pattern. On the client, every fetch must check `res.ok` before trusting the body — a non-2xx body is an error payload, not data. Shared client fetching goes through `useResource()` (`lib/useResource.js`); pages with optimistic mutations keep local state but must revert it on a failed persist.
+
 ## 8. Working in This Environment
 
 _(Fill in as project-specific quirks surface — commit signing, Vercel preview lag, etc. Nothing project-specific known yet; greenfield.)_

@@ -3,26 +3,21 @@
 import { useEffect, useState } from 'react';
 import { DOMAIN_META } from '../../components/domain-meta';
 import { relativeDay } from '../../lib/format';
+import { useResource } from '../../lib/useResource';
 import styles from './page.module.css';
 
 const meta = DOMAIN_META.language;
 
 function NextCallCard() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetch('/api/calendar')
-      .then((res) => res.json())
-      .then(setData)
-      .catch(() => setError('Could not load Calendar.'));
-  }, []);
+  const { data, error, loading } = useResource('/api/calendar', {
+    errorMessage: 'Could not load Calendar.',
+  });
 
   if (error) {
     return <p className={styles.callNote}>{error}</p>;
   }
 
-  if (!data) {
+  if (loading || !data) {
     return <p className={styles.callNote}>Loading…</p>;
   }
 

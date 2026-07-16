@@ -3,23 +3,21 @@
 import HomeHero from '../components/HomeHero';
 import UpNextAgenda from '../components/UpNextAgenda';
 import DomainGrid from '../components/DomainGrid';
-import { CheckCircleIcon, EmailIcon, SchedulesIcon } from '../components/icons';
+import { CheckCircleIcon, SchedulesIcon } from '../components/icons';
 import { useHomeSummary } from '../lib/useHomeSummary';
 import { buildAgenda } from '../lib/agenda';
 import { daysUntil } from '../lib/format';
 import styles from './page.module.css';
 
-function StatBar({ needAttention, emailCount, eventsToday }) {
+function StatBar({ needAttention, eventsToday }) {
+  // Email is intentionally absent — there's no cheap, honest count without a
+  // live Gmail call on every Home load (see CLAUDE.md §7 / home-summary route),
+  // and a permanent "—" tile is exactly the dead metric that rule forbids.
   const tiles = [
     {
       icon: <CheckCircleIcon />,
       num: needAttention,
       label: 'Need attention',
-    },
-    {
-      icon: <EmailIcon />,
-      num: emailCount ?? '—',
-      label: 'Email flagged',
     },
     {
       icon: <SchedulesIcon />,
@@ -52,21 +50,12 @@ export default function HomePage() {
   const eventsToday = agenda.filter(
     (item) => daysUntil(item.when) === 0
   ).length;
-  const emailCount = summary?.email?.important_count ?? null;
 
   return (
     <div className={styles.home}>
-      <HomeHero
-        needAttention={needAttention}
-        emailCount={emailCount}
-        eventsToday={eventsToday}
-      />
+      <HomeHero />
 
-      <StatBar
-        needAttention={needAttention}
-        emailCount={emailCount}
-        eventsToday={eventsToday}
-      />
+      <StatBar needAttention={needAttention} eventsToday={eventsToday} />
 
       {error && <p className={styles.loadError}>{error}</p>}
       {!summary && !error && <p className={styles.loading}>Loading…</p>}

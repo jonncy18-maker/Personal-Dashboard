@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PROJECT_STATUSES } from '../../lib/projects';
 import styles from './page.module.css';
 
 const STATUS_META = {
@@ -11,14 +12,7 @@ const STATUS_META = {
   blocked: { label: 'Blocked', color: 'var(--critical)' },
   completed: { label: 'Completed', color: '#a789f2' },
 };
-const STATUS_ORDER = [
-  'planning',
-  'active',
-  'needs_attention',
-  'on_hold',
-  'blocked',
-  'completed',
-];
+const STATUS_ORDER = PROJECT_STATUSES;
 const TABS = [
   { key: 'all', label: 'All' },
   { key: 'active', label: 'Active' },
@@ -270,14 +264,7 @@ function ProjectRow({ project, index, onUpdate }) {
             <span className={styles.status}>
               <span
                 className={styles.statusDot}
-                style={{
-                  background:
-                    project.deploy.status === 'READY'
-                      ? 'var(--good)'
-                      : project.deploy.status === 'ERROR'
-                        ? 'var(--critical)'
-                        : 'var(--warn)',
-                }}
+                style={{ background: deployColor(project.deploy.status) }}
               />
               {deployLabel}
             </span>
@@ -458,6 +445,8 @@ function AddProjectForm({ onAdded }) {
       setGithubUrl('');
       setVercelUrl('');
       setOpen(false);
+    } catch {
+      setError('Could not reach the server — check your connection.');
     } finally {
       setSaving(false);
     }
@@ -518,8 +507,14 @@ export default function AiProjectsPage() {
 
   function load() {
     fetch('/api/projects/overview')
-      .then((res) => res.json())
-      .then((d) => setData(d))
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((d) => {
+        setData(d);
+        setLoadError(null);
+      })
       .catch(() => setLoadError('Could not load projects.'));
   }
 
@@ -529,6 +524,7 @@ export default function AiProjectsPage() {
 
   async function updateProject(id, patch) {
     // Optimistic: apply locally, then persist. featured is exclusive.
+    const snapshot = data;
     setData((prev) => {
       if (!prev) return prev;
       const projects = prev.projects.map((p) => {
@@ -538,11 +534,16 @@ export default function AiProjectsPage() {
       });
       return { ...prev, projects };
     });
-    await fetch(`/api/projects/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    });
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setData(snapshot); // revert the optimistic edit the DB rejected
+    }
   }
 
   const projects = data?.projects || [];

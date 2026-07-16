@@ -104,19 +104,35 @@ export default function IdeaBoardPopup({ open, onClose, onCountChange }) {
 
   async function toggleDone(idea) {
     const next = idea.status === 'done' ? 'open' : 'done';
+    const prevStatus = idea.status;
     setIdeas((prev) =>
       prev.map((i) => (i.id === idea.id ? { ...i, status: next } : i))
     );
-    await fetch(`/api/ideas/${idea.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: next }),
-    });
+    try {
+      const res = await fetch(`/api/ideas/${idea.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      // Persist failed — revert so the UI matches the DB.
+      setIdeas((prev) =>
+        prev.map((i) => (i.id === idea.id ? { ...i, status: prevStatus } : i))
+      );
+    }
   }
 
   async function deleteIdea(id) {
+    const snapshot = ideas;
     setIdeas((prev) => prev.filter((i) => i.id !== id));
-    await fetch(`/api/ideas/${id}`, { method: 'DELETE' });
+    try {
+      const res = await fetch(`/api/ideas/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+    } catch {
+      // Restore the list on failure rather than silently dropping the idea.
+      setIdeas(snapshot);
+    }
   }
 
   function startEdit(idea) {

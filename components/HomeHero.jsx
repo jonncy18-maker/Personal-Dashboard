@@ -8,12 +8,13 @@ import { quoteForDay } from '../lib/quotes';
 import styles from './HomeHero.module.css';
 
 // The Home hero: a scenic photo that matches the current time of day (fetched
-// once per band per day from /api/hero-image, cached), with the greeting, a
-// live status line, and a daily rotating quote overlaid. Band + greeting +
-// quote are derived from the viewer's local clock in an effect (client-only)
-// to avoid an SSR/local-time hydration mismatch. Photo is optional — the
-// per-band gradient behind it is the honest fallback (no key / no result).
-export default function HomeHero({ needAttention, emailCount, eventsToday }) {
+// once per band per day from /api/hero-image, cached), with the greeting and a
+// daily rotating quote overlaid. Band + greeting + quote are derived from the
+// viewer's local clock in an effect (client-only) to avoid an SSR/local-time
+// hydration mismatch. Photo is optional — the per-band gradient behind it is
+// the honest fallback (no key / no result). The at-a-glance counts live in the
+// StatBar directly below, so the hero deliberately doesn't repeat them.
+export default function HomeHero() {
   const [band, setBand] = useState('day');
   const [greeting, setGreeting] = useState('Hello');
   const [quote, setQuote] = useState('');
@@ -46,19 +47,6 @@ export default function HomeHero({ needAttention, emailCount, eventsToday }) {
             <h1 className={styles.greet}>{greeting}, John.</h1>
             <span className={styles.liveDot} aria-hidden="true" />
           </div>
-          <p className={`${styles.status} tabular`}>
-            <strong>{needAttention}</strong>{' '}
-            {needAttention === 1 ? 'thing' : 'things'} need attention
-            {emailCount != null && (
-              <>
-                {' · '}
-                <strong>{emailCount}</strong> email flagged
-              </>
-            )}
-            {' · '}
-            <strong>{eventsToday}</strong>{' '}
-            {eventsToday === 1 ? 'event' : 'events'} today
-          </p>
         </div>
         {quote && (
           <div className={styles.quote}>

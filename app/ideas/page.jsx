@@ -175,30 +175,51 @@ export default function IdeasPage() {
   const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     fetch('/api/ideas')
-      .then((res) => res.json())
-      .then((data) => setIdeas(data.ideas || []))
-      .catch(() => setLoadError('Could not load ideas.'));
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) setIdeas(data.ideas || []);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError('Could not load ideas.');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function updateIdea(id, patch) {
+    const snapshot = ideas;
     setIdeas((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-    const res = await fetch(`/api/ideas/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    });
-    const data = await res.json();
-    if (res.ok && data.idea) {
+    try {
+      const res = await fetch(`/api/ideas/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.idea) throw new Error();
       setIdeas((prev) =>
         prev.map((i) => (i.id === id ? { ...i, ...data.idea } : i))
       );
+    } catch {
+      setIdeas(snapshot); // revert on failure
     }
   }
 
   async function deleteIdea(id) {
+    const snapshot = ideas;
     setIdeas((prev) => prev.filter((i) => i.id !== id));
-    await fetch(`/api/ideas/${id}`, { method: 'DELETE' });
+    try {
+      const res = await fetch(`/api/ideas/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+    } catch {
+      setIdeas(snapshot); // restore on failure
+    }
   }
 
   const openCount = ideas ? ideas.filter((i) => i.status !== 'done').length : 0;

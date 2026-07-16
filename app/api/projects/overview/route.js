@@ -7,6 +7,7 @@ import {
   fetchNextUp,
 } from '../../../../lib/github';
 import { fetchDeploy } from '../../../../lib/vercel';
+import { route } from '../../../../lib/route';
 
 // One server call that powers the whole AI Projects view: every project's DB
 // row (status/featured) enriched with live GitHub (description, language,
@@ -17,14 +18,25 @@ import { fetchDeploy } from '../../../../lib/vercel';
 
 function toIso(value) {
   if (value == null) return null;
-  const d = typeof value === 'number' ? new Date(value) : new Date(value);
+  const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 async function enrich(project) {
   const parsed = parseOwnerRepo(project.github_url);
   if (!parsed) {
-    return { ...project, repo: project.github_url, github: null };
+    // Keep the same shape a parsed row has so the client never hits an
+    // undefined `name`/`topics` (POST validates the URL, so this is rare).
+    return {
+      ...project,
+      repo: project.github_url,
+      name: project.github_url || 'Untitled',
+      topics: [],
+      commits: [],
+      deploy: null,
+      milestone: null,
+      next_up: null,
+    };
   }
   const { owner, repo } = parsed;
 
@@ -58,10 +70,10 @@ async function enrich(project) {
   };
 }
 
-export async function GET() {
+export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
-    SELECT id, github_url, vercel_url, status, featured, created_at
+    SELECT id, github_url, vercel_url, status, featured, category, created_at
     FROM projects
     ORDER BY created_at DESC
   `;
@@ -100,4 +112,4 @@ export async function GET() {
     projects: slimProjects,
     activity: activity.slice(0, 8),
   });
-}
+});

@@ -1,4 +1,5 @@
 import { getDb, num, dateOnly } from '../../../lib/db';
+import { route } from '../../../lib/route';
 import { findNextTutorCall } from '../../../lib/tutor-call';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -12,7 +13,7 @@ function nightsBetween(start, end) {
 // replaces the lib/mock-data.js placeholders those three used to read from.
 // One query per settled domain; Email is left out (no cheap, honest "count"
 // exists yet without a live Gmail call on every Home visit — see ROADMAP).
-export async function GET() {
+export const GET = route(async () => {
   const sql = getDb();
 
   const [
@@ -70,4 +71,4 @@ export async function GET() {
     // §7 and the Unsplash/Vercel "never per page load" precedent).
     email: { important_count: null, note: null },
   });
-}
+});
