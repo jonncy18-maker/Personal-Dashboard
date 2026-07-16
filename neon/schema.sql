@@ -10,7 +10,7 @@
 --   • All DDL is idempotent (IF NOT EXISTS) so re-running is safe.
 --
 -- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
---                      004_language_calls, 005_travel_map_brief
+--                      004_language_calls, 005_travel_map_brief, 006_hero_image
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -86,6 +86,17 @@ CREATE TABLE IF NOT EXISTS travel_brief (
 DROP TRIGGER IF EXISTS travel_brief_set_updated_at ON travel_brief;
 CREATE TRIGGER travel_brief_set_updated_at
   BEFORE UPDATE ON travel_brief FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Home time-of-day hero photo cache (see lib/time-of-day.js). One Unsplash
+-- fetch per band per day; a page load reads only this table.
+CREATE TABLE IF NOT EXISTS hero_image (
+  band               text NOT NULL,
+  day                date NOT NULL,
+  image_url          text,
+  image_attribution  text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (band, day)
+);
 
 -- ─── Schedules (has due_date — distinct from ideas) ───────────────────────────
 CREATE TABLE IF NOT EXISTS schedules (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   MenuIcon,
   SearchIcon,
@@ -22,6 +23,9 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
   const [greeting, setGreeting] = useState('Hello');
   const [suggestions, setSuggestions] = useState([]);
   const [bellOpen, setBellOpen] = useState(false);
+  // On Home the greeting + stats live in the time-of-day hero, so the top bar
+  // slims down to just navigation + actions (no duplicate greeting).
+  const isHome = usePathname() === '/';
 
   useEffect(() => {
     setTheme(currentTheme());
@@ -81,41 +85,49 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
         <MenuIcon />
       </button>
 
-      <div className={styles.greeting}>
-        <h1 className={styles.greetingTitle}>
-          {greeting}, John
-          <span className={styles.liveDot} aria-hidden="true" />
-        </h1>
-        <p className={styles.greetingFocus}>
-          <strong>{needAttention} things</strong> need attention{' '}
-          {emailCount != null && (
-            <>
-              <span className={styles.dotSep}>·</span>{' '}
-              <strong>{emailCount} emails</strong> flagged
-            </>
-          )}
-        </p>
-      </div>
+      {isHome ? (
+        <div className={styles.homeSpacer} />
+      ) : (
+        <>
+          <div className={styles.greeting}>
+            <h1 className={styles.greetingTitle}>
+              {greeting}, John
+              <span className={styles.liveDot} aria-hidden="true" />
+            </h1>
+            <p className={styles.greetingFocus}>
+              <strong>{needAttention} things</strong> need attention{' '}
+              {emailCount != null && (
+                <>
+                  <span className={styles.dotSep}>·</span>{' '}
+                  <strong>{emailCount} emails</strong> flagged
+                </>
+              )}
+            </p>
+          </div>
 
-      <div className={styles.stats}>
-        <div className={styles.stat}>
-          <CheckCircleIcon className={styles.statIcon} />
-          <span className={`${styles.statNum} tabular`}>{needAttention}</span>
-          <span className={styles.statLabel}>Need attention</span>
-        </div>
-        <div className={styles.stat}>
-          <EmailIcon className={styles.statIcon} />
-          <span className={`${styles.statNum} tabular`}>
-            {emailCount ?? '—'}
-          </span>
-          <span className={styles.statLabel}>Emails flagged</span>
-        </div>
-        <div className={styles.stat}>
-          <SchedulesIcon className={styles.statIcon} />
-          <span className={`${styles.statNum} tabular`}>{eventsToday}</span>
-          <span className={styles.statLabel}>Events today</span>
-        </div>
-      </div>
+          <div className={styles.stats}>
+            <div className={styles.stat}>
+              <CheckCircleIcon className={styles.statIcon} />
+              <span className={`${styles.statNum} tabular`}>
+                {needAttention}
+              </span>
+              <span className={styles.statLabel}>Need attention</span>
+            </div>
+            <div className={styles.stat}>
+              <EmailIcon className={styles.statIcon} />
+              <span className={`${styles.statNum} tabular`}>
+                {emailCount ?? '—'}
+              </span>
+              <span className={styles.statLabel}>Emails flagged</span>
+            </div>
+            <div className={styles.stat}>
+              <SchedulesIcon className={styles.statIcon} />
+              <span className={`${styles.statNum} tabular`}>{eventsToday}</span>
+              <span className={styles.statLabel}>Events today</span>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className={styles.actions}>
         <button className={styles.iconBtn} aria-label="Search">
