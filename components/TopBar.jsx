@@ -79,7 +79,7 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
   }
 
   return (
-    <header className={styles.topbar}>
+    <header className={`${styles.topbar} ${isHome ? styles.topbarHome : ''}`}>
       <button
         className={`${styles.iconBtn} ${styles.menuBtn}`}
         onClick={handleMenuClick}
