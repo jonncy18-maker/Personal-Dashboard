@@ -215,7 +215,7 @@
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(109, 147, 255, 0.35);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 @media (prefers-reduced-motion: no-preference) {
   .liveDot {

@@ -1,20 +1,13 @@
 import { getDb } from '../../../../lib/db';
+import { route } from '../../../../lib/route';
+import { PROJECT_STATUSES } from '../../../../lib/projects';
 
 // Edit a project's manual layer: status (lifecycle) and featured (the featured
 // panel — at most one project, so setting it true clears the others). Also
 // DELETE. The GitHub/Vercel-derived fields are never stored, so there's nothing
 // else to patch here.
 
-const STATUSES = [
-  'planning',
-  'active',
-  'needs_attention',
-  'on_hold',
-  'blocked',
-  'completed',
-];
-
-export async function PATCH(request, { params }) {
+export const PATCH = route(async (request, { params }) => {
   const { id } = await params;
   const body = await request.json();
   const sql = getDb();
@@ -24,7 +17,9 @@ export async function PATCH(request, { params }) {
     return Response.json({ error: 'not found' }, { status: 404 });
   }
 
-  const status = STATUSES.includes(body.status) ? body.status : existing.status;
+  const status = PROJECT_STATUSES.includes(body.status)
+    ? body.status
+    : existing.status;
   const featured =
     typeof body.featured === 'boolean' ? body.featured : existing.featured;
   const category =
@@ -45,11 +40,11 @@ export async function PATCH(request, { params }) {
               created_at, updated_at
   `;
   return Response.json({ project: row });
-}
+});
 
-export async function DELETE(request, { params }) {
+export const DELETE = route(async (request, { params }) => {
   const { id } = await params;
   const sql = getDb();
   await sql`DELETE FROM projects WHERE id = ${id}`;
   return new Response(null, { status: 204 });
-}
+});

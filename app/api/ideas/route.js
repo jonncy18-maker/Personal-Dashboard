@@ -1,4 +1,5 @@
 import { getDb } from '../../../lib/db';
+import { route } from '../../../lib/route';
 
 // Idea Board CRUD — the someday/maybe backlog. Distinct from Schedules by
 // having NO due date (see CLAUDE.md §7): title, notes, status, domain_tag.
@@ -13,7 +14,7 @@ const DOMAIN_TAGS = [
   'general',
 ];
 
-export async function GET() {
+export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
     SELECT id, title, notes, status, domain_tag, created_at, updated_at
@@ -21,9 +22,9 @@ export async function GET() {
     ORDER BY (status = 'done'), created_at DESC
   `;
   return Response.json({ ideas: rows });
-}
+});
 
-export async function POST(request) {
+export const POST = route(async (request) => {
   const body = await request.json();
   const title = (body.title || '').trim();
 
@@ -44,4 +45,4 @@ export async function POST(request) {
     RETURNING id, title, notes, status, domain_tag, created_at, updated_at
   `;
   return Response.json({ idea: row }, { status: 201 });
-}
+});

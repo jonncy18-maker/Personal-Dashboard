@@ -1,19 +1,10 @@
-import { getDb, num, dateOnly } from '../../../../lib/db';
+import { getDb } from '../../../../lib/db';
+import { route } from '../../../../lib/route';
+import { serializeTrip } from '../../../../lib/trips';
 import { fetchDestinationPhoto } from '../../../../lib/unsplash';
 import { geocodeDestination } from '../../../../lib/geocode';
 
-function serialize(row) {
-  return {
-    ...row,
-    budget: num(row.budget),
-    latitude: num(row.latitude),
-    longitude: num(row.longitude),
-    start_date: dateOnly(row.start_date),
-    end_date: dateOnly(row.end_date),
-  };
-}
-
-export async function GET(request, { params }) {
+export const GET = route(async (request, { params }) => {
   const { id } = await params;
   const sql = getDb();
   const [row] = await sql`
@@ -25,10 +16,10 @@ export async function GET(request, { params }) {
   if (!row) {
     return Response.json({ error: 'not found' }, { status: 404 });
   }
-  return Response.json({ trip: serialize(row) });
-}
+  return Response.json({ trip: serializeTrip(row) });
+});
 
-export async function PATCH(request, { params }) {
+export const PATCH = route(async (request, { params }) => {
   const { id } = await params;
   const body = await request.json();
   const sql = getDb();
@@ -124,12 +115,12 @@ export async function PATCH(request, { params }) {
               itinerary, image_url, image_attribution, image_source,
               latitude, longitude, created_at, updated_at
   `;
-  return Response.json({ trip: serialize(row) });
-}
+  return Response.json({ trip: serializeTrip(row) });
+});
 
-export async function DELETE(request, { params }) {
+export const DELETE = route(async (request, { params }) => {
   const { id } = await params;
   const sql = getDb();
   await sql`DELETE FROM trips WHERE id = ${id}`;
   return new Response(null, { status: 204 });
-}
+});

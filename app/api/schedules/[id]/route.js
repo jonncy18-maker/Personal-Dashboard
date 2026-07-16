@@ -1,6 +1,7 @@
 import { getDb, dateOnly } from '../../../../lib/db';
+import { route } from '../../../../lib/route';
 
-export async function PATCH(request, { params }) {
+export const PATCH = route(async (request, { params }) => {
   const { id } = await params;
   const body = await request.json();
   const sql = getDb();
@@ -48,11 +49,11 @@ export async function PATCH(request, { params }) {
   return Response.json({
     schedule: { ...row, due_date: dateOnly(row.due_date) },
   });
-}
+});
 
-export async function DELETE(request, { params }) {
+export const DELETE = route(async (request, { params }) => {
   const { id } = await params;
   const sql = getDb();
   await sql`DELETE FROM schedules WHERE id = ${id}`;
   return new Response(null, { status: 204 });
-}
+});
