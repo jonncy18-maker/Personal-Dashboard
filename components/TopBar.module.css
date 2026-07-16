@@ -16,6 +16,10 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+/* On Home the greeting/stats move into the hero; this keeps the actions right-aligned. */
+.homeSpacer {
+  flex: 1 1 auto;
+}
 .greetingTitle {
   margin: 0;
   font-size: 24px;

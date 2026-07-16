@@ -35,6 +35,7 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 - [ ] **Richer card design — AI Projects, Language, Idea Board Home cards** — _needs scoping._ These three Home domain cards (`components/DomainGrid.jsx`) read as sparse next to the others; John wants more visual design on them. Direction TBD — grill for what each should surface (e.g. AI Projects: per-project status dots / deploy state; Language: next-call context; Idea Board: recent idea titles or count-by-tag) before committing to a look.
 - [x] **TopBar greeting should not wrap** — 2026-07-16 (#28). `.greetingTitle` now `white-space: nowrap`.
 - [x] **TopBar stat trio should stack vertically** — 2026-07-16 (#28). `.stats` is now a flex column.
+- [x] **Home page redesign + time-of-day hero** — 2026-07-16, see entry below. Dark layout from a ChatGPT mock: a hero photo that changes with the local time of day (Unsplash, cached per band per day), greeting + daily rotating unattributed quote, real stat tiles, two-column Up Next / At-a-glance. Dropped the mock's fabricated "focus %" rings and sidebar weather (no data source).
 - [x] **Travel page redesign** — 2026-07-16, see entry below. Iterated from a light card grid → dark cinematic layout (John's ChatGPT mock as the reference). Shipped the real-data core **plus** the Trip Map and AI Travel Brief: Next Journey hero, a soft-timeline "then coming up", a past gallery, a geocoded world map, and a cached honest AI brief. Grilled repeatedly against the project's no-fabricated-data rule; every panel is backed by real trip fields.
 - [ ] **Travel Health panel** — _reserved, needs a new data model._ Passport expiry + per-trip booking/prep status (flights, hotel, insurance, excursions, packing) from the ChatGPT mock. None of this exists in the schema. Out until John wants to add the data model + entry UI. **Do not fabricate** these values.
 - [ ] **Travel Stats bar** — _reserved, needs data / integration._ Countries visited + cruise nights are roughly derivable from trips; **points/miles imply a loyalty-account integration** and have no source today. Out until backed by real data — no invented totals.
@@ -47,6 +48,22 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-16 (cont'd 4) — Home redesign: time-of-day hero + honest stat tiles
+
+John shared a ChatGPT re-mock of the Home page and asked specifically for "the picture up top to change depending on the time of day." Same playbook as the Travel redesign: grilled the mock against the no-fabricated-data rule first, previewed the honest version in a visual artifact (with a Dawn/Day/Golden/Night switcher so he could see the hero change), then built.
+
+**Kept from the mock, all real:** the greeting + status line, the Up Next agenda, the At-a-glance domain cards — re-laid into a hero + stat-bar + two-column layout. **Dropped as fabricated:** the "72% Daily focus" ring, the Language card's "68%" ring, any per-card progress ring (no data source — same reason the Language "weekly goal" ring was deleted earlier), and the sidebar weather (a new external, out of scope). Also flagged the mock's "John Shaw · Idea Board" agenda row as impossible — Idea Board items have no dates, so nothing undated can appear in a dated agenda.
+
+**Built:**
+
+- **Time-of-day hero** (`components/HomeHero.jsx` + `.module.css`): the client picks a band from its own clock (`lib/time-of-day.js` — Dawn 5–8 / Day 8–17 / Golden 17–20 / Night 20–5, John's ranges) and calls `/api/hero-image?band=…`. That route caches one Unsplash photo per band per calendar day in the new `hero_image` table (migration 006) — a page load never hits Unsplash unless the band hasn't been fetched yet today, same rule as the trip photo. `lib/unsplash.js` gained `fetchScenicPhoto(query)` (curated query, landscape). No key / no result falls back to a per-band CSS gradient (four hand-tuned skies), never a broken image. Greeting via the existing `timeOfDayGreeting`; quote from `lib/quotes.js` — a generic, **unattributed** line rotating once a day (John's call: no personal byline).
+- **`components/TopBar.jsx`**: now route-aware (`usePathname`) — on Home it slims to just navigation + actions, since the hero carries the greeting; unchanged on every other page.
+- **`app/page.jsx` + `page.module.css`**: hero → real stat bar (Need attention / Email flagged / Events today, no focus ring) → two-column Up Next + At-a-glance (both existing components, unchanged).
+
+**Verified:** `next build` clean; Prettier passes. Time-band boundaries checked in Node at every transition hour (04→night, 05→dawn, 08→day, 17→golden, 20→night, 00→night — all correct); quote rotation confirmed stable-within-a-day, rotating-across-days, never empty, and byline-free. **Rendered the actual shipped `HomeHero`/`page` module CSS headlessly (Chromium)** — the golden-hour hero (greeting + status + quote + credit), stat bar, and two-column layout all lay out correctly; the gradient fallback (shown without a live photo) stands on its own. Not exercised against live Unsplash/Neon in the sandbox (no key/DB, and the proxy blocks outbound) — the hero photo's first real fetch happens on the deployed preview once `hero_image` exists (migration 006 applied to the shared Neon DB via the Neon MCP, same as 005).
 
 ---
 

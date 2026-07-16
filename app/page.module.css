@@ -1,9 +1,82 @@
 .home {
   max-width: 1180px;
 }
-.sectionLabel {
-  margin: 0 0 14px;
+
+.home > * + * {
+  margin-top: 16px;
 }
+
+/* ─── stat bar (real data only) ──────────────────────────── */
+.statBar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 22px;
+}
+.stat + .stat {
+  border-left: 1px solid var(--border);
+}
+.statIcon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.statIcon svg {
+  width: 17px;
+  height: 17px;
+}
+.statNum {
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.statLabel {
+  font-size: 12px;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+@media (max-width: 560px) {
+  .statBar {
+    grid-template-columns: 1fr;
+  }
+  .stat + .stat {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* ─── two-column body ────────────────────────────────────── */
+.cols {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .cols {
+    grid-template-columns: 1fr;
+  }
+}
+.sectionLabel {
+  margin: 0 0 13px;
+}
+
 .loading,
 .loadError {
   padding: 16px 0;
