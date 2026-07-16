@@ -51,6 +51,20 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-07-16 (cont'd 9) — Manual refresh button + PWA wrap (installable app)
+
+Two asks from John: a navbar refresh button "for when there are any updates", and wrapping the app as an installable PWA (he brought ChatGPT-mocked icon concepts).
+
+**Refresh button + global refresh signal.** New `lib/refresh.jsx` — a `RefreshProvider` (wraps the shell in `AppShell`) exposing `{ refreshKey, refreshing, refresh, settle }`. The TopBar button calls `refresh()`, which bumps `refreshKey`; every subscribing data hook re-fetches. Wired: `useHomeSummary` (invalidates its module-scope cache once per new key so the three consumers still share one round trip, then `settle()`s the spinner when the refetch resolves) and `useResource` (adds `refreshKey` to its effect deps). The button spins (`aria-busy`, reduced-motion-safe) while in flight, with a 5s safety timeout so it can never stick. **Coverage note:** this refreshes everything reading through those two hooks (Home + Sidebar + TopBar summary, and any `useResource` page — currently the Language card). Pages that still hand-roll their own fetch (Travel, Email, Ideas, Schedules) aren't wired yet — migrating them onto `useResource` is the clean follow-up that makes the button universal.
+
+**PWA.** `app/manifest.js` (Next metadata route → `/manifest.webmanifest`, auto-linked): standalone display, `#0b1220` theme/splash, the three icons. `public/sw.js` — a conservative service worker: cache-first for hashed static assets, network-first for pages (offline fallback to the cached shell), and **API routes never cached** (freshness matters, and the refresh button assumes live reads). Registered via `components/RegisterSW.jsx` (production only — a dev SW just fights HMR). `layout.jsx` gained theme-aware `theme-color`, `appleWebApp` meta, and the apple-touch-icon.
+
+**Icon — chose "Horizon" (concept 01).** Recommended it over the other seven: it matches the app's actual identity (the time-of-day hero, the "Good morning / Still up" greeting, the daily fresh-start feel), and a single bright point over a horizon stays legible at 48px where the compass/sailboat/quadrant marks turn to mush — which is why John's own mock previewed Horizon in the PWA-size row. Generated as an SVG in the app palette (navy `#0b1220` gradient, `#6d93ff` accent star) and rasterized (headless Chromium) to `public/icons/` — `icon-192`, `icon-512`, `icon-maskable-512` (full-bleed for the safe zone), `apple-touch-icon` (180), and `app/icon.png` (favicon). One swappable asset set, so switching to "Journey" (the runner-up) later is cheap.
+
+**Verified:** `next build` clean; Prettier passes. Production server checked: `/manifest.webmanifest`, `/sw.js` (with a `fetch` handler — the installability requirement), and all icons serve 200; head carries the manifest + apple-touch-icon + per-scheme theme-color links. Drove the refresh button headlessly — clicking it re-fetches `/api/home-summary`, spins the icon + sets `aria-busy` while a (delayed) refresh is in flight, and settles both when the data returns. Icons eyeballed at 512 + maskable.
+
+---
+
 ## 2026-07-16 (cont'd 7) — Richer Home domain cards (AI Projects / Language / Idea Board)
 
 First item off the Design/UX backlog after the design-review cleanup (#35) merged. The three cards read sparse next to Travel/Schedules; scoped with John what each should surface, holding to the no-fabricated-data rule (every value traces to a real source).

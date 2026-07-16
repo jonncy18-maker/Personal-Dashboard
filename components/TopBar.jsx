@@ -7,12 +7,14 @@ import {
   MenuIcon,
   SearchIcon,
   BellIcon,
+  RefreshIcon,
   CheckCircleIcon,
   EmailIcon,
   SchedulesIcon,
   SunIcon,
   MoonIcon,
 } from './icons';
+import { useRefresh } from '../lib/refresh';
 import { useHomeSummary } from '../lib/useHomeSummary';
 import { buildAgenda } from '../lib/agenda';
 import { timeOfDayGreeting, daysUntil } from '../lib/format';
@@ -60,6 +62,7 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
     }
   }
 
+  const { refreshing, refresh } = useRefresh();
   const { summary } = useHomeSummary();
   const agenda = summary ? buildAgenda(summary) : [];
   const needAttention = agenda.filter(
@@ -130,6 +133,15 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
       )}
 
       <div className={styles.actions}>
+        <button
+          className={styles.iconBtn}
+          onClick={refresh}
+          disabled={refreshing}
+          aria-label="Refresh data"
+          aria-busy={refreshing}
+        >
+          <RefreshIcon className={refreshing ? styles.spin : undefined} />
+        </button>
         <button className={styles.iconBtn} aria-label="Search">
           <SearchIcon />
         </button>
