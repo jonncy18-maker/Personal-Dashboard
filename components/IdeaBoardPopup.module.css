@@ -1,0 +1,251 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(6, 10, 20, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8vh 16px 16px;
+  overflow-y: auto;
+}
+.panel {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 20px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.title {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+.count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.close {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.close:hover {
+  color: var(--ink);
+}
+
+/* ── free-write ── */
+.writeBox {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.write {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+}
+.writeActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.tagRow {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+}
+.tagChip {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.tagChipOn {
+  color: #fff;
+  background: var(--dom-ideas);
+  border-color: transparent;
+}
+.addButton {
+  flex: 0 0 auto;
+  background: var(--dom-ideas);
+  color: #06121f;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 15px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ghostButton {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-muted);
+  border-radius: var(--radius-sm);
+  padding: 8px 15px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── list ── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.empty {
+  padding: 20px 4px;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 11px 12px;
+}
+.rowDone {
+  opacity: 0.55;
+}
+.rowDone .rowTitle {
+  text-decoration: line-through;
+}
+.checkbox {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rowDone .checkbox {
+  background: var(--dom-ideas);
+  border-color: var(--dom-ideas);
+}
+.rowBody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.rowTitle {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.rowNotes {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.tag {
+  display: inline-block;
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.tagGeneral {
+  color: var(--ink-muted);
+  background: var(--surface-sunken);
+}
+.tagProjects {
+  color: var(--dom-projects);
+  background: var(--dom-projects-soft);
+}
+.tagTravel {
+  color: var(--dom-travel);
+  background: var(--dom-travel-soft);
+}
+.tagSchedules {
+  color: var(--dom-schedules);
+  background: var(--dom-schedules-soft);
+}
+.tagLanguage {
+  color: var(--dom-language);
+  background: var(--dom-language-soft);
+}
+.rowActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.iconButton {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+}
+.iconButton svg {
+  width: 15px;
+  height: 15px;
+}
+.iconButton:hover {
+  color: var(--ink);
+}
+.editWrap {
+  flex: 1 1 auto;
+}
+.editActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}

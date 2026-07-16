@@ -31,7 +31,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards — separate from the domain-build work, which is now complete. Items marked **needs scoping** get a grill session or a mockup from John before Build, per the project's scope-before-build convention; items marked **build-ready** are concrete enough to just do.)_
 
 - [ ] **AI Projects detail view redesign** — _needs scoping._ The tracked-projects detail view (the popup listing each project's Vercel/GitHub status + "Next Up" line) "does not look great." Rework the layout and presentation. John will either grill the direction here or provide ChatGPT mockups to work from. Hold Build until there's a design to build to.
-- [ ] **Idea Board as a popup, not a standalone page** — _needs scoping._ Adding an idea should be more convenient than navigating to `/ideas`. John's sketch: clicking the Home Idea Board card opens a **popup** to free-write and save an idea directly; an "Ideas" control inside the card opens the existing list to view/edit/delete. He questions whether the separate `/ideas` route is needed at all — he sees this as popup-first. Open questions to resolve before Build: does the popup fully replace the `/ideas` route or does the route stay as a fallback/deep-link target; where does the "free write" text map onto the existing `title`/`notes`/`domain_tag` fields (single free-text box vs. keep structured fields); does the card popup reuse the current CRUD or get a slimmer quick-add. (API layer `/api/ideas` is done and unaffected — this is a front-end interaction change.)
+- [x] **Idea Board quick-capture popup** — 2026-07-16, see entry below. Clicking the Home Idea Board card opens a popup: a free-write box (first line → title, rest → notes) + optional domain-tag chip on top, the existing ideas listed below with done-toggle / inline edit / delete. Scoping resolved with John: **keep** the `/ideas` route (popup is an additional quick surface; a cmd/ctrl-click on the card still opens the full page), **single free-write box**, **combined** write + list in one popup. Front-end only — `/api/ideas` unchanged.
 - [ ] **Richer card design — AI Projects, Language, Idea Board Home cards** — _needs scoping._ These three Home domain cards (`components/DomainGrid.jsx`) read as sparse next to the others; John wants more visual design on them. Direction TBD — grill for what each should surface (e.g. AI Projects: per-project status dots / deploy state; Language: next-call context; Idea Board: recent idea titles or count-by-tag) before committing to a look.
 - [x] **TopBar greeting should not wrap** — 2026-07-16 (#28). `.greetingTitle` now `white-space: nowrap`.
 - [x] **TopBar stat trio should stack vertically** — 2026-07-16 (#28). `.stats` is now a flex column.
@@ -48,6 +48,19 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-16 (cont'd 5) — Idea Board quick-capture popup
+
+First item picked back up off the Design/UX backlog. Scoped the three open questions with John first (keep `/ideas` vs replace / free-write vs structured / combined vs two-action), landing on: keep the route, single free-write box, combined write+list popup.
+
+**Built:**
+
+- `components/IdeaBoardPopup.jsx` (+ `.module.css`) — a modal opened from the Home Idea Board card. Free-write textarea on top (`parseFreeWrite`: first non-empty line → `title`, the rest → `notes` — fits the existing schema, and ideas still have no due date per CLAUDE.md §7) with an optional domain-tag chip row and Cmd/Ctrl+Enter to submit. Below it, the existing ideas with a done-toggle, inline edit (the row becomes a free-write textarea seeded from `title`+`notes`), and delete. All CRUD hits the unchanged `/api/ideas` + `/api/ideas/[id]`. Escape and backdrop-click close it.
+- `components/DomainGrid.jsx` — now a client component; the Idea Board card's normal click opens the popup (`preventDefault`), while a modified click (cmd/ctrl/shift/middle) still follows the `href` to the full `/ideas` page. The card's idea count is lifted into state and updated live from the popup (`onCountChange`), so adding/removing an idea reflects immediately without a Home reload.
+
+**Verified:** `next build` clean; Prettier passes. Rendered the real popup module CSS headlessly (Chromium) — free-write box + tag chips + the list with per-domain tag colors, the done row struck through, edit/delete affordances all correct. Not exercised against live Neon in the sandbox (no `DATABASE_URL`) — but the CRUD endpoints are the same ones the `/ideas` page already uses, verified earlier; only the front-end interaction is new. The `parseFreeWrite` split (first line title / remainder notes, leading blanks trimmed) is straightforward and covered by the write + inline-edit paths.
 
 ---
 

@@ -1,9 +1,13 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronRightIcon } from './icons';
 import { DOMAIN_META } from './domain-meta';
 import { absoluteDate } from '../lib/format';
 import TripPhoto from './TripPhoto';
 import TripAlertBadge from './TripAlertBadge';
+import IdeaBoardPopup from './IdeaBoardPopup';
 import styles from './DomainGrid.module.css';
 
 function WeekStrip({ dueDate }) {
@@ -50,12 +54,13 @@ const CARD_VARIANT = {
   email: styles.cardEmail,
 };
 
-function Card({ domain, pill, children, figure }) {
+function Card({ domain, pill, children, figure, onClick }) {
   const meta = DOMAIN_META[domain];
   const Icon = meta.icon;
   return (
     <Link
       href={meta.href}
+      onClick={onClick}
       className={`${styles.card} ${CARD_VARIANT[domain] || ''}`}
       style={{ '--card-accent': meta.color, '--card-soft': meta.soft }}
     >
@@ -75,124 +80,138 @@ function Card({ domain, pill, children, figure }) {
 
 export default function DomainGrid({ summary }) {
   const trip = summary.trips?.[0];
+  const [ideasOpen, setIdeasOpen] = useState(false);
+  const [ideaCount, setIdeaCount] = useState(summary.ideas.count);
+
+  // Normal click opens the quick-capture popup; a modified click (cmd/ctrl or
+  // middle) still follows the link to the full /ideas page.
+  function openIdeas(e) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    setIdeasOpen(true);
+  }
 
   return (
-    <div className={styles.grid}>
-      <Card domain="projects" pill="Active">
-        <div className={styles.metric}>
-          <span className={`${styles.metricNum} tabular`}>
-            {summary.projects.count}
-          </span>
-          <span className={styles.metricUnit}>tracked</span>
-        </div>
-        <p className={styles.detail}>{summary.projects.note}</p>
-      </Card>
+    <>
+      <div className={styles.grid}>
+        <Card domain="projects" pill="Active">
+          <div className={styles.metric}>
+            <span className={`${styles.metricNum} tabular`}>
+              {summary.projects.count}
+            </span>
+            <span className={styles.metricUnit}>tracked</span>
+          </div>
+          <p className={styles.detail}>{summary.projects.note}</p>
+        </Card>
 
-      <Card
-        domain="travel"
-        pill="Next trip"
-        figure={
-          <>
-            {trip && (
-              <>
-                <TripPhoto
-                  src={trip.image_url}
-                  className={styles.tripPhotoBg}
-                  fallback={<div className={styles.tripPhotoBgFallback} />}
-                />
-                <div className={styles.tripScrim} />
-              </>
-            )}
-            <TripAlertBadge />
-          </>
-        }
-      >
-        {trip && (
-          <>
-            <p className={styles.tripNameSm}>{trip.destination}</p>
-            <p className={styles.detail}>
-              {absoluteDate(trip.start_date, { short: false })} –{' '}
-              {absoluteDate(trip.end_date, { short: false })}
-            </p>
-          </>
-        )}
-      </Card>
-
-      <Card domain="schedules" pill="Upcoming">
-        <div className={styles.metric}>
-          <span className={`${styles.metricNum} tabular`}>
-            {summary.schedules.open_count}
-          </span>
-          <span className={styles.metricUnit}>open</span>
-        </div>
-        <p className={styles.detail}>
-          {summary.schedules.soonest_due ? (
+        <Card
+          domain="travel"
+          pill="Next trip"
+          figure={
             <>
-              Next due{' '}
-              <strong>{absoluteDate(summary.schedules.soonest_due)}</strong>
-            </>
-          ) : (
-            'Nothing open'
-          )}
-        </p>
-        {summary.schedules.soonest_due && (
-          <WeekStrip dueDate={summary.schedules.soonest_due} />
-        )}
-      </Card>
-
-      <Card domain="language" pill="Focus">
-        {summary.language.nextCall ? (
-          <>
-            <p className={styles.detail}>Next tutor call</p>
-            <p className={styles.tripNameSm} style={{ fontSize: 13 }}>
-              {new Date(summary.language.nextCall.start).toLocaleDateString(
-                'en-US',
-                { weekday: 'short', month: 'short', day: 'numeric' }
-              )}
-              {summary.language.nextCall.start.includes('T') && (
+              {trip && (
                 <>
-                  {' · '}
-                  {new Date(summary.language.nextCall.start).toLocaleTimeString(
-                    'en-US',
-                    {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    }
-                  )}
+                  <TripPhoto
+                    src={trip.image_url}
+                    className={styles.tripPhotoBg}
+                    fallback={<div className={styles.tripPhotoBgFallback} />}
+                  />
+                  <div className={styles.tripScrim} />
                 </>
               )}
-            </p>
-          </>
-        ) : (
+              <TripAlertBadge />
+            </>
+          }
+        >
+          {trip && (
+            <>
+              <p className={styles.tripNameSm}>{trip.destination}</p>
+              <p className={styles.detail}>
+                {absoluteDate(trip.start_date, { short: false })} –{' '}
+                {absoluteDate(trip.end_date, { short: false })}
+              </p>
+            </>
+          )}
+        </Card>
+
+        <Card domain="schedules" pill="Upcoming">
+          <div className={styles.metric}>
+            <span className={`${styles.metricNum} tabular`}>
+              {summary.schedules.open_count}
+            </span>
+            <span className={styles.metricUnit}>open</span>
+          </div>
           <p className={styles.detail}>
-            {summary.language.configured
-              ? 'No upcoming call found'
-              : 'Calendar not connected'}
+            {summary.schedules.soonest_due ? (
+              <>
+                Next due{' '}
+                <strong>{absoluteDate(summary.schedules.soonest_due)}</strong>
+              </>
+            ) : (
+              'Nothing open'
+            )}
           </p>
-        )}
-      </Card>
+          {summary.schedules.soonest_due && (
+            <WeekStrip dueDate={summary.schedules.soonest_due} />
+          )}
+        </Card>
 
-      <Card domain="ideas" pill="Pending">
-        <div className={styles.metric}>
-          <span className={`${styles.metricNum} tabular`}>
-            {summary.ideas.count}
-          </span>
-          <span className={styles.metricUnit}>ideas</span>
-        </div>
-        <p className={styles.detail}>{summary.ideas.note}</p>
-      </Card>
+        <Card domain="language" pill="Focus">
+          {summary.language.nextCall ? (
+            <>
+              <p className={styles.detail}>Next tutor call</p>
+              <p className={styles.tripNameSm} style={{ fontSize: 13 }}>
+                {new Date(summary.language.nextCall.start).toLocaleDateString(
+                  'en-US',
+                  { weekday: 'short', month: 'short', day: 'numeric' }
+                )}
+                {summary.language.nextCall.start.includes('T') && (
+                  <>
+                    {' · '}
+                    {new Date(
+                      summary.language.nextCall.start
+                    ).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </>
+                )}
+              </p>
+            </>
+          ) : (
+            <p className={styles.detail}>
+              {summary.language.configured
+                ? 'No upcoming call found'
+                : 'Calendar not connected'}
+            </p>
+          )}
+        </Card>
 
-      <Card domain="email" pill="Review">
-        <div className={styles.metric}>
-          <span className={`${styles.metricNum} tabular`}>
-            {summary.email.important_count ?? '—'}
-          </span>
-          <span className={styles.metricUnit}>important</span>
-        </div>
-        <p className={styles.detail}>
-          {summary.email.note || 'Tier 1/2 hide rules applied'}
-        </p>
-      </Card>
-    </div>
+        <Card domain="ideas" pill="Pending" onClick={openIdeas}>
+          <div className={styles.metric}>
+            <span className={`${styles.metricNum} tabular`}>{ideaCount}</span>
+            <span className={styles.metricUnit}>ideas</span>
+          </div>
+          <p className={styles.detail}>Quick-add or review</p>
+        </Card>
+
+        <Card domain="email" pill="Review">
+          <div className={styles.metric}>
+            <span className={`${styles.metricNum} tabular`}>
+              {summary.email.important_count ?? '—'}
+            </span>
+            <span className={styles.metricUnit}>important</span>
+          </div>
+          <p className={styles.detail}>
+            {summary.email.note || 'Tier 1/2 hide rules applied'}
+          </p>
+        </Card>
+      </div>
+      <IdeaBoardPopup
+        open={ideasOpen}
+        onClose={() => setIdeasOpen(false)}
+        onCountChange={setIdeaCount}
+      />
+    </>
   );
 }
