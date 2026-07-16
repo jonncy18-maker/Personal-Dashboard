@@ -298,6 +298,30 @@
 .row:hover {
   background: var(--surface-2, var(--surface-sunken));
 }
+/* status-colored left accent (design B) */
+.row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--sc, transparent);
+}
+.row:first-child {
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+}
+.row:first-child::before {
+  border-top-left-radius: var(--radius-lg);
+}
+.row:last-child {
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+}
+.row:last-child::before {
+  border-bottom-left-radius: var(--radius-lg);
+}
 .rIcon {
   width: 38px;
   height: 38px;
@@ -316,9 +340,24 @@
   font-size: 14.5px;
   font-weight: 700;
 }
+.rSub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
 .rCat {
   font-size: 11.5px;
   color: var(--ink-faint);
+}
+.rChip {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 .rProg {
   display: flex;
@@ -360,6 +399,27 @@
 .statusDot {
   width: 7px;
   height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.rEnd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.deploy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.deployDot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex: 0 0 auto;
 }
@@ -477,13 +537,18 @@
 }
 .popEdit {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 10px;
   border-top: 1px dashed var(--border);
   padding-top: 12px;
 }
+.popEditRow {
+  display: flex;
+  gap: 10px;
+}
 .popEditLabel {
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -504,12 +569,12 @@
   padding: 6px 8px;
 }
 .featBtn {
-  flex: 0 0 auto;
+  width: 100%;
   background: var(--surface-sunken);
   border: 1px solid var(--border-strong);
   color: var(--ink-muted);
   border-radius: var(--radius-sm);
-  padding: 7px 12px;
+  padding: 8px 12px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;

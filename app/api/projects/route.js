@@ -17,7 +17,8 @@ const STATUSES = [
 export async function GET() {
   const sql = getDb();
   const rows = await sql`
-    SELECT id, github_url, vercel_url, status, featured, created_at, updated_at
+    SELECT id, github_url, vercel_url, status, featured, category,
+           created_at, updated_at
     FROM projects
     ORDER BY created_at DESC
   `;
@@ -40,12 +41,14 @@ export async function POST(request) {
   }
 
   const status = STATUSES.includes(body.status) ? body.status : 'active';
+  const category = body.category ? String(body.category).trim() || null : null;
 
   const sql = getDb();
   const [row] = await sql`
-    INSERT INTO projects (github_url, vercel_url, status)
-    VALUES (${githubUrl}, ${vercelUrl || null}, ${status})
-    RETURNING id, github_url, vercel_url, status, featured, created_at, updated_at
+    INSERT INTO projects (github_url, vercel_url, status, category)
+    VALUES (${githubUrl}, ${vercelUrl || null}, ${status}, ${category})
+    RETURNING id, github_url, vercel_url, status, featured, category,
+              created_at, updated_at
   `;
   return Response.json({ project: row }, { status: 201 });
 }

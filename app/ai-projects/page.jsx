@@ -42,6 +42,21 @@ const ICON_COLORS = [
   '#f2685f',
   '#35c2b3',
 ];
+// Manual category options (free text in the DB — edit this list freely).
+const CATEGORIES = [
+  'Mission',
+  'Personal',
+  'Infrastructure',
+  'Client',
+  'Learning',
+];
+
+function deployColor(status) {
+  if (status === 'READY') return 'var(--good)';
+  if (status === 'ERROR' || status === 'CANCELED') return 'var(--critical)';
+  if (status) return 'var(--warn)';
+  return 'var(--ink-faint)';
+}
 
 function relTime(iso) {
   if (!iso) return '';
@@ -200,21 +215,27 @@ function FeaturedPanel({ project }) {
 
 function ProjectRow({ project, index, onUpdate }) {
   const color = ICON_COLORS[index % ICON_COLORS.length];
-  const cat = project.topics?.[0] || project.language || 'repo';
+  const tech = project.language || project.topics?.[0] || null;
   const progress = project.milestone?.progress;
   const activityIso = project.last_commit?.date || project.pushed_at;
   const deployLabel = project.deploy?.status
     ? DEPLOY_LABEL[project.deploy.status] || 'Unknown'
     : null;
+  const statusColor = (STATUS_META[project.status] || STATUS_META.active).color;
 
   return (
-    <div className={styles.row}>
+    <div className={styles.row} style={{ '--sc': statusColor }}>
       <span className={styles.rIcon} style={{ background: color }}>
         {project.name[0]?.toUpperCase()}
       </span>
       <div className={styles.rMain}>
         <div className={styles.rName}>{project.name}</div>
-        <div className={styles.rCat}>{cat}</div>
+        <div className={styles.rSub}>
+          <span className={styles.rCat}>
+            {project.category || 'Uncategorized'}
+          </span>
+          {tech && <span className={styles.rChip}>{tech}</span>}
+        </div>
       </div>
       <div className={styles.rProg}>
         {progress != null ? (
@@ -229,7 +250,18 @@ function ProjectRow({ project, index, onUpdate }) {
         )}
       </div>
       <StatusPill status={project.status} />
-      <span className={styles.rTime}>{relTime(activityIso)}</span>
+      <div className={styles.rEnd}>
+        {deployLabel && (
+          <span className={styles.deploy}>
+            <span
+              className={styles.deployDot}
+              style={{ background: deployColor(project.deploy.status) }}
+            />
+            {deployLabel}
+          </span>
+        )}
+        <span className={styles.rTime}>{relTime(activityIso)}</span>
+      </div>
 
       <div className={styles.pop}>
         <div className={styles.popTop}>
@@ -308,27 +340,48 @@ function ProjectRow({ project, index, onUpdate }) {
           )}
         </div>
         <div className={styles.popEdit}>
-          <label className={styles.popEditLabel}>
-            Status
-            <select
-              className={styles.popSelect}
-              value={project.status}
-              onChange={(e) => onUpdate(project.id, { status: e.target.value })}
-            >
-              {STATUS_ORDER.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_META[s].label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className={styles.popEditRow}>
+            <label className={styles.popEditLabel}>
+              Status
+              <select
+                className={styles.popSelect}
+                value={project.status}
+                onChange={(e) =>
+                  onUpdate(project.id, { status: e.target.value })
+                }
+              >
+                {STATUS_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_META[s].label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.popEditLabel}>
+              Category
+              <select
+                className={styles.popSelect}
+                value={project.category || ''}
+                onChange={(e) =>
+                  onUpdate(project.id, { category: e.target.value })
+                }
+              >
+                <option value="">Uncategorized</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <button
             className={`${styles.featBtn} ${project.featured ? styles.featBtnOn : ''}`}
             onClick={() =>
               onUpdate(project.id, { featured: !project.featured })
             }
           >
-            {project.featured ? '★ Featured' : '☆ Feature'}
+            {project.featured ? '★ Featured project' : '☆ Make featured'}
           </button>
         </div>
       </div>

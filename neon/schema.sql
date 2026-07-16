@@ -11,7 +11,7 @@
 --
 -- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
 --                      004_language_calls, 005_travel_map_brief, 006_hero_image,
---                      007_project_meta
+--                      007_project_meta, 008_project_category
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS projects (
   status       text NOT NULL DEFAULT 'active'   -- manual lifecycle (drives tabs + counts)
                CHECK (status IN ('planning', 'active', 'needs_attention', 'on_hold', 'blocked', 'completed')),
   featured     boolean NOT NULL DEFAULT false,  -- at most one; the featured panel
+  category     text,                            -- manual label (Mission/Personal/… — free text)
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );

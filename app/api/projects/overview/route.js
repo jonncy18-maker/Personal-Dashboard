@@ -42,6 +42,7 @@ async function enrich(project) {
     vercel_url: project.vercel_url,
     status: project.status,
     featured: project.featured,
+    category: project.category,
     repo: `${owner}/${repo}`,
     name: repo,
     description: meta?.description || null,

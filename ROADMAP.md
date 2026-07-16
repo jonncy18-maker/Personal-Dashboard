@@ -57,7 +57,9 @@ John brought a ChatGPT mock and wanted to stay close to it, plus explore a hover
 
 **What's real (the bulk of it):** repo description, language, **topics** (tech/category badges), **last commit** + relative time, open issues, deploy status (Vercel), a **Recent Activity feed** (commits + deploys merged, newest first), and **progress from a repo's open GitHub milestone** (closed ÷ total issues — shown only where a milestone exists; no milestone → no bar, stated honestly). **Dropped as fabricated:** the mock's specific progress numbers and the "↑ 5% this week" trend (no history).
 
-**Manual layer (migration 007):** `projects.status` (planning / active / needs_attention / on_hold / blocked / completed — drives the tabs + the stat-bar counts) and `projects.featured` (at most one; the featured panel). Both edited in the row's hover popover.
+**Manual layer:** `projects.status` (planning / active / needs_attention / on_hold / blocked / completed — drives the tabs + the stat-bar counts) and `projects.featured` (at most one; the featured panel) from migration 007, plus `projects.category` (a manual label — Mission / Personal / Infrastructure / Client / Learning; free text, migration 008) added after John flagged that the auto-detected language ("JavaScript") is a useless card label when every repo is JS. All three edited in the row's hover popover.
+
+**Card design (John reviewed the preview, picked design "B"):** the project list stays a tight single list, with a **status-colored left accent** per row, a **tech chip** (real language/topic), and a **live deploy dot** (green Live / amber Building / red Failed, from Vercel). Chosen from three mocked variants.
 
 **Built:**
 

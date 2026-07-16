@@ -27,6 +27,10 @@ export async function PATCH(request, { params }) {
   const status = STATUSES.includes(body.status) ? body.status : existing.status;
   const featured =
     typeof body.featured === 'boolean' ? body.featured : existing.featured;
+  const category =
+    body.category !== undefined
+      ? String(body.category).trim() || null
+      : existing.category;
 
   // Only one project is ever featured — clear the rest first when turning it on.
   if (featured && !existing.featured) {
@@ -35,9 +39,10 @@ export async function PATCH(request, { params }) {
 
   const [row] = await sql`
     UPDATE projects
-    SET status = ${status}, featured = ${featured}
+    SET status = ${status}, featured = ${featured}, category = ${category}
     WHERE id = ${id}
-    RETURNING id, github_url, vercel_url, status, featured, created_at, updated_at
+    RETURNING id, github_url, vercel_url, status, featured, category,
+              created_at, updated_at
   `;
   return Response.json({ project: row });
 }
