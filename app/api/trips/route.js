@@ -1,10 +1,13 @@
 import { getDb, num, dateOnly } from '../../../lib/db';
 import { fetchDestinationPhoto } from '../../../lib/unsplash';
+import { geocodeDestination } from '../../../lib/geocode';
 
 function serialize(row) {
   return {
     ...row,
     budget: num(row.budget),
+    latitude: num(row.latitude),
+    longitude: num(row.longitude),
     start_date: dateOnly(row.start_date),
     end_date: dateOnly(row.end_date),
   };
@@ -15,7 +18,7 @@ export async function GET() {
   const rows = await sql`
     SELECT id, destination, start_date, end_date, status, notes, budget,
            itinerary, image_url, image_attribution, image_source,
-           created_at, updated_at
+           latitude, longitude, created_at, updated_at
     FROM trips
     ORDER BY start_date IS NULL, start_date ASC, created_at DESC
   `;
@@ -48,19 +51,25 @@ export async function POST(request) {
     }
   }
 
+  // Geocode the destination for the Trip Map — one lookup per trip change, same
+  // rule as the photo. A failure just leaves the pin off the map.
+  const coords = await geocodeDestination(destination);
+
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO trips (
       destination, start_date, end_date, status, notes, budget,
-      image_url, image_attribution, image_source
+      image_url, image_attribution, image_source,
+      latitude, longitude, geocoded_at
     )
     VALUES (
       ${destination}, ${startDate}, ${endDate}, ${status}, ${notes}, ${budget},
-      ${imageUrl}, ${imageAttribution}, ${imageSource}
+      ${imageUrl}, ${imageAttribution}, ${imageSource},
+      ${coords?.latitude ?? null}, ${coords?.longitude ?? null}, now()
     )
     RETURNING id, destination, start_date, end_date, status, notes, budget,
               itinerary, image_url, image_attribution, image_source,
-              created_at, updated_at
+              latitude, longitude, created_at, updated_at
   `;
   return Response.json({ trip: serialize(row) }, { status: 201 });
 }

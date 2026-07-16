@@ -10,7 +10,7 @@
 --   • All DDL is idempotent (IF NOT EXISTS) so re-running is safe.
 --
 -- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
---                      004_language_calls
+--                      004_language_calls, 005_travel_map_brief
 --
 -- Run on a fresh Neon project via the Neon MCP or the Neon SQL editor.
 
@@ -51,12 +51,28 @@ CREATE TABLE IF NOT EXISTS trips (
   image_attribution  text,         -- required by Unsplash API terms when auto-fetched
   image_source       text NOT NULL DEFAULT 'auto'
                      CHECK (image_source IN ('auto', 'manual')),
+  latitude      numeric,           -- geocoded destination coords for the Trip Map
+  longitude     numeric,           -- (see lib/geocode.js) — one lookup per trip change
+  geocoded_at   timestamptz,       -- when coords were last resolved (null = not yet tried)
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
 DROP TRIGGER IF EXISTS trips_set_updated_at ON trips;
 CREATE TRIGGER trips_set_updated_at
   BEFORE UPDATE ON trips FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Cached AI Travel Brief (CLAUDE.md §7). One row; regenerated only when the
+-- summarized trips change (keyed by `signature`), never per page load.
+CREATE TABLE IF NOT EXISTS travel_brief (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brief      text NOT NULL,
+  signature  text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS travel_brief_set_updated_at ON travel_brief;
+CREATE TRIGGER travel_brief_set_updated_at
+  BEFORE UPDATE ON travel_brief FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ─── Schedules (has due_date — distinct from ideas) ───────────────────────────
 CREATE TABLE IF NOT EXISTS schedules (
