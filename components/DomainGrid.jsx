@@ -101,8 +101,8 @@ function IdeaTagChips({ byTag }) {
 const CARD_VARIANT = {
   projects: styles.cardProjects,
   travel: styles.cardTravel,
-  schedules: '',
-  language: '',
+  schedules: styles.cardSchedules,
+  language: styles.cardLanguage,
   ideas: styles.cardIdeas,
   email: styles.cardEmail,
 };

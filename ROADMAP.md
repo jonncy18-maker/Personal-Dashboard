@@ -69,6 +69,8 @@ First item off the Design/UX backlog after the design-review cleanup (#35) merge
 
 **Note:** the Email card was deliberately left sparse — still no honest count without a live Gmail call on every Home load (unchanged from before, CLAUDE.md §7).
 
+**Follow-on (same PR) — diagonal hue treatment.** John then asked for a subtle diagonal color wash on the cards + page background. Mocked two intensities × both themes in an artifact first; he picked "Option B (Lift)". Each of the five non-photo cards (`cardProjects/cardSchedules/cardLanguage/cardIdeas/cardEmail`) gets a `::before` painting a tint of its own domain hue in the top-left corner and a neighbouring hue in the bottom-right (indigo→cyan, amber→coral, emerald→lime, yellow→gold, violet→magenta), fading to the plain surface through the middle. Strength is a theme token `--card-hue-alpha` (0.14 light / 0.26 dark). **Travel is excluded** — it already carries the trip photo. The page background (`html`) gets the same idea desaturated (`--bg-grad`: cool blue → soft lavender / navy → plum), fixed to the viewport. Verified by rendering the real page headlessly in both themes.
+
 **Verified:** `next build` clean; Prettier passes. **Rendered the real Home page headlessly (Chromium) against a mocked `/api/home-summary`, in both light and dark** — the status dots (all six status colors), the "In 3 days" countdown + truncated tutor line, and the "6 open · 3 done" + Travel/AI/General tag chips all lay out correctly in both themes. Live Neon not exercised in the sandbox (no `DATABASE_URL`, proxy blocks outbound) — but this adds no migration, so there's nothing to apply: the new fields are derived from existing columns and surface on the deployed preview immediately.
 
 ---
