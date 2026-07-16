@@ -250,4 +250,14 @@
     flex-basis: 100%;
     justify-content: flex-end;
   }
+  /* On Home there's no greeting to share the first row, so the hamburger would
+     sit alone above a full-width actions row — two rows of wasted height. Keep
+     everything on one row (the spacer pushes the buttons to the right). */
+  .topbarHome {
+    flex-wrap: nowrap;
+  }
+  .topbarHome .actions {
+    order: 0;
+    flex-basis: auto;
+  }
 }
