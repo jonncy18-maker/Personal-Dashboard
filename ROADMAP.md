@@ -17,7 +17,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Build Email's Tier 2 (Haiku semantic residual rules) — 2026-07-14, see entry below. First-run onboarding scan is still deferred (separate feature, not bundled in).
 - [x] Build Email's first-run onboarding scan (frequency `GROUP BY`, one-time, tracked via `app_flags`) — proposes likely Tier 1 candidates on first `/email` visit. Not AI, not blocked on anything. **2026-07-15, see entry below.**
 - [x] Build the Schedules domain (was still a `ComingSoon` stub despite the `schedules` table existing since `001_initial.sql`) — **2026-07-15, see entry below.**
-- [ ] Build the Idea Board domain — still a `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql`. Same shape as the gap Schedules just closed: title/notes/status/domain-tag CRUD, no due date. Natural next slice.
+- [x] Build the Idea Board domain — **2026-07-16, see entry below.** Was still a `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql`. Title/notes/status/domain-tag CRUD, no due date. Last of the six domains to be built out.
 - [x] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data — **2026-07-15, see entry below.** `lib/mock-data.js` deleted. Email's home-card count is intentionally still `null` ("—"), documented as a deliberate scope cut, not a placeholder left behind.
 - [x] **Language Gmail wiring** — John chose the weekly-auto-scan pattern (mirroring Travel's trip-suggestions). Built 2026-07-15, see entry below. Turned out to need **no AI** — see that entry for why.
 - [x] **Fix: date-only fields showing the wrong relative day/weekday for negative-UTC-offset viewers (e.g. Eastern)** — 2026-07-15, see entry below. Real bug in every Schedules due_date / Travel start_date-end_date display.
@@ -30,6 +30,23 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-16 — Built the Idea Board domain (last of the six domains)
+
+Picked as the tracked next slice: `/ideas` was still the `ComingSoon` stub despite the `ideas` table existing since `001_initial.sql` — the identical gap Schedules closed a session earlier. This closes it, so all six domains now have real UI + routes.
+
+Built to the CLAUDE.md §5/§7 spec: title, notes, status (`open`/`in_progress`/`done`), domain tag (`ai_projects`/`travel`/`schedules`/`language`/`general`). **No due date** — that's the deliberate boundary that keeps Idea Board distinct from Schedules (§7: "the boundary is the due date, not topic"). **No promotion path to AI Projects** either, per §5 — an idea is a someday/maybe record, full stop.
+
+**Built:**
+
+- `app/api/ideas/route.js` (GET list, ordered done-last then newest-first — POST create) and `app/api/ideas/[id]/route.js` (PATCH/DELETE), mirroring the CRUD shape of `/api/schedules` minus every due-date concern (no `dateOnly` boundary coercion needed — `ideas` has no date column). `status` and `domain_tag` are both validated against allow-lists at the route boundary, matching the table's CHECK constraints.
+- `app/ideas/page.jsx` (+ `page.module.css`) — replaces the stub. Same checkbox-style list + inline add-form pattern as Schedules, but with a domain-tag chip (colored off each domain's own accent token) in place of Schedules' due-date chip and trip/project link badge. No date UI anywhere.
+
+**Reused, not rebuilt:** the Home Idea Board card was already wired to a real count — `app/api/home-summary/route.js` has queried `COUNT(*) FROM ideas WHERE status != 'done'` since the mock-data teardown (2026-07-15 cont'd 7), and `DomainGrid` already rendered it. No Home change was needed.
+
+**Verified:** `next build` clean (`/ideas`, `/api/ideas`, `/api/ideas/[id]` all registered); Prettier passes. Not exercised against live Neon in this sandbox (no `DATABASE_URL` here) — same limitation noted on every prior domain build; the query shapes mirror `/api/schedules`, itself modeled on the Neon-MCP-verified `/api/trips`.
 
 ---
 
