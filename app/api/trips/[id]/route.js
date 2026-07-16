@@ -1,10 +1,13 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { fetchDestinationPhoto } from '../../../../lib/unsplash';
+import { geocodeDestination } from '../../../../lib/geocode';
 
 function serialize(row) {
   return {
     ...row,
     budget: num(row.budget),
+    latitude: num(row.latitude),
+    longitude: num(row.longitude),
     start_date: dateOnly(row.start_date),
     end_date: dateOnly(row.end_date),
   };
@@ -16,7 +19,7 @@ export async function GET(request, { params }) {
   const [row] = await sql`
     SELECT id, destination, start_date, end_date, status, notes, budget,
            itinerary, image_url, image_attribution, image_source,
-           created_at, updated_at
+           latitude, longitude, created_at, updated_at
     FROM trips WHERE id = ${id}
   `;
   if (!row) {
@@ -88,6 +91,19 @@ export async function PATCH(request, { params }) {
     }
   }
 
+  // Re-geocode when the destination changes, or backfill if coords were never
+  // resolved (a trip created before this feature existed). Editing anything
+  // else (notes, budget) reuses the stored coords — no needless lookup.
+  let latitude = existing.latitude;
+  let longitude = existing.longitude;
+  let geocodedAt = existing.geocoded_at;
+  if (destination !== existing.destination || existing.latitude == null) {
+    const coords = await geocodeDestination(destination);
+    latitude = coords?.latitude ?? null;
+    longitude = coords?.longitude ?? null;
+    geocodedAt = new Date();
+  }
+
   const [row] = await sql`
     UPDATE trips SET
       destination = ${destination},
@@ -99,11 +115,14 @@ export async function PATCH(request, { params }) {
       itinerary = ${itinerary},
       image_url = ${imageUrl},
       image_attribution = ${imageAttribution},
-      image_source = ${imageSource}
+      image_source = ${imageSource},
+      latitude = ${latitude},
+      longitude = ${longitude},
+      geocoded_at = ${geocodedAt}
     WHERE id = ${id}
     RETURNING id, destination, start_date, end_date, status, notes, budget,
               itinerary, image_url, image_attribution, image_source,
-              created_at, updated_at
+              latitude, longitude, created_at, updated_at
   `;
   return Response.json({ trip: serialize(row) });
 }
