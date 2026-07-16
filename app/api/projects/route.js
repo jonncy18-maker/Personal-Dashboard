@@ -1,12 +1,24 @@
 import { getDb } from '../../../lib/db';
 
 // AI Projects CRUD. No auto-detection — "Add Project" is exactly two fields
-// (github_url required, vercel_url optional). See CLAUDE.md §7.
+// (github_url required, vercel_url optional). See CLAUDE.md §7. `status` +
+// `featured` are the small manual layer (migration 007) the redesigned view
+// leans on for its tabs/counts and featured panel; edited via [id]/route.js.
+
+const STATUSES = [
+  'planning',
+  'active',
+  'needs_attention',
+  'on_hold',
+  'blocked',
+  'completed',
+];
 
 export async function GET() {
   const sql = getDb();
   const rows = await sql`
-    SELECT id, github_url, vercel_url, created_at, updated_at
+    SELECT id, github_url, vercel_url, status, featured, category,
+           created_at, updated_at
     FROM projects
     ORDER BY created_at DESC
   `;
@@ -28,11 +40,15 @@ export async function POST(request) {
     );
   }
 
+  const status = STATUSES.includes(body.status) ? body.status : 'active';
+  const category = body.category ? String(body.category).trim() || null : null;
+
   const sql = getDb();
   const [row] = await sql`
-    INSERT INTO projects (github_url, vercel_url)
-    VALUES (${githubUrl}, ${vercelUrl || null})
-    RETURNING id, github_url, vercel_url, created_at, updated_at
+    INSERT INTO projects (github_url, vercel_url, status, category)
+    VALUES (${githubUrl}, ${vercelUrl || null}, ${status}, ${category})
+    RETURNING id, github_url, vercel_url, status, featured, category,
+              created_at, updated_at
   `;
   return Response.json({ project: row }, { status: 201 });
 }

@@ -33,14 +33,14 @@ No migration history — this is a new project, built directly to this stack fro
 
 ## 2. API Key / Security Rules
 
-| Key                                                    | Prefix                     | Lives                             | Why                                                                                                                          |
-| ------------------------------------------------------ | -------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Neon connection string (`DATABASE_URL`)                | none (server-only)         | Vercel env (Production + Preview) | DB access — never exposed to browser                                                                                         |
-| Vercel API token                                       | none (server-only)         | Vercel env (Production + Preview) | Read-only calls to Vercel's own API (`list_projects`, `get_project`, `list_deployments`) for AI Projects' live deploy status |
-| GitHub API access                                      | none needed (public repos) | N/A                               | Public repo content (`ROADMAP.md` "Next Up") — no token unless private repos are added later                                 |
-| Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) | none (server-only)         | Vercel env (Production + Preview) | One client, read-only scopes for **Calendar** (next Spanish tutor call) and **Gmail** (Email domain + Travel import)         |
-| Anthropic API key (Claude Haiku)                       | none (server-only)         | Vercel env (Production + Preview) | Narrow uses only: Email Tier 2 semantic residual + Travel itinerary parse. See §7                                            |
-| Unsplash access key (`UNSPLASH_ACCESS_KEY`)            | none (server-only)         | Vercel env (Production + Preview) | Read-only search API — auto-fetches a trip's destination photo (Travel, auto + manual override). See §7                      |
+| Key                                                    | Prefix             | Lives                                           | Why                                                                                                                                                                                                          |
+| ------------------------------------------------------ | ------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Neon connection string (`DATABASE_URL`)                | none (server-only) | Vercel env (Production + Preview)               | DB access — never exposed to browser                                                                                                                                                                         |
+| Vercel API token                                       | none (server-only) | Vercel env (Production + Preview)               | Read-only calls to Vercel's own API (`list_projects`, `get_project`, `list_deployments`) for AI Projects' live deploy status                                                                                 |
+| GitHub API access (`GITHUB_TOKEN`)                     | none (server-only) | Vercel env (Production + Preview), **optional** | Public repo reads work with no token. Set `GITHUB_TOKEN` to raise the rate limit (60→5000 req/hr) and reach private repos. Used by `lib/github.js` for AI Projects (repo meta, commits, milestones, Next Up) |
+| Google OAuth (`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) | none (server-only) | Vercel env (Production + Preview)               | One client, read-only scopes for **Calendar** (next Spanish tutor call) and **Gmail** (Email domain + Travel import)                                                                                         |
+| Anthropic API key (Claude Haiku)                       | none (server-only) | Vercel env (Production + Preview)               | Narrow uses only: Email Tier 2 semantic residual + Travel itinerary parse. See §7                                                                                                                            |
+| Unsplash access key (`UNSPLASH_ACCESS_KEY`)            | none (server-only) | Vercel env (Production + Preview)               | Read-only search API — auto-fetches a trip's destination photo (Travel, auto + manual override). See §7                                                                                                      |
 
 **Rule:** anything that touches the Vercel API, Neon connection, Google APIs, or Anthropic API goes through a server-side route handler (`app/api/*`); the browser never calls any of these directly. No env var carrying a secret gets a `NEXT_PUBLIC_` prefix.
 
@@ -85,6 +85,7 @@ VERCEL_API_TOKEN=          # Read-only Vercel API access for AI Projects
 GOOGLE_CLIENT_ID=          # Google OAuth — read-only Calendar + Gmail
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REFRESH_TOKEN=
+GITHUB_TOKEN=              # OPTIONAL — raises GitHub rate limit + unlocks private repos (AI Projects)
 
 # Client-side (public-prefixed)
 NEXT_PUBLIC_APP_URL=       # Same-origin base URL
@@ -127,6 +128,8 @@ Lightweight convention — no ORM (overkill for one user), but a small runner cl
 **Don't conflate GitHub and Vercel in AI Projects.** Vercel sources deploy status + live URL. GitHub sources the "Next Up" line, parsed from a standardized `## Next Up` section at the top of that repo's `ROADMAP.md`. Two separate API calls, two purposes — don't merge them into one data-model field or one fetch. _(Cross-repo dependency: this `## Next Up` convention does not yet exist in any sibling repo — see §10.)_
 
 **"Add Project" has no auto-detection — deliberately rejected.** Two explicit fields (GitHub URL required, Vercel URL optional). Do not scan Vercel projects to match a pasted GitHub URL.
+
+**AI Projects is mostly GitHub/Vercel-derived, with a thin manual layer — and no fabricated metrics.** The redesigned view (`/api/projects/overview` aggregates it server-side via `lib/github.js` + `lib/vercel.js`) shows real data: repo description, language + **topics** (the tech chip/badges), **last commit** + relative time, open issues, deploy status (a live dot on each row), a **real Recent Activity feed** (commits + deploys merged), and **progress from a repo's open GitHub milestone** (closed ÷ total issues — shown only where a milestone exists; no milestone = no bar, honestly). The things GitHub can't know live in `projects` as a small manual layer: **`status`** (lifecycle — drives the tabs + the top counts) and **`featured`** (at most one; the featured panel) from migration 007, and **`category`** (a manual label like Mission/Client — the auto language is useless when every repo is JS; free text, migration 008) — all edited in the row's hover popover. Do **not** invent a "progress %", "daily focus", or "↑ N% this week" trend for a project — same rule as everywhere else: a metric comes from real data (GitHub/Vercel/milestone) or a field John maintains, never a hardcoded number.
 
 **Gmail access is read-only, full stop.** No code path may call a Gmail write/archive/delete/modify endpoint. "Hiding" an email only sets a local flag (`email_hidden`) — the real mailbox is never touched. Hard boundary, not a revisitable default.
 

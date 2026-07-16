@@ -30,7 +30,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 
 _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards — separate from the domain-build work, which is now complete. Items marked **needs scoping** get a grill session or a mockup from John before Build, per the project's scope-before-build convention; items marked **build-ready** are concrete enough to just do.)_
 
-- [ ] **AI Projects detail view redesign** — _needs scoping._ The tracked-projects detail view (the popup listing each project's Vercel/GitHub status + "Next Up" line) "does not look great." Rework the layout and presentation. John will either grill the direction here or provide ChatGPT mockups to work from. Hold Build until there's a design to build to.
+- [x] **AI Projects redesign** — 2026-07-16, see entry below. From John's ChatGPT mock, run through the honest-data pass: stat bar + featured panel + tabbed project list with a **hover detail popover** (holding the status setter) + a real recent-activity rail. Wired to real GitHub/Vercel data (description, language, topics, last commit, open issues, deploy status, milestone-based progress, merged activity feed); a thin manual layer (`status`, `featured` — migration 007) covers what GitHub can't know. Dropped the mock's fabricated progress numbers + "↑5% this week" trend.
 - [x] **Idea Board quick-capture popup** — 2026-07-16, see entry below. Clicking the Home Idea Board card opens a popup: a free-write box (first line → title, rest → notes) + optional domain-tag chip on top, the existing ideas listed below with done-toggle / inline edit / delete. Scoping resolved with John: **keep** the `/ideas` route (popup is an additional quick surface; a cmd/ctrl-click on the card still opens the full page), **single free-write box**, **combined** write + list in one popup. Front-end only — `/api/ideas` unchanged.
 - [ ] **Richer card design — AI Projects, Language, Idea Board Home cards** — _needs scoping._ These three Home domain cards (`components/DomainGrid.jsx`) read as sparse next to the others; John wants more visual design on them. Direction TBD — grill for what each should surface (e.g. AI Projects: per-project status dots / deploy state; Language: next-call context; Idea Board: recent idea titles or count-by-tag) before committing to a look.
 - [x] **TopBar greeting should not wrap** — 2026-07-16 (#28). `.greetingTitle` now `white-space: nowrap`.
@@ -48,6 +48,28 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-16 (cont'd 6) — AI Projects redesign (GitHub/Vercel-derived + thin manual layer)
+
+John brought a ChatGPT mock and wanted to stay close to it, plus explore a hover-to-detail popover. Same honest-data pass as Travel/Home: mapped every panel to a real source, flagged the fabricated bits, and got three decisions — **manual status** (per project), **milestone-based progress** (from GitHub), **topics+language** for badges — then built.
+
+**What's real (the bulk of it):** repo description, language, **topics** (tech/category badges), **last commit** + relative time, open issues, deploy status (Vercel), a **Recent Activity feed** (commits + deploys merged, newest first), and **progress from a repo's open GitHub milestone** (closed ÷ total issues — shown only where a milestone exists; no milestone → no bar, stated honestly). **Dropped as fabricated:** the mock's specific progress numbers and the "↑ 5% this week" trend (no history).
+
+**Manual layer:** `projects.status` (planning / active / needs_attention / on_hold / blocked / completed — drives the tabs + the stat-bar counts) and `projects.featured` (at most one; the featured panel) from migration 007, plus `projects.category` (a manual label — Mission / Personal / Infrastructure / Client / Learning; free text, migration 008) added after John flagged that the auto-detected language ("JavaScript") is a useless card label when every repo is JS. All three edited in the row's hover popover.
+
+**Card design (John reviewed the preview, picked design "B"):** the project list stays a tight single list, with a **status-colored left accent** per row, a **tech chip** (real language/topic), and a **live deploy dot** (green Live / amber Building / red Failed, from Vercel). Chosen from three mocked variants.
+
+**Built:**
+
+- `lib/github.js` — shared server helpers (repo meta, recent commits, open milestone → %, Next Up), optional `GITHUB_TOKEN` (60→5000 req/hr + private repos), all cached (`revalidate: 600`) and fail-soft. `lib/vercel.js` — factored the deploy lookup out of the route so `/api/projects/overview` and the existing `/api/vercel` share it.
+- `app/api/projects/overview/route.js` — one server call: every project's DB row enriched with GitHub + Vercel data + a merged activity feed. One round trip for the client, one place for GitHub caching/rate-limits.
+- `app/api/projects` (GET/POST now include status/featured) + new `app/api/projects/[id]` (PATCH status/featured — featured is exclusive; DELETE).
+- `app/ai-projects/page.jsx` + `page.module.css` — full redesign: header + tagline, stat bar, featured panel, tabs, project list with the **hover popover** (description, last commit, milestone, issues, Next Up, links, **status dropdown + Feature toggle** — the popover is a DOM child of the row, so hovering it keeps it open and its controls usable), and the activity rail.
+- `neon/migrations/007_project_meta.sql` + `schema.sql`; CLAUDE.md §2/§4/§7 (GitHub token optional, the AI-Projects data rule).
+
+**Verified:** `next build` clean; Prettier passes. Stat-bar math + activity-merge exercised in Node (in-flight/need-attention/blocked counts, avg-across-milestones, newest-first sort). **Rendered the real page module CSS headlessly (Chromium) with a popover forced open** — stat bar, featured panel, tabbed list, the popover (incl. the status editor), and the activity rail all lay out correctly. Live GitHub/Vercel/Neon not exercised in the sandbox (no creds; proxy blocks outbound) — the enrichment + activity feed first run on the deployed preview once migration 007 is applied to the shared Neon DB (via the Neon MCP, same as prior migrations).
 
 ---
 
