@@ -21,7 +21,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] Wire Home/Sidebar/TopBar off `lib/mock-data.js` onto real per-domain data — **2026-07-15, see entry below.** `lib/mock-data.js` deleted. Email's home-card count is intentionally still `null` ("—"), documented as a deliberate scope cut, not a placeholder left behind.
 - [x] **Language Gmail wiring** — John chose the weekly-auto-scan pattern (mirroring Travel's trip-suggestions). Built 2026-07-15, see entry below. Turned out to need **no AI** — see that entry for why.
 - [x] **Fix: date-only fields showing the wrong relative day/weekday for negative-UTC-offset viewers (e.g. Eastern)** — 2026-07-15, see entry below. Real bug in every Schedules due_date / Travel start_date-end_date display.
-- [ ] **Known, not yet fixed:** `app/api/trip-scan/route.js`'s `matchesExistingTrip` dedupe compares `trips` rows' raw `start_date`/`end_date` (DB `Date` objects) against a candidate's plain `"YYYY-MM-DD"` strings with `<=`/`>=`. Found while fixing the date-timezone bug above but out of scope for that fix (it's an internal dedupe heuristic, not a display path) — a `Date` object compared with `<=` against a string coerces via `.toString()`, not the ISO form, so the comparison is not reliably correct. Worth a follow-up pass.
+- [x] **Fixed: `app/api/trip-scan/route.js`'s `matchesExistingTrip` date comparison** — 2026-07-16, see entry below. Was comparing `trips` rows' raw `start_date`/`end_date` (DB `Date` objects) against a candidate's plain `"YYYY-MM-DD"` strings with `<=`/`>=`; the `Date`-vs-string coercion went through `.toString()`, not the ISO form, so the overlap test silently always failed and real duplicate trips slipped through as new suggestions. Now both sides go through `dateOnly()` first.
 
 ---
 
@@ -30,6 +30,18 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-16 (cont'd) — Fix: trip-scan dedupe never matched when both sides had dates
+
+Closed the known-gap tracked since the date-timezone fix (2026-07-15 cont'd 9). `matchesExistingTrip` in `app/api/trip-scan/route.js` decides whether a Haiku-detected candidate trip is already covered by an existing trip (shared place-word AND overlapping dates) so it isn't re-suggested. The date-overlap half was silently broken.
+
+**Root cause — the same `Date`-vs-string trap the display bug had, in a non-display path.** The existing `trips` rows are selected straight from Neon, so `t.start_date`/`t.end_date` are JS `Date` objects (DATE columns at UTC midnight). The candidate's `start_date`/`end_date` are plain `"YYYY-MM-DD"` strings from `detectTripFromEmail`. The overlap test `cs <= te && ts <= ce` therefore compared a string against a `Date`: JS coerces the `Date` via `.toString()` → `"Thu Jul 16 2026 00:00:00 GMT…"`, not its ISO form, and compares lexicographically. `"2026-…"` always sorts before `"Thu …"` (`'2'` < `'T'`), so `cs <= te` was always true and `ts <= ce` always false — the AND was **always false**. Net effect: whenever a candidate and an existing trip both had dates, the overlap check never fired, so a genuine duplicate was never deduped and got re-surfaced as a fresh suggestion for John to dismiss.
+
+**Fix.** Route all four dates through `dateOnly()` (the helper added in the display-bug fix) before comparing, so both sides are bare `"YYYY-MM-DD"` strings — which sort lexicographically identically to calendar order. One import + four coercions in the one function; no schema, API-shape, or behavior change anywhere else. The candidate strings pass through `dateOnly` unchanged (idempotent); only the trip `Date`s are actually converted.
+
+**Verified:** reproduced the exact bug in Node with the real type mismatch (existing trip as `Date` objects Jul 15–20, candidate as strings) — pre-fix, a plainly overlapping Jul 16–18 candidate returned `false` (missed dedupe); post-fix it returns `true`, and a non-overlapping Aug 10–12 candidate correctly returns `false`. `next build` clean; Prettier passes. Not exercised end-to-end through a live Gmail scan in this sandbox (no credentials here) — but the defect and fix are pure date-comparison logic, fully covered by the direct reproduction.
 
 ---
 
