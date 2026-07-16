@@ -1,4 +1,4 @@
-import { getDb } from '../../../lib/db';
+import { getDb, dateOnly } from '../../../lib/db';
 import { getGmailClient } from '../../../lib/google';
 import { header } from '../../../lib/email-sender';
 import { extractPlainText } from '../../../lib/gmail-body';
@@ -62,10 +62,16 @@ function matchesExistingTrip(cand, trips) {
     );
     if (!shareWord) return false;
     if (!cand.start_date || !t.start_date) return true; // shared place, no dates to separate them
-    const cs = cand.start_date;
-    const ce = cand.end_date || cand.start_date;
-    const ts = t.start_date;
-    const te = t.end_date || t.start_date;
+    // Normalize both sides to bare "YYYY-MM-DD" before comparing. The trip rows
+    // come from Neon as JS Date objects (DATE columns) while the candidate dates
+    // are plain strings from detection; a raw Date <= string comparison coerces
+    // the Date via .toString() ("Thu Jul 16 2026 ..."), not its ISO form, so the
+    // overlap test was never reliably correct. dateOnly gives both an ISO date
+    // string, which sorts lexicographically the same as calendar order.
+    const cs = dateOnly(cand.start_date);
+    const ce = dateOnly(cand.end_date || cand.start_date);
+    const ts = dateOnly(t.start_date);
+    const te = dateOnly(t.end_date || t.start_date);
     return cs <= te && ts <= ce; // range overlap
   });
 }
