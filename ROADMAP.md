@@ -50,6 +50,22 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-07-17 (cont'd) — Multi-stop Trip Map (per-stop pins, routes, hover labels)
+
+Scoped with John, then built: the Trip Map moved from one dot per trip to a real, multi-stop map that handles cruises (many ports) and multi-leg journeys (Philippines → Taiwan → Japan cruise).
+
+**Decisions (all John's picks):** flat ordered **stops with an optional one-level `leg` label** (over true recursive sub-trips — captures every mappable place + date without the recursion cost); **every located stop is its own dot**, connected in date order into that trip's route; **hover label = trip + stop + date** ("Panama Cruise — Cartagena · Oct 26").
+
+**Data model — no migration.** `trips.itinerary` is already `jsonb`, so a stop just grew from `{date,title,notes}` to also carry `location`, `latitude`, `longitude`, `geocoded_for`, and `leg`. Old days stay valid (no location = not mapped). `lib/itinerary.js` (new) owns the stop shape, geocoding, and map serialization.
+
+**Geocoding.** `lib/geocode.js` refactored: a shared Nominatim core now returns a **status** (`ok` / `none` / `error`) so a definitive no-match is told apart from a transient failure. `geocodeStops` caches coords per stop (keyed by `geocoded_for` so only changed locations re-resolve) and — the key robustness fix — **does not** cache on a transient error (429/5xx/network), so a rate-limit during a bulk backfill can't permanently unplace a real port; it retries next pass. Capped at 12 new lookups per pass; `/api/trips` PATCH geocodes on save and `/api/trip-map` backfills the remainder lazily (same discipline as the trip-level backfill), one-time per stop.
+
+**Map + detail view.** `WorldMap` draws a dot per located stop, a dashed route per trip, and a styled hover tooltip (percentage-positioned so it tracks the dot at any size; keyboard-focusable with an SVG `<title>` fallback). The trip detail editor gained **Location** (maps the stop) and **Leg** (optional group) fields per stop, renders leg-group headers, and renumbered "day" → "stop". The Gmail/Haiku import now also extracts each stop's `location` and `leg` (shown in the preview), so importing a cruise confirmation places its ports automatically.
+
+**Verified:** `next build` clean, Prettier passes; stop normalization / mappable-filter / numeric coercion / geocode-need logic unit-checked. Interactive hover + live geocoding verify on the Vercel preview (no local Neon here).
+
+---
+
 ## 2026-07-17 — Refresh-button coverage + Wishlist trip status
 
 Two next-step items off the roadmap (plus one config note).
