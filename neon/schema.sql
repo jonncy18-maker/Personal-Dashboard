@@ -11,7 +11,8 @@
 --
 -- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
 --                      004_language_calls, 005_travel_map_brief, 006_hero_image,
---                      007_project_meta, 008_project_category
+--                      007_project_meta, 008_project_category,
+--                      009_trip_wishlist_status
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -61,7 +62,7 @@ CREATE TABLE IF NOT EXISTS trips (
   start_date    date,
   end_date      date,
   status        text NOT NULL DEFAULT 'upcoming'
-                CHECK (status IN ('upcoming', 'past')),
+                CHECK (status IN ('upcoming', 'past', 'wishlist')),
   notes         text,
   budget        numeric,           -- coerce with num() at the API boundary
   itinerary     jsonb,

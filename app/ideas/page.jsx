@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useResource } from '../../lib/useResource';
 import styles from './page.module.css';
 
 const DOMAIN_TAGS = [
@@ -171,26 +172,16 @@ function AddIdeaForm({ onAdded }) {
 }
 
 export default function IdeasPage() {
+  // Shared fetch (also re-fetches on the TopBar refresh signal); local `ideas`
+  // state is kept for optimistic mutations and synced from the loaded data.
+  const { data, error: loadError } = useResource('/api/ideas', {
+    errorMessage: 'Could not load ideas.',
+  });
   const [ideas, setIdeas] = useState(null);
-  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/ideas')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        if (!cancelled) setIdeas(data.ideas || []);
-      })
-      .catch(() => {
-        if (!cancelled) setLoadError('Could not load ideas.');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (data) setIdeas(data.ideas || []);
+  }, [data]);
 
   async function updateIdea(id, patch) {
     const snapshot = ideas;

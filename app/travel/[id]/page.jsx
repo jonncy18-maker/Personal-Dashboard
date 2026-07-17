@@ -369,6 +369,7 @@ export default function TripDetailPage() {
             >
               <option value="upcoming">Upcoming</option>
               <option value="past">Past</option>
+              <option value="wishlist">Wishlist</option>
             </select>
           </label>
           <label className={styles.field}>

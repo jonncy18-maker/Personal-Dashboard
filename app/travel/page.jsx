@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useResource } from '../../lib/useResource';
 import TripPhoto from '../../components/TripPhoto';
 import WorldMap from '../../components/WorldMap';
 import { parseDateInput, daysUntil } from '../../lib/format';
@@ -317,10 +318,43 @@ function PastCard({ trip }) {
   );
 }
 
+// ─── wishlist card ─────────────────────────────────────────────────────────
+// Someday/maybe destinations — dates optional, so no length/countdown chrome.
+function WishlistCard({ trip }) {
+  const budget = money(trip.budget);
+  const hasDates = Boolean(trip.start_date);
+  return (
+    <Link href={`/travel/${trip.id}`} className={styles.card}>
+      <div className={styles.cardPhotoWrap}>
+        <TripPhoto
+          src={trip.image_url}
+          className={styles.cardPhoto}
+          fallback={<div className={styles.cardFallback} />}
+        />
+        <span className={styles.cardStatus}>Wishlist</span>
+      </div>
+      <div className={styles.cardBody}>
+        <p className={styles.cardName}>{trip.destination}</p>
+        {hasDates && (
+          <p className={`${styles.cardDates} tabular`}>{dateRange(trip)}</p>
+        )}
+        {budget && (
+          <div className={`${styles.cardMeta} tabular`}>
+            <span className={`${styles.metaItem} ${styles.metaBudget}`}>
+              <WalletIcon /> {budget}
+            </span>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 // ─── add-trip form (behavior unchanged) ────────────────────────────────────
 function AddTripForm({ onAdded }) {
   const [open, setOpen] = useState(false);
   const [destination, setDestination] = useState('');
+  const [status, setStatus] = useState('upcoming');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [budget, setBudget] = useState('');
@@ -338,6 +372,7 @@ function AddTripForm({ onAdded }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           destination,
+          status,
           start_date: startDate || null,
           end_date: endDate || null,
           budget: budget || null,
@@ -351,6 +386,7 @@ function AddTripForm({ onAdded }) {
       }
       onAdded(data.trip);
       setDestination('');
+      setStatus('upcoming');
       setStartDate('');
       setEndDate('');
       setBudget('');
@@ -381,6 +417,13 @@ function AddTripForm({ onAdded }) {
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
           />
+        </label>
+        <label className={styles.field}>
+          <span>Status</span>
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="upcoming">Upcoming</option>
+            <option value="wishlist">Wishlist</option>
+          </select>
         </label>
         <label className={styles.field}>
           <span>Start date</span>
@@ -491,36 +534,33 @@ function SuggestionsBanner({ suggestions, onApprove, onDismiss }) {
 
 // ─── page ──────────────────────────────────────────────────────────────────
 export default function TravelPage() {
+  // Shared fetches (all re-fetch on the TopBar refresh signal). Local `trips`
+  // and `suggestions` state is kept for optimistic mutations and synced from
+  // the loaded data; `loadSuggestions` (reload) replaces the old imperative
+  // refresh after a scan/approve/dismiss.
+  const { data: tripsData, error: loadError } = useResource('/api/trips', {
+    errorMessage: 'Could not load trips.',
+  });
+  const { data: briefData } = useResource('/api/travel-brief');
+  const { data: mapData } = useResource('/api/trip-map');
+  const suggestionsRes = useResource('/api/trip-suggestions');
+  const loadSuggestions = suggestionsRes.reload;
+
   const [trips, setTrips] = useState(null);
-  const [loadError, setLoadError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState(null);
-  const [brief, setBrief] = useState(null);
-  const [pins, setPins] = useState([]);
-
-  function loadSuggestions() {
-    fetch('/api/trip-suggestions')
-      .then((res) => res.json())
-      .then((data) => setSuggestions(data.suggestions || []))
-      .catch(() => {});
-  }
+  const brief = briefData?.brief || null;
+  const pins = mapData?.pins || [];
 
   useEffect(() => {
-    fetch('/api/trips')
-      .then((res) => res.json())
-      .then((data) => setTrips(data.trips || []))
-      .catch(() => setLoadError('Could not load trips.'));
-    fetch('/api/travel-brief')
-      .then((res) => res.json())
-      .then((data) => setBrief(data.brief || null))
-      .catch(() => {});
-    fetch('/api/trip-map')
-      .then((res) => res.json())
-      .then((data) => setPins(data.pins || []))
-      .catch(() => {});
-    loadSuggestions();
-  }, []);
+    if (tripsData) setTrips(tripsData.trips || []);
+  }, [tripsData]);
+
+  useEffect(() => {
+    if (suggestionsRes.data)
+      setSuggestions(suggestionsRes.data.suggestions || []);
+  }, [suggestionsRes.data]);
 
   async function handleScan() {
     setScanning(true);
@@ -567,6 +607,7 @@ export default function TravelPage() {
       return a.start_date.localeCompare(b.start_date);
     });
   const past = (trips || []).filter((t) => t.status === 'past');
+  const wishlist = (trips || []).filter((t) => t.status === 'wishlist');
   const hero = upcoming[0] || null;
   const rest = upcoming.slice(1);
 
@@ -665,6 +706,22 @@ export default function TravelPage() {
               <div className={styles.grid}>
                 {past.map((trip) => (
                   <PastCard key={trip.id} trip={trip} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {wishlist.length > 0 && (
+            <>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionTitle}>Wishlist</span>
+                <span className={`${styles.sectionCount} tabular`}>
+                  {wishlist.length}
+                </span>
+              </div>
+              <div className={styles.grid}>
+                {wishlist.map((trip) => (
+                  <WishlistCard key={trip.id} trip={trip} />
                 ))}
               </div>
             </>

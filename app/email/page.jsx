@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useResource } from '../../lib/useResource';
 import styles from './page.module.css';
 
 function ManageForm({ message, existingRule, onSave, onCancel }) {
@@ -256,6 +257,17 @@ function RulesPopup({ rules, onUnhide, onClose }) {
 }
 
 export default function EmailPage() {
+  // Gmail + rules go through the shared hook so the TopBar refresh button
+  // re-fetches them; local state is mirrored from the loaded data so the
+  // optimistic hide/rule mutations still work. `reload()` replaces the old
+  // imperative loadMessages()/loadRules() calls after a mutation.
+  const gmailRes = useResource('/api/gmail', {
+    errorMessage: 'Could not load Gmail.',
+  });
+  const rulesRes = useResource('/api/email-rules');
+  const loadMessages = gmailRes.reload;
+  const loadRules = rulesRes.reload;
+
   const [messages, setMessages] = useState(null);
   const [rules, setRules] = useState([]);
   const [configured, setConfigured] = useState(true);
@@ -263,27 +275,22 @@ export default function EmailPage() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [onboarding, setOnboarding] = useState(null);
 
-  function loadMessages() {
-    fetch('/api/gmail')
-      .then((res) => res.json())
-      .then((data) => {
-        setMessages(data.messages || []);
-        setConfigured(data.configured);
-        if (data.error) setError('Could not load Gmail.');
-      })
-      .catch(() => setError('Could not load Gmail.'));
-  }
-
-  function loadRules() {
-    fetch('/api/email-rules')
-      .then((res) => res.json())
-      .then((data) => setRules(data.rules || []))
-      .catch(() => {});
-  }
+  useEffect(() => {
+    if (!gmailRes.data) return;
+    setMessages(gmailRes.data.messages || []);
+    setConfigured(gmailRes.data.configured);
+    if (gmailRes.data.error) setError('Could not load Gmail.');
+  }, [gmailRes.data]);
 
   useEffect(() => {
-    loadMessages();
-    loadRules();
+    if (gmailRes.error) setError('Could not load Gmail.');
+  }, [gmailRes.error]);
+
+  useEffect(() => {
+    if (rulesRes.data) setRules(rulesRes.data.rules || []);
+  }, [rulesRes.data]);
+
+  useEffect(() => {
     // First-run onboarding scan (CLAUDE.md §7) — one-time; the API records
     // completion so this returns done:true on every later visit.
     fetch('/api/email-onboarding')

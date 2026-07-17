@@ -23,7 +23,10 @@ export const POST = route(async (request) => {
     return Response.json({ error: 'destination is required' }, { status: 400 });
   }
 
-  const status = body.status === 'past' ? 'past' : 'upcoming';
+  const status =
+    body.status === 'past' || body.status === 'wishlist'
+      ? body.status
+      : 'upcoming';
   const startDate = body.start_date || null;
   const endDate = body.end_date || null;
   const notes = body.notes || null;
