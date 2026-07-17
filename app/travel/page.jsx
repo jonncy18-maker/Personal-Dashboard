@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useResource } from '../../lib/useResource';
 import TripPhoto from '../../components/TripPhoto';
 import WorldMap from '../../components/WorldMap';
+import ChecklistTemplates from '../../components/ChecklistTemplates';
 import { parseDateInput, daysUntil } from '../../lib/format';
 import styles from './page.module.css';
 
@@ -728,6 +729,10 @@ export default function TravelPage() {
           )}
         </>
       )}
+
+      <div className={styles.templatesSection}>
+        <ChecklistTemplates />
+      </div>
     </div>
   );
 }

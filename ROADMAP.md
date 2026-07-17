@@ -50,6 +50,20 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-07-17 (cont'd 2) — Travel prep checklists (reusable templates, applied per trip)
+
+Scoped with John (Keep isn't reachable via any MCP here, so he pasted his 3 lists), then built. First item toward the reserved "Travel Health" idea, done as the honestly-buildable slice: reusable packing/prep checklists.
+
+**Decisions (John's picks):** live as a **Checklists sub-section inside Travel** (not a new top-level domain); **reusable templates applied per trip** (not per-trip one-offs, not a trip-type auto-apply). His real lists have **sections** (Toiletries, Tech, Docs, Cruise-specific…), so an item is `{text, section}` — the same flat-with-group-label shape as itinerary legs.
+
+**Data model (migration 010, additive).** `checklist_templates` (the master lists) + `trip_checklists` (a template applied to a trip; items copied to `{text, section, done}` at apply time, so editing a template never disturbs a past trip's checked state). A trip may hold more than one (Business + Vacation). `lib/checklists.js` owns normalization + progress. Applied to Neon via the MCP; **John's actual checklist content is seeded straight into the DB, never committed** (personal packing data stays out of the repo — the migration only creates the shape).
+
+**API + UI.** CRUD at `/api/checklist-templates` (+ `[id]`) and `/api/trip-checklists` (+ `[id]`), all `route()`-wrapped. Travel page gained a **Checklists** manager (collapsible template editors, section-aware); trip detail gained a **Prep checklist** block — apply a template, tick items (optimistic), real done/total progress bar. Seeded his three lists: Philippines/Cruise (114 items, sectioned), Business Travel (51), Vacation Travel (59).
+
+**Verified:** `next build` clean; Prettier passes.
+
+---
+
 ## 2026-07-17 (cont'd) — Multi-stop Trip Map (per-stop pins, routes, hover labels)
 
 Scoped with John, then built: the Trip Map moved from one dot per trip to a real, multi-stop map that handles cruises (many ports) and multi-leg journeys (Philippines → Taiwan → Japan cruise).

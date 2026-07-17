@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import TripPhoto from '../../../components/TripPhoto';
+import TripChecklists from '../../../components/TripChecklists';
 import { absoluteDate } from '../../../lib/format';
 import styles from './page.module.css';
 
@@ -531,6 +532,11 @@ export default function TripDetailPage() {
             Import from Gmail
           </button>
         </div>
+      </div>
+
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Prep checklist</h2>
+        <TripChecklists tripId={id} />
       </div>
 
       {importOpen && (
