@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useResource } from '../../lib/useResource';
 import { absoluteDate, relativeDay } from '../../lib/format';
 import styles from './page.module.css';
 
@@ -224,25 +225,23 @@ function AddScheduleForm({ trips, projects, onAdded }) {
 }
 
 export default function SchedulesPage() {
+  // Shared fetches (all re-fetch on the TopBar refresh signal). Local
+  // `schedules` state is kept for optimistic mutations; trips/projects feed the
+  // add-task link dropdowns.
+  const { data: schedulesData, error: loadError } = useResource(
+    '/api/schedules',
+    { errorMessage: 'Could not load schedules.' }
+  );
+  const { data: tripsData } = useResource('/api/trips');
+  const { data: projectsData } = useResource('/api/projects');
+
   const [schedules, setSchedules] = useState(null);
-  const [trips, setTrips] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [loadError, setLoadError] = useState(null);
+  const trips = tripsData?.trips || [];
+  const projects = projectsData?.projects || [];
 
   useEffect(() => {
-    fetch('/api/schedules')
-      .then((res) => res.json())
-      .then((data) => setSchedules(data.schedules || []))
-      .catch(() => setLoadError('Could not load schedules.'));
-    fetch('/api/trips')
-      .then((res) => res.json())
-      .then((data) => setTrips(data.trips || []))
-      .catch(() => {});
-    fetch('/api/projects')
-      .then((res) => res.json())
-      .then((data) => setProjects(data.projects || []))
-      .catch(() => {});
-  }, []);
+    if (schedulesData) setSchedules(schedulesData.schedules || []);
+  }, [schedulesData]);
 
   async function updateSchedule(id, patch) {
     setSchedules((prev) =>

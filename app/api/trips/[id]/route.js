@@ -34,7 +34,9 @@ export const PATCH = route(async (request, { params }) => {
     return Response.json({ error: 'destination is required' }, { status: 400 });
   }
   const status =
-    body.status === 'past' || body.status === 'upcoming'
+    body.status === 'past' ||
+    body.status === 'upcoming' ||
+    body.status === 'wishlist'
       ? body.status
       : existing.status;
   const startDate =
