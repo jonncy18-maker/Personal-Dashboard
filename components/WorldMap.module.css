@@ -1,4 +1,5 @@
 .wrap {
+  position: relative;
   width: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -27,13 +28,43 @@
   fill: none;
   opacity: 0.75;
 }
+.routePast {
+  stroke: var(--ink-faint);
+  opacity: 0.5;
+}
 .pin {
   fill: var(--accent);
   stroke: var(--surface-sunken);
   stroke-width: 2;
+  cursor: pointer;
+  transition: r 0.12s ease;
+}
+.pin:hover,
+.pin:focus-visible {
+  r: 7.5;
+  outline: none;
 }
 .pinPast {
   fill: var(--ink-faint);
+}
+
+/* Styled hover label, positioned over the pin (percentages match the SVG's
+   1000x500 viewBox, so it tracks the dot at any rendered size). */
+.tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised, #10182b);
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  z-index: 2;
 }
 .empty {
   padding: 40px 20px;

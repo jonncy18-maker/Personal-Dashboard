@@ -3,6 +3,7 @@ import { route } from '../../../../lib/route';
 import { serializeTrip } from '../../../../lib/trips';
 import { fetchDestinationPhoto } from '../../../../lib/unsplash';
 import { geocodeDestination } from '../../../../lib/geocode';
+import { geocodeStops } from '../../../../lib/itinerary';
 
 export const GET = route(async (request, { params }) => {
   const { id } = await params;
@@ -52,10 +53,18 @@ export const PATCH = route(async (request, { params }) => {
         ? null
         : body.budget
       : existing.budget;
-  const itinerary =
-    body.itinerary !== undefined
-      ? JSON.stringify(body.itinerary)
-      : existing.itinerary;
+  // Geocode any itinerary stop whose location is new/changed, caching the coords
+  // on the stop so the world map can place each port/city. Capped per pass (see
+  // lib/itinerary) — the trip-map read backfills anything left pending, same
+  // lazy discipline as the trip-level backfill. Existing itinerary is left as-is
+  // when the PATCH doesn't touch it.
+  let itinerary;
+  if (body.itinerary !== undefined) {
+    const { stops } = await geocodeStops(body.itinerary);
+    itinerary = JSON.stringify(stops);
+  } else {
+    itinerary = existing.itinerary;
+  }
   const imageSource =
     body.image_source === 'manual' || body.image_source === 'auto'
       ? body.image_source
