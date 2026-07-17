@@ -12,7 +12,7 @@
 -- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
 --                      004_language_calls, 005_travel_map_brief, 006_hero_image,
 --                      007_project_meta, 008_project_category,
---                      009_trip_wishlist_status
+--                      009_trip_wishlist_status, 010_checklists
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -206,3 +206,34 @@ CREATE INDEX IF NOT EXISTS language_calls_status_idx ON language_calls (status);
 DROP TRIGGER IF EXISTS language_calls_set_updated_at ON language_calls;
 CREATE TRIGGER language_calls_set_updated_at
   BEFORE UPDATE ON language_calls FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ─── Travel prep checklists ─────────────────────────────────────────────────
+-- Reusable packing/prep templates (checklist_templates), applied per trip
+-- (trip_checklists) with items copied so editing a template never disturbs a
+-- past trip's checked state. `items` groups by an optional `section` header —
+-- the same flat-with-group-label shape as itinerary legs. See 010_checklists.sql.
+CREATE TABLE IF NOT EXISTS checklist_templates (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text NOT NULL,
+  items       jsonb NOT NULL DEFAULT '[]'::jsonb, -- [{text, section}]
+  position    integer NOT NULL DEFAULT 0,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS checklist_templates_set_updated_at ON checklist_templates;
+CREATE TRIGGER checklist_templates_set_updated_at
+  BEFORE UPDATE ON checklist_templates FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE IF NOT EXISTS trip_checklists (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id      uuid NOT NULL REFERENCES trips (id) ON DELETE CASCADE,
+  template_id  uuid REFERENCES checklist_templates (id) ON DELETE SET NULL,
+  title        text NOT NULL,
+  items        jsonb NOT NULL DEFAULT '[]'::jsonb, -- [{text, section, done}]
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS trip_checklists_trip_id_idx ON trip_checklists (trip_id);
+DROP TRIGGER IF EXISTS trip_checklists_set_updated_at ON trip_checklists;
+CREATE TRIGGER trip_checklists_set_updated_at
+  BEFORE UPDATE ON trip_checklists FOR EACH ROW EXECUTE FUNCTION set_updated_at();

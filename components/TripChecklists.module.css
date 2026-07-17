@@ -1,0 +1,133 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.applyRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.select {
+  flex: 1 1 220px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-sunken);
+  color: var(--ink);
+  font-size: 13px;
+}
+.applyButton {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.applyButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--danger, #e5484d);
+}
+.empty {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  padding: 14px;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.cardTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1 1 auto;
+}
+.cardCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.remove {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.remove:hover {
+  color: var(--ink);
+}
+
+.bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.barFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.18s ease;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.section {
+  margin: 10px 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.section:first-child {
+  margin-top: 0;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  font-size: 13.5px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.item input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.itemDone span {
+  text-decoration: line-through;
+  color: var(--ink-faint);
+}

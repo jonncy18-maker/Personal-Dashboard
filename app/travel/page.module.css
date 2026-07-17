@@ -754,3 +754,9 @@
     flex-direction: column;
   }
 }
+
+.templatesSection {
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
