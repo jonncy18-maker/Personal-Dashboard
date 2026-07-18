@@ -233,16 +233,34 @@
 }
 
 @media (max-width: 640px) {
+  /* .body's `height: 100%` and .widget's overlay offsets both assume a
+     hero with a definite height. Once .hero switches to `height: auto`,
+     make it a flex column too — percentage-height resolution against an
+     auto-height block ancestor is inconsistent enough across engines
+     (notably in-app/PWA webviews) that .body/.widget could collapse to
+     zero height instead of sizing to content. Flex sidesteps that. */
   .hero {
     height: auto;
+    display: flex;
+    flex-direction: column;
   }
   .body {
+    flex: 0 0 auto;
+    height: auto;
     padding: 24px 24px 0;
   }
   .widget {
+    flex: 0 0 auto;
     position: static;
     width: auto;
-    margin: 6px 24px 24px;
+    margin: 6px 16px 24px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: rgba(9, 13, 24, 0.5);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: var(--shadow-pop);
   }
 }
 
