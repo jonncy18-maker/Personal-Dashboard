@@ -31,6 +31,10 @@ export const GET = route(async () => {
                image_attribution, image_source
         FROM trips
         WHERE status = 'upcoming'
+          AND (
+            COALESCE(end_date, start_date) IS NULL
+            OR COALESCE(end_date, start_date) >= CURRENT_DATE
+          )
         ORDER BY start_date IS NULL, start_date ASC, created_at DESC
         LIMIT 1
       `,
