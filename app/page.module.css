@@ -61,18 +61,6 @@
   }
 }
 
-/* ─── two-column body ────────────────────────────────────── */
-.cols {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 20px;
-  align-items: start;
-}
-@media (max-width: 1000px) {
-  .cols {
-    grid-template-columns: 1fr;
-  }
-}
 .sectionLabel {
   margin: 0 0 13px;
 }
