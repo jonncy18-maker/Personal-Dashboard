@@ -1,6 +1,6 @@
 .hero {
   position: relative;
-  height: 260px;
+  height: 300px;
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-card);
@@ -45,14 +45,18 @@
   height: 100%;
   object-fit: cover;
 }
+/* 4-stop scrim: dark on the left for the greeting/quote, a bright gap in the
+   middle for the photo to show through, dark again on the right so the
+   transparent HeroAgenda widget (no background of its own) stays legible. */
 .scrim {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    90deg,
-    rgba(6, 10, 20, 0.66) 0%,
-    rgba(6, 10, 20, 0.28) 45%,
-    rgba(6, 10, 20, 0.02) 72%
+    100deg,
+    rgba(6, 10, 20, 0.62) 0%,
+    rgba(6, 10, 20, 0.24) 42%,
+    rgba(6, 10, 20, 0.02) 62%,
+    rgba(6, 10, 20, 0.34) 100%
   );
 }
 
@@ -124,10 +128,125 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-@media (max-width: 560px) {
+/* ── Up Next overlay widget — fully transparent, no panel of its own.
+   Legibility comes from the .scrim's right-side darkening + this
+   text-shadow, not a background/border/blur. ────────────────────── */
+.widget {
+  position: absolute;
+  z-index: 1;
+  top: 22px;
+  right: 24px;
+  bottom: 22px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+  text-shadow:
+    0 1px 6px rgba(0, 0, 0, 0.55),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.widgetEyebrow {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+.widgetEmpty {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 220px;
+}
+
+.widgetHeroRow {
+  display: block;
+  border-left: 2px solid var(--row-accent, var(--accent));
+  padding-left: 10px;
+  margin-bottom: 10px;
+}
+.widgetHeroRel {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--row-accent, #fff);
+  line-height: 1.15;
+}
+.widgetHeroTitle {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+.widgetHeroMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.68);
+  margin-top: 5px;
+}
+.widgetHeroMeta svg {
+  width: 12px;
+  height: 12px;
+}
+
+.widgetRows {
+  display: flex;
+  flex-direction: column;
+}
+.widgetRow {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.widgetRowWhen {
+  flex: 0 0 auto;
+  width: 58px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.82);
+}
+.widgetRowTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.widgetRowDot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--row-accent, #fff);
+}
+
+@media (max-width: 640px) {
   .hero {
-    height: 300px;
+    height: auto;
   }
+  .body {
+    padding: 24px 24px 0;
+  }
+  .widget {
+    position: static;
+    width: auto;
+    margin: 6px 24px 24px;
+  }
+}
+
+@media (max-width: 560px) {
   .greet {
     font-size: 24px;
   }

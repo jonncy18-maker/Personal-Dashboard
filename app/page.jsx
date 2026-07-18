@@ -1,7 +1,6 @@
 'use client';
 
 import HomeHero from '../components/HomeHero';
-import UpNextAgenda from '../components/UpNextAgenda';
 import DomainGrid from '../components/DomainGrid';
 import { CheckCircleIcon, SchedulesIcon } from '../components/icons';
 import { useHomeSummary } from '../lib/useHomeSummary';
@@ -53,7 +52,7 @@ export default function HomePage() {
 
   return (
     <div className={styles.home}>
-      <HomeHero />
+      <HomeHero agenda={agenda} />
 
       <StatBar needAttention={needAttention} eventsToday={eventsToday} />
 
@@ -61,15 +60,9 @@ export default function HomePage() {
       {!summary && !error && <p className={styles.loading}>Loading…</p>}
 
       {summary && (
-        <div className={styles.cols}>
-          <div>
-            <p className={`eyebrow ${styles.sectionLabel}`}>Up Next</p>
-            <UpNextAgenda items={agenda} />
-          </div>
-          <div>
-            <p className={`eyebrow ${styles.sectionLabel}`}>At a glance</p>
-            <DomainGrid summary={summary} />
-          </div>
+        <div>
+          <p className={`eyebrow ${styles.sectionLabel}`}>At a glance</p>
+          <DomainGrid summary={summary} />
         </div>
       )}
     </div>
