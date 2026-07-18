@@ -43,6 +43,18 @@ function countdown(trip) {
   const days = daysUntil(trip.start_date);
   return { days, soon: days <= 30 };
 }
+// A trip's `status` is a manually-set field (see neon/schema.sql) — it never
+// auto-transitions when a trip's dates pass, so an 'upcoming' trip can go
+// stale. Derive "has this already happened" from the actual dates instead of
+// trusting the stored status, so a finished trip never lingers as the hero.
+function isPast(trip) {
+  const ref = trip.end_date || trip.start_date;
+  if (!ref) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return parseDateInput(ref) < today;
+}
+
 function gapLabel(prevStart, nextStart) {
   if (!prevStart || !nextStart) return null;
   const days = Math.round(
@@ -81,6 +93,19 @@ function ArrowIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+function ChevronIcon({ className }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
@@ -551,6 +576,7 @@ export default function TravelPage() {
   const [suggestions, setSuggestions] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState(null);
+  const [pastOpen, setPastOpen] = useState(false);
   const brief = briefData?.brief || null;
   const pins = mapData?.pins || [];
 
@@ -601,13 +627,19 @@ export default function TravelPage() {
   }
 
   const upcoming = (trips || [])
-    .filter((t) => t.status === 'upcoming')
+    .filter((t) => t.status === 'upcoming' && !isPast(t))
     .sort((a, b) => {
       if (!a.start_date) return 1;
       if (!b.start_date) return -1;
       return a.start_date.localeCompare(b.start_date);
     });
-  const past = (trips || []).filter((t) => t.status === 'past');
+  const past = (trips || [])
+    .filter((t) => t.status === 'past' || (t.status === 'upcoming' && isPast(t)))
+    .sort((a, b) => {
+      if (!a.start_date) return 1;
+      if (!b.start_date) return -1;
+      return b.start_date.localeCompare(a.start_date);
+    });
   const wishlist = (trips || []).filter((t) => t.status === 'wishlist');
   const hero = upcoming[0] || null;
   const rest = upcoming.slice(1);
@@ -698,17 +730,27 @@ export default function TravelPage() {
 
           {past.length > 0 && (
             <>
-              <div className={styles.sectionHead}>
-                <span className={styles.sectionTitle}>Past</span>
+              <button
+                type="button"
+                className={styles.sectionHeadButton}
+                onClick={() => setPastOpen((v) => !v)}
+                aria-expanded={pastOpen}
+              >
+                <span className={styles.sectionTitle}>Past travels</span>
                 <span className={`${styles.sectionCount} tabular`}>
                   {past.length}
                 </span>
-              </div>
-              <div className={styles.grid}>
-                {past.map((trip) => (
-                  <PastCard key={trip.id} trip={trip} />
-                ))}
-              </div>
+                <ChevronIcon
+                  className={`${styles.chevron} ${pastOpen ? styles.chevronOpen : ''}`}
+                />
+              </button>
+              {pastOpen && (
+                <div className={styles.grid}>
+                  {past.map((trip) => (
+                    <PastCard key={trip.id} trip={trip} />
+                  ))}
+                </div>
+              )}
             </>
           )}
 
