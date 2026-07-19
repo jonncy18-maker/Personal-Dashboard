@@ -23,6 +23,7 @@ export const GET = route(async () => {
     scheduleItems,
     ideaRows,
     tutorCall,
+    [frenchSummary],
   ] = await Promise.all([
     // Statuses (not just a count) so the Home card can render a status-dot row.
     sql`SELECT status FROM projects ORDER BY created_at DESC`,
@@ -51,6 +52,7 @@ export const GET = route(async () => {
     // a count-by-tag breakdown (both aggregated in JS below — the set is tiny).
     sql`SELECT domain_tag, status FROM ideas`,
     findNextTutorCall(),
+    sql`SELECT total_hours, as_of_date FROM french_hours_summary WHERE id = 1`,
   ]);
 
   const trips = tripRows.map((t) => ({
@@ -87,6 +89,10 @@ export const GET = route(async () => {
       })),
     },
     language: tutorCall,
+    frenchHours: {
+      totalHours: frenchSummary ? num(frenchSummary.total_hours) : null,
+      asOfDate: frenchSummary ? dateOnly(frenchSummary.as_of_date) : null,
+    },
     ideas: {
       count: openIdeas.length, // open count — kept as the card's live metric
       open_count: openIdeas.length,

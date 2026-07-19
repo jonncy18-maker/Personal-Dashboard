@@ -210,6 +210,14 @@ export default function DomainGrid({ summary }) {
         </Card>
 
         <Card domain="language" pill="Focus">
+          {summary.frenchHours?.totalHours != null && (
+            <p className={styles.detail}>
+              <strong className="tabular">
+                {summary.frenchHours.totalHours}
+              </strong>{' '}
+              hrs French logged
+            </p>
+          )}
           {summary.language.nextCall ? (
             <>
               <p className={styles.cdHead}>
