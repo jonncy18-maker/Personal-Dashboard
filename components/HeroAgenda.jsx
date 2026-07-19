@@ -3,13 +3,17 @@ import { DOMAIN_META } from './domain-meta';
 import { relativeDay } from '../lib/format';
 import styles from './HomeHero.module.css';
 
-const MAX_ROWS = 2;
+const MAX_ROWS = 3;
 
-// The "Up Next" agenda, rendered inside the hero photo as the top block of the
-// right-hand widget stack (HeroTodos sits below it). Deliberately no
-// background/border/blur of its own (the stack carries a text-shadow) — that
+// The "Up Next" agenda, rendered inside the hero photo as the left column of
+// the widget (HeroTodos is the right column — see HomeHero.module.css
+// .widget's side-by-side layout, chosen so each list gets its own row budget
+// instead of competing for one shared stack's height). Deliberately no
+// background/border/blur of its own (the widget carries a text-shadow) — that
 // keeps it legible over any photo or gradient band. Each row links to its own
-// domain; the hero item plus up to MAX_ROWS more.
+// domain; the hero item plus up to MAX_ROWS more, with a "+N more" line
+// (plain text, not a link — items can span several domains, so there's no
+// single destination) so an item is never silently dropped past the cap.
 export default function HeroAgenda({ items }) {
   if (items.length === 0) {
     return (
@@ -26,6 +30,7 @@ export default function HeroAgenda({ items }) {
   const heroMeta = DOMAIN_META[hero.domain];
   const HeroIcon = heroMeta.icon;
   const shown = rest.slice(0, MAX_ROWS);
+  const extra = rest.length - shown.length;
 
   return (
     <div className={styles.section} aria-label="Up next">
@@ -65,6 +70,7 @@ export default function HeroAgenda({ items }) {
               </Link>
             );
           })}
+          {extra > 0 && <span className={styles.moreLine}>+{extra} more</span>}
         </div>
       )}
     </div>
