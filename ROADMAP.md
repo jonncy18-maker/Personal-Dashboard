@@ -53,6 +53,10 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-07-19 (cont'd 8) — Schedules: edit tasks in place
+
+Schedules had no way to edit a task after creation — only mark done/in-progress or delete. Added an inline edit: a pencil icon on each row (next to delete) swaps that row for the same field set `AddScheduleForm` uses (title, due date, notes, trip/project link), pre-filled from the task, PATCHing the existing row (`/api/schedules/:id`, already supported all these fields — no backend change) instead of creating a new one. Reuses the row's own card chrome rather than nesting another bordered form inside it.
+
 ## 2026-07-19 (cont'd 7) — To-do's now includes Schedules tasks (real completion) + fixed stale Up Next after Schedules/Email edits
 
 John reported Schedules tasks weren't flowing into To-do's, and separately that Up Next looked stale after other pages' edits — both traced to the same root cause plus one real gap:
