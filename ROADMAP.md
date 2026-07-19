@@ -53,6 +53,10 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-07-19 (cont'd 9) — Schedules: AI screenshot import (John's call — the app's fifth distinct AI use)
+
+John wanted to add tasks from a screenshot (a text message, a to-do list app, a note, anything with an actionable item) instead of retyping each one by hand. New `lib/schedule-import.js` (Haiku vision) reads a screenshot and returns candidate `{title, due_date, notes}` tasks — resolving relative dates ("tomorrow", "next Friday") against the **server's** clock (not the client's) so a wrong device clock can't skew them, and never inventing a date it can't read/infer. `/api/schedule-import` is preview-only (same shape as French's `/import` route — fails soft, `configured:false` if no key). **Nothing is auto-saved**: John reviews/edits every candidate (title, due date, or removes a row) in a popup, and only the existing `/api/schedules` POST — unchanged, one call per confirmed task — ever creates a row. No new persistence path. Unlike French's import (one known source, one fixed shape), a schedule screenshot's source is arbitrary and may yield zero, one, or several tasks from a single image.
+
 ## 2026-07-19 (cont'd 8) — Schedules: edit tasks in place
 
 Schedules had no way to edit a task after creation — only mark done/in-progress or delete. Added an inline edit: a pencil icon on each row (next to delete) swaps that row for the same field set `AddScheduleForm` uses (title, due date, notes, trip/project link), pre-filled from the task, PATCHing the existing row (`/api/schedules/:id`, already supported all these fields — no backend change) instead of creating a new one. Reuses the row's own card chrome rather than nesting another bordered form inside it.

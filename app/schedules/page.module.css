@@ -20,6 +20,13 @@
   color: var(--ink-muted);
 }
 
+.headerActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .addButton {
   flex: 0 0 auto;
   background: var(--dom-schedules);
@@ -33,6 +40,29 @@
 }
 .addButton:hover {
   filter: brightness(1.05);
+}
+
+.importButton {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.importButton:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.importButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.hiddenFileInput {
+  display: none;
 }
 
 .addForm {
@@ -254,5 +284,109 @@
   padding: 4px 6px;
 }
 .deleteButton:hover {
+  color: var(--critical);
+}
+
+/* ── AI screenshot import popup ──────────────────────────────────────── */
+.popupScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(10, 14, 24, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+}
+.popup {
+  width: 100%;
+  max-width: 480px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 16px 18px 18px;
+}
+.popupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.popupTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+.popupClose {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.popupClose:hover {
+  color: var(--ink);
+}
+.popupEmpty {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.importIntro {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+.importList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.importRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.importTitleInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.importDateInput {
+  flex: 0 0 auto;
+  width: 148px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 8px;
+}
+.importRemove {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.importRemove:hover {
   color: var(--critical);
 }
