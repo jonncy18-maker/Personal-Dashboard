@@ -1,6 +1,7 @@
 import { getDb, num, dateOnly } from '../../../lib/db';
 import { route } from '../../../lib/route';
 import { findNextTutorCall } from '../../../lib/tutor-call';
+import { fetchCalendarEvents } from '../../../lib/calendar-events';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -25,6 +26,7 @@ export const GET = route(async () => {
     tutorCall,
     [frenchSummary],
     todoRows,
+    calendarResult,
   ] = await Promise.all([
     // Statuses (not just a count) so the Home card can render a status-dot row.
     sql`SELECT status FROM projects ORDER BY created_at DESC`,
@@ -65,6 +67,16 @@ export const GET = route(async () => {
         ORDER BY flagged_at DESC
         LIMIT 6
       `,
+    // Upcoming Calendar events (next 30 days, matching the agenda's own
+    // "next 30 days" framing), already hidden-filtered by the shared helper
+    // — same one /api/calendar-events uses, so Home and /calendar never
+    // disagree about what's hidden. Read-only, fails soft (empty list) if
+    // Calendar isn't configured or the API call fails.
+    fetchCalendarEvents({
+      timeMin: new Date().toISOString(),
+      timeMax: new Date(Date.now() + 30 * DAY_MS).toISOString(),
+      maxResults: 50,
+    }),
   ]);
 
   const trips = tripRows.map((t) => ({
@@ -101,6 +113,10 @@ export const GET = route(async () => {
       })),
     },
     language: tutorCall,
+    // Non-hidden upcoming events, for the Up next agenda (lib/agenda.js
+    // dedupes against language.nextCall so a Spanish-tutor Calendar event
+    // doesn't show up twice under two domains).
+    calendar: { events: calendarResult.events },
     frenchHours: {
       totalHours: frenchSummary ? num(frenchSummary.total_hours) : null,
       asOfDate: frenchSummary ? dateOnly(frenchSummary.as_of_date) : null,

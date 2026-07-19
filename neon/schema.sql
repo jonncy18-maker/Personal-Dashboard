@@ -14,7 +14,7 @@
 --                      007_project_meta, 008_project_category,
 --                      009_trip_wishlist_status, 010_checklists,
 --                      011_language_progress, 012_email_todos,
---                      013_calendar_hidden
+--                      013_calendar_hidden, 014_calendar_renames
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -194,6 +194,20 @@ CREATE TABLE IF NOT EXISTS calendar_hidden (
   start_label    text,
   hidden_at      timestamptz NOT NULL DEFAULT now()
 );
+
+-- Locally rename an event or a whole recurring series on /calendar (see
+-- 014_calendar_renames.sql). Same read-only boundary — never writes back to
+-- Google Calendar. scope_id is either the event's own id ("just this event")
+-- or its recurringEventId ("the whole series").
+CREATE TABLE IF NOT EXISTS calendar_renames (
+  scope_id    text PRIMARY KEY,
+  scope       text NOT NULL CHECK (scope IN ('event', 'series')),
+  title       text NOT NULL,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS calendar_renames_set_updated_at ON calendar_renames;
+CREATE TRIGGER calendar_renames_set_updated_at
+  BEFORE UPDATE ON calendar_renames FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ─── Travel trip suggestions (weekly Gmail auto-detection) ────────────────────
 CREATE TABLE IF NOT EXISTS trip_suggestions (

@@ -37,6 +37,8 @@
   --dom-ideas-soft: rgba(201, 151, 28, 0.14);
   --dom-email: #7c53d1;
   --dom-email-soft: rgba(124, 83, 209, 0.12);
+  --dom-calendar: #b23fc9;
+  --dom-calendar-soft: rgba(178, 63, 201, 0.12);
 
   --shadow-card:
     0 1px 2px rgba(23, 29, 46, 0.04), 0 8px 24px -12px rgba(23, 29, 46, 0.12);
@@ -82,6 +84,8 @@
   --dom-ideas-soft: rgba(224, 181, 66, 0.16);
   --dom-email: #a789f2;
   --dom-email-soft: rgba(167, 137, 242, 0.16);
+  --dom-calendar: #d666e8;
+  --dom-calendar-soft: rgba(214, 102, 232, 0.16);
 
   --shadow-card:
     0 1px 0 rgba(255, 255, 255, 0.03), 0 12px 32px -12px rgba(0, 0, 0, 0.55);
@@ -123,6 +127,8 @@
     --dom-ideas-soft: rgba(224, 181, 66, 0.16);
     --dom-email: #a789f2;
     --dom-email-soft: rgba(167, 137, 242, 0.16);
+    --dom-calendar: #d666e8;
+    --dom-calendar-soft: rgba(214, 102, 232, 0.16);
 
     --shadow-card:
       0 1px 0 rgba(255, 255, 255, 0.03), 0 12px 32px -12px rgba(0, 0, 0, 0.55);

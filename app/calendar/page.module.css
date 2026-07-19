@@ -273,7 +273,8 @@
 }
 /* Hidden until the chip is hovered/focused — the 104px cell has no room for a
    permanent affordance. */
-.chipHide {
+.chipHide,
+.chipEdit {
   flex: 0 0 auto;
   display: none;
   align-items: center;
@@ -289,15 +290,25 @@
   line-height: 1;
   cursor: pointer;
 }
+.chipEdit svg {
+  width: 9px;
+  height: 9px;
+}
 .chip:hover .chipHide,
-.chip:focus-within .chipHide {
+.chip:hover .chipEdit,
+.chip:focus-within .chipHide,
+.chip:focus-within .chipEdit {
   display: flex;
 }
 .chipHide:hover {
   background: var(--critical);
 }
+.chipEdit:hover {
+  background: var(--accent);
+}
 @media (hover: none) {
-  .chipHide {
+  .chipHide,
+  .chipEdit {
     display: flex;
   }
 }
@@ -380,10 +391,25 @@
 a.listTitle:hover {
   text-decoration: underline;
 }
-.listHide {
+.renamedMark {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+.listHide,
+.listEdit {
   flex: 0 0 auto;
   width: 22px;
   height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.1);
@@ -394,12 +420,23 @@ a.listTitle:hover {
   opacity: 0;
   transition: opacity 0.1s ease;
 }
+.listEdit svg {
+  width: 12px;
+  height: 12px;
+}
+.listRow:hover .listEdit {
+  opacity: 1;
+}
+.listEdit:hover {
+  background: var(--accent);
+}
 .listHide:hover {
   background: var(--critical);
   border-color: var(--critical);
 }
 @media (hover: none) {
-  .listHide {
+  .listHide,
+  .listEdit {
     opacity: 1;
   }
 }
@@ -492,6 +529,99 @@ a.listTitle:hover {
 .hiddenUndo:hover {
   border-color: var(--accent);
   color: var(--accent-ink);
+}
+/* Scope tag ("event" / "series") shown next to a renamed row's title in the
+   management popup. */
+.renameScopeTag {
+  margin-left: 8px;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+
+/* ── Rename modal (RenameModal) ────────────────────────────────────────
+   Shares .popupScrim/.popup/.popupHead/etc with HiddenPopup/RenamedPopup. */
+.renameOriginal {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.renameInput {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+.renameScope {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.renameScopeOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.renameScopeOption input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.manageActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.manageSave {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.manageSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.manageCancel {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.manageCancel:hover {
+  color: var(--ink);
+}
+.renameRevert {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--critical);
+  cursor: pointer;
+  padding: 7px 0;
+}
+.renameRevert:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 640px) {
