@@ -24,6 +24,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Add a migration runner** — 2026-07-16, see entry below. Surfaced by the Travel redesign (#29): its migration file merged and deployed cleanly, but the live Neon DB was never updated, so `/api/trips` 500'd until applied by hand. `npm run migrate` now closes that gap — explicit, not automatic (Preview and Production share one Neon database here, so build-time auto-migration was rejected — see the entry below and CLAUDE.md §6).
 - [x] **Run `npm run migrate` after this merges** — 2026-07-19, applied via the Neon MCP right after merge. Migration 011 (`language_progress`) added `french_hours_daily`, `french_hours_summary`, `language_notes` to the live DB; confirmed all three exist and `schema_migrations` records the file.
 - [ ] **Run `npm run migrate` after the To-do's + Calendar PR merges** — migration 012 (`email_todos`) adds the flagged-to-do table. Same one-shared-Neon-DB gotcha as always (CLAUDE.md §6): the Home hero's To-do's block and `/email`'s star toggle 500 against a DB without this table until it's applied.
+- [ ] **Run `npm run migrate` after the Calendar-hide PR merges** — migration 013 (`calendar_hidden`) adds the per-event hide table. `/calendar`'s hide/Hidden-popup 500s against a DB without this table until it's applied.
 
 ---
 
@@ -51,6 +52,10 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
 
 ---
+
+## 2026-07-19 (cont'd 2) — Calendar: per-event hide (local flag, Calendar stays read-only)
+
+Follow-up to the /calendar view below. John wanted the ability to hide specific events from the dashboard's calendar view. Same reasoning as email_hidden and the To-do's flag: Google Calendar is read-only by hard rule (§2/§7), so this is a **local flag only** — a new `calendar_hidden` table (migration 013, keyed by the Google event id, with a title/start snapshot at hide time), never a write back to the real calendar. `/api/calendar-events` filters hidden ids server-side before returning its list (same shape as `/api/gmail` filtering Tier 1 senders). A hover-revealed `×` on each agenda row and grid chip hides an event (optimistic, reverts on a failed persist); a "Hidden (N)" popup in the header lists everything hidden with an Unhide action, mirroring Email's Rules popup. Recurring events are already expanded to per-occurrence ids by `singleEvents: true`, so hiding one occurrence doesn't hide the whole series. **Run `npm run migrate` after merge** (migration 013).
 
 ## 2026-07-19 (cont'd) — Hero "To-do's" (email-flagged) + a real Calendar view
 
