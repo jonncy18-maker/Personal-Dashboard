@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useResource } from '../../lib/useResource';
 import { useRefresh } from '../../lib/refresh';
 import { absoluteDate, relativeDay } from '../../lib/format';
+import { EditIcon } from '../../components/icons';
 import styles from './page.module.css';
 
 function LinkBadge({ item }) {
@@ -28,11 +29,30 @@ function LinkBadge({ item }) {
   return null;
 }
 
-function ScheduleRow({ item, onUpdate, onDelete }) {
+function ScheduleRow({ item, trips, projects, onUpdate, onDelete }) {
+  const [editing, setEditing] = useState(false);
+
   const overdue =
     item.status !== 'done' &&
     relativeDay(item.due_date) !== 'Today' &&
     new Date(item.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
+
+  if (editing) {
+    return (
+      <div className={styles.row}>
+        <EditScheduleForm
+          item={item}
+          trips={trips}
+          projects={projects}
+          onSave={async (patch) => {
+            await onUpdate(item.id, patch);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -72,6 +92,14 @@ function ScheduleRow({ item, onUpdate, onDelete }) {
             <option value="in_progress">In progress</option>
           </select>
         )}
+        <button
+          className={styles.editButton}
+          onClick={() => setEditing(true)}
+          aria-label="Edit task"
+          title="Edit task"
+        >
+          <EditIcon />
+        </button>
         <button
           className={styles.deleteButton}
           onClick={() => onDelete(item.id)}
@@ -225,6 +253,131 @@ function AddScheduleForm({ trips, projects, onAdded }) {
   );
 }
 
+// Same field set as AddScheduleForm (title/due date/notes/link), but inline
+// in a row (no open/closed toggle — ScheduleRow controls visibility) and
+// PATCHing the existing task instead of POSTing a new one.
+function EditScheduleForm({ item, trips, projects, onSave, onCancel }) {
+  const [title, setTitle] = useState(item.title);
+  const [notes, setNotes] = useState(item.notes || '');
+  const [dueDate, setDueDate] = useState(item.due_date || '');
+  const [linkType, setLinkType] = useState(
+    item.linked_trip_id ? 'trip' : item.linked_project_id ? 'project' : 'none'
+  );
+  const [linkId, setLinkId] = useState(
+    item.linked_trip_id || item.linked_project_id || ''
+  );
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setSaving(true);
+    try {
+      await onSave({
+        title: title.trim(),
+        notes: notes || null,
+        due_date: dueDate,
+        linked_trip_id: linkType === 'trip' ? linkId || null : null,
+        linked_project_id: linkType === 'project' ? linkId || null : null,
+      });
+    } catch {
+      setError('Could not save changes.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className={styles.editForm} onSubmit={handleSubmit}>
+      <div className={styles.fieldRow}>
+        <label className={styles.field}>
+          <span>Title</span>
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Due date</span>
+          <input
+            type="date"
+            required
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+        </label>
+      </div>
+      <label className={styles.field}>
+        <span>Notes (optional)</span>
+        <input
+          type="text"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </label>
+      <div className={styles.fieldRow}>
+        <label className={styles.field}>
+          <span>Link to (optional)</span>
+          <select
+            value={linkType}
+            onChange={(e) => {
+              setLinkType(e.target.value);
+              setLinkId('');
+            }}
+          >
+            <option value="none">None</option>
+            <option value="trip">Travel trip</option>
+            <option value="project">AI project</option>
+          </select>
+        </label>
+        {linkType === 'trip' && (
+          <label className={styles.field}>
+            <span>Trip</span>
+            <select value={linkId} onChange={(e) => setLinkId(e.target.value)}>
+              <option value="">Select a trip…</option>
+              {trips.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.destination}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {linkType === 'project' && (
+          <label className={styles.field}>
+            <span>Project</span>
+            <select value={linkId} onChange={(e) => setLinkId(e.target.value)}>
+              <option value="">Select a project…</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.github_url.replace(/^https:\/\/github\.com\//, '')}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {error && <p className={styles.formError}>{error}</p>}
+      <div className={styles.formActions}>
+        <button type="submit" disabled={saving} className={styles.saveButton}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          className={styles.cancelButton}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function SchedulesPage() {
   // Home's Up Next / To-do's read from useHomeSummary, which caches its fetch
   // at module scope and only invalidates on the app-wide refresh signal — so
@@ -322,6 +475,8 @@ export default function SchedulesPage() {
             <ScheduleRow
               key={item.id}
               item={item}
+              trips={trips}
+              projects={projects}
               onUpdate={updateSchedule}
               onDelete={deleteSchedule}
             />
