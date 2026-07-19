@@ -1,84 +1,415 @@
+/* The whole page is a photo/gradient backdrop (reusing the Home hero's cached
+   time-of-day image) with translucent frosted panels on top — so both the
+   month grid and the list read as glass over a scenic background. */
 .wrap {
-  max-width: 960px;
+  position: relative;
+  min-height: calc(100vh - 120px);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff;
 }
 
+/* Base layer: per-band gradient (always present, the honest fallback), with
+   the Unsplash photo painted over it when one is cached. */
+.bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+}
+.wrap[data-band='dawn'] {
+  background: linear-gradient(160deg, #2a2f52 0%, #6b5a86 45%, #e08a6f 100%);
+}
+.wrap[data-band='day'] {
+  background: linear-gradient(160deg, #204a7a 0%, #3f7cb8 50%, #6aa8dd 100%);
+}
+.wrap[data-band='golden'] {
+  background: linear-gradient(160deg, #14204a 0%, #7a4a5f 48%, #d98a4f 100%);
+}
+.wrap[data-band='night'] {
+  background: linear-gradient(160deg, #05070f 0%, #0c1230 55%, #1a2247 100%);
+}
+/* Scrim over the photo so white text/glass panels stay legible on any image. */
+.bgScrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 10, 20, 0.5) 0%,
+    rgba(6, 10, 20, 0.38) 40%,
+    rgba(6, 10, 20, 0.52) 100%
+  );
+}
+
+.content {
+  position: relative;
+  padding: 24px;
+}
+
+.credit {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
 .header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
   margin-bottom: 18px;
+}
+.eyebrow {
+  color: rgba(255, 255, 255, 0.66);
 }
 .title {
   margin: 4px 0 0;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
+  letter-spacing: -0.02em;
   white-space: nowrap;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
 }
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Segmented Calendar/List toggle — the frosted-glass treatment as the panels. */
+.tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.tab {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.tab:hover {
+  color: #fff;
+}
+.tabActive {
+  background: #fff;
+  color: #16203a;
+}
+
 .nav {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.navBtn {
-  width: 34px;
+.navBtn,
+.todayBtn,
+.hiddenButton {
   height: 34px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-.navBtn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-.todayBtn {
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
   font-weight: 700;
   cursor: pointer;
 }
-.todayBtn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent-ink);
+.navBtn {
+  width: 34px;
+  font-size: 20px;
+  line-height: 1;
+}
+.todayBtn,
+.hiddenButton {
+  padding: 0 14px;
+  font-size: 13px;
+}
+.navBtn:hover:not(:disabled),
+.todayBtn:hover:not(:disabled),
+.hiddenButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 .navBtn:disabled,
 .todayBtn:disabled {
   opacity: 0.5;
   cursor: default;
 }
-.hiddenButton {
-  height: 34px;
-  padding: 0 14px;
-  margin-right: 4px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
+
+.note {
+  padding: 16px 2px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
-.hiddenButton:hover {
-  border-color: var(--accent);
-  color: var(--accent-ink);
+.note code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
-/* ── Hidden events popup (mirrors Email's Rules popup) ────────────────── */
+/* ── Frosted panel wrapping both views ───────────────────────────────── */
+.panel {
+  background: rgba(10, 14, 24, 0.34);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
+}
+
+/* ── Month grid — every cell EXACTLY 1/7 wide. minmax(0, 1fr) is the fix:
+   plain 1fr is minmax(min-content, 1fr), so a long event title would blow a
+   column wider than the rest and push the 7th (Saturday) off the edge. ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.weekday {
+  padding: 9px 10px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.62);
+  text-align: right;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+/* Lines come from per-cell borders (not a gap trick), so cells can be
+   translucent and let the one panel-level blur show through cleanly. */
+.cell {
+  min-width: 0;
+  min-height: 104px;
+  padding: 6px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+/* No right border on the last column of each week, no bottom on the last row. */
+.cell:nth-child(7n + 1) {
+  /* first weekday column — nothing special, kept for clarity */
+}
+.cell:nth-child(7n) {
+  border-right: none;
+}
+.grid > .cell:nth-last-child(-n + 7) {
+  border-bottom: none;
+}
+.cellMuted {
+  background: rgba(0, 0, 0, 0.22);
+}
+.cellMuted .cellNum {
+  color: rgba(255, 255, 255, 0.4);
+}
+.cellToday {
+  background: rgba(109, 147, 255, 0.16);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.cellNum {
+  align-self: flex-end;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+}
+.cellToday .cellNum {
+  color: #fff;
+}
+.cellEvents {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  padding: 2px 4px 2px 6px;
+  min-width: 0;
+}
+.chipAllDay {
+  background: rgba(109, 147, 255, 0.4);
+}
+.chipDot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+}
+.chipTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Hidden until the chip is hovered/focused — the 104px cell has no room for a
+   permanent affordance. */
+.chipHide {
+  flex: 0 0 auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.chip:hover .chipHide,
+.chip:focus-within .chipHide {
+  display: flex;
+}
+.chipHide:hover {
+  background: var(--critical);
+}
+@media (hover: none) {
+  .chipHide {
+    display: flex;
+  }
+}
+.chipMore {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.66);
+  padding: 0 6px;
+}
+
+/* ── List view ───────────────────────────────────────────────────────── */
+.listEmpty {
+  padding: 28px 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13.5px;
+}
+.listDay {
+  display: flex;
+  gap: 16px;
+  padding: 14px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.listDay:first-child {
+  border-top: none;
+}
+.listDate {
+  flex: 0 0 auto;
+  width: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 2px;
+}
+.listDateNum {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+.listDateDow {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 3px;
+}
+.listEvents {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.listRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+}
+.listRow:hover .listHide {
+  opacity: 1;
+}
+.listTime {
+  flex: 0 0 auto;
+  width: 74px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+}
+.listTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.listTitle:hover {
+  text-decoration: underline;
+}
+.listHide {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.listHide:hover {
+  background: var(--critical);
+  border-color: var(--critical);
+}
+@media (hover: none) {
+  .listHide {
+    opacity: 1;
+  }
+}
+
+/* ── Hidden-events popup (dark, matches the app's other popups) ───────── */
 .popupScrim {
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(10, 14, 24, 0.4);
+  background: rgba(10, 14, 24, 0.5);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -94,6 +425,7 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-pop);
   padding: 16px 18px 18px;
+  color: var(--ink);
 }
 .popupHead {
   display: flex;
@@ -162,216 +494,18 @@
   color: var(--accent-ink);
 }
 
-.note {
-  padding: 16px 0;
-  color: var(--ink-muted);
-  font-size: 13.5px;
-  line-height: 1.5;
-}
-.note code {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 12px;
-  background: var(--surface-sunken);
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
-/* ── Month grid ─────────────────────────────────────────────────────── */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-}
-.weekday {
-  background: var(--surface-sunken);
-  padding: 8px 10px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 700;
-  color: var(--ink-faint);
-  text-align: right;
-}
-.cell {
-  background: var(--surface);
-  min-height: 96px;
-  padding: 6px 7px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.cellMuted {
-  background: var(--bg);
-}
-.cellMuted .cellNum {
-  color: var(--ink-faint);
-}
-.cellToday {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-.cellNum {
-  align-self: flex-end;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--ink-muted);
-}
-.cellToday .cellNum {
-  color: var(--accent-ink);
-}
-.cellEvents {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink);
-  background: var(--surface-sunken);
-  border-radius: 5px;
-  padding: 2px 4px 2px 6px;
-}
-.chipAllDay {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-}
-.chipDot {
-  flex: 0 0 auto;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-.chipTitle {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Hidden until the chip is hovered/focused, so the compact grid stays clean
-   at rest — this is a dense 96px cell, not room for a permanent affordance. */
-.chipHide {
-  flex: 0 0 auto;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 13px;
-  height: 13px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ink-faint);
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-}
-.chip:hover .chipHide,
-.chip:focus-within .chipHide {
-  display: flex;
-}
-.chipHide:hover {
-  color: var(--critical);
-}
-@media (hover: none) {
-  /* No hover on touch — keep the affordance reachable there too. */
-  .chipHide {
-    display: flex;
-  }
-}
-.chipMore {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--ink-faint);
-  padding: 0 6px;
-}
-
-/* ── Agenda list ────────────────────────────────────────────────────── */
-.agenda {
-  margin-top: 22px;
-}
-.agendaLabel {
-  margin-bottom: 10px;
-}
-.agendaRow {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 9px 4px;
-  border-top: 1px solid var(--border);
-}
-.agendaRow:hover .agendaHide {
-  opacity: 1;
-}
-.agendaRow:first-of-type {
-  border-top: none;
-}
-.agendaDate {
-  flex: 0 0 auto;
-  width: 56px;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.agendaTime {
-  flex: 0 0 auto;
-  width: 72px;
-  font-size: 12px;
-  color: var(--ink-muted);
-}
-.agendaTitle {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-a.agendaTitle:hover {
-  color: var(--accent-ink);
-  text-decoration: underline;
-}
-.agendaHide {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-sunken);
-  color: var(--ink-muted);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.1s ease;
-}
-.agendaHide:hover {
-  color: var(--critical);
-  border-color: var(--critical);
-}
-@media (hover: none) {
-  /* No hover on touch — keep the affordance visible so it stays reachable. */
-  .agendaHide {
-    opacity: 1;
-  }
-}
-
 @media (max-width: 640px) {
+  .content {
+    padding: 16px;
+  }
   .cell {
-    min-height: 68px;
+    min-height: 72px;
   }
   .chip {
     font-size: 10px;
+  }
+  .controls {
+    width: 100%;
+    justify-content: space-between;
   }
 }
