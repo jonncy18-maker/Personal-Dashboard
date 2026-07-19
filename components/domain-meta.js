@@ -2,6 +2,7 @@ import {
   ProjectsIcon,
   TravelIcon,
   SchedulesIcon,
+  CalendarIcon,
   LanguageIcon,
   IdeasIcon,
   EmailIcon,
@@ -28,6 +29,16 @@ export const DOMAIN_META = {
     icon: SchedulesIcon,
     color: 'var(--dom-schedules)',
     soft: 'var(--dom-schedules-soft)',
+  },
+  // Not one of the six core domains (owns no table — CLAUDE.md's cross-cutting
+  // view), but the Up Next agenda surfaces its events, so it needs an icon +
+  // color like any other row source.
+  calendar: {
+    label: 'Calendar',
+    href: '/calendar',
+    icon: CalendarIcon,
+    color: 'var(--dom-calendar)',
+    soft: 'var(--dom-calendar-soft)',
   },
   language: {
     label: 'Language',

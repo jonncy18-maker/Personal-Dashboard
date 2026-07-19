@@ -5,6 +5,25 @@ import styles from './HomeHero.module.css';
 
 const MAX_ROWS = 3;
 
+// Per-domain accent for this widget specifically — fixed hex, not the site's
+// --dom-* theme vars. Those vars flip between a light and dark shade
+// depending on the app theme (so e.g. Travel's brand color is a teal in both,
+// just a lighter one in dark mode); this widget always renders as white text
+// over a photo/gradient regardless of site theme, so it needs one constant,
+// clearly-distinct set of colors rather than a theme-following brand hue.
+// Chosen 2026-07-19 per John: Language green, Travel blue, Schedules yellow,
+// Calendar (generic Google Calendar events) purple.
+const UP_NEXT_ACCENT = {
+  language: '#4bc178',
+  travel: '#4a90e2',
+  schedules: '#f2c94c',
+  calendar: '#c65fe0',
+};
+
+function accentFor(domain, fallback) {
+  return UP_NEXT_ACCENT[domain] || fallback;
+}
+
 // The "Up Next" agenda, rendered inside the hero photo as the left column of
 // the widget (HeroTodos is the right column — see HomeHero.module.css
 // .widget's side-by-side layout, chosen so each list gets its own row budget
@@ -39,7 +58,7 @@ export default function HeroAgenda({ items }) {
       <Link
         href={heroMeta.href}
         className={styles.widgetHeroRow}
-        style={{ '--row-accent': heroMeta.color }}
+        style={{ '--row-accent': accentFor(hero.domain, heroMeta.color) }}
       >
         <span className={`${styles.widgetHeroRel} tabular`}>
           {relativeDay(hero.when)}
@@ -60,7 +79,7 @@ export default function HeroAgenda({ items }) {
                 key={item.id}
                 href={meta.href}
                 className={styles.widgetRow}
-                style={{ '--row-accent': meta.color }}
+                style={{ '--row-accent': accentFor(item.domain, meta.color) }}
               >
                 <span className={`${styles.widgetRowWhen} tabular`}>
                   {relativeDay(item.when)}
