@@ -1,8 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import HomeHero from '../components/HomeHero';
 import DomainGrid from '../components/DomainGrid';
-import { CheckCircleIcon, SchedulesIcon } from '../components/icons';
+import {
+  CheckCircleIcon,
+  SchedulesIcon,
+  CalendarIcon,
+} from '../components/icons';
 import { useHomeSummary } from '../lib/useHomeSummary';
 import { buildAgenda } from '../lib/agenda';
 import { daysUntil } from '../lib/format';
@@ -35,6 +40,15 @@ function StatBar({ needAttention, eventsToday }) {
           </div>
         </div>
       ))}
+      {/* Fills the bar's empty third column — a prominent shortcut into the
+          Calendar. Solid accent so it contrasts against the dark bar while
+          staying in the app's own primary-action color. */}
+      <div className={styles.calCell}>
+        <Link href="/calendar" className={styles.calButton}>
+          <CalendarIcon />
+          <span>Open Calendar</span>
+        </Link>
+      </div>
     </div>
   );
 }
