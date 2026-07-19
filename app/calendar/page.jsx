@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useResource } from '../../lib/useResource';
+import { useRefresh } from '../../lib/refresh';
 import { timeBand } from '../../lib/time-of-day';
 import { EditIcon } from '../../components/icons';
 import styles from './page.module.css';
@@ -245,6 +246,12 @@ function RenamedPopup({ renames, onRevert, onClose }) {
 }
 
 export default function CalendarPage() {
+  // Home's Up Next agenda reads from useHomeSummary, which caches its fetch
+  // at module scope and only invalidates on the app-wide refresh signal — so
+  // a hide/rename here needs to fire refresh() itself, or Up Next keeps
+  // showing the stale title/hidden-state until the TopBar button is clicked.
+  const { refresh } = useRefresh();
+
   // Month + time band are derived from the viewer's own clock (client-only) to
   // avoid an SSR/local-time hydration mismatch — same discipline as the Home
   // hero, whose cached photo we reuse here as the translucent backdrop.
@@ -330,6 +337,7 @@ export default function CalendarPage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       hiddenRes.reload();
+      refresh();
     } catch {
       setEvents((prev) =>
         prev.some((e) => e.id === event.id) ? prev : [...prev, event]
@@ -343,6 +351,7 @@ export default function CalendarPage() {
       method: 'DELETE',
     });
     reloadEvents();
+    refresh();
   }
 
   // Renaming never touches the real Calendar event — only the local
@@ -369,6 +378,7 @@ export default function CalendarPage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       renamesRes.reload();
+      refresh();
     } catch {
       reloadEvents(); // fall back to the real titles rather than leave a stale optimistic name
     }
@@ -390,6 +400,7 @@ export default function CalendarPage() {
     );
     renamesRes.reload();
     reloadEvents();
+    refresh();
   }
 
   // Revert from the "Renamed events" management popup, which only has the
@@ -400,6 +411,7 @@ export default function CalendarPage() {
       method: 'DELETE',
     });
     reloadEvents();
+    refresh();
   }
 
   const eventsByDay = useMemo(() => {
