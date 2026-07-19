@@ -2,13 +2,17 @@
 
 Master personal planning hub consolidating John's AI projects, travel, schedules, language learning, idea backlog, and email triage into one home. Built for a single user (John), no public access.
 
-> **Session start:** read `ARCHITECTURE.md` (system map), the latest `ROADMAP.md` entry (recent decisions), and `PERSONAL_CONTEXT.md` (who John is, as builder — weigh reviews/suggestions against this, not just generic best practice) before making structural changes.
+> **Session start:** read `ARCHITECTURE.md` (system map) and the latest `ROADMAP.md` entry (recent decisions) before making structural changes.
 >
-> `PERSONAL_CONTEXT.md` is a committed snapshot. The live/canonical copy lives in Google
+> **Personal context:** John maintains a dated personal-context doc (background,
+> constraints, review priorities as the builder — not this repo's rules) in Google
 > Drive: https://drive.google.com/drive/folders/1cjNFhY6ZnN5xB4PSDhz7FA24KGl92NTy —
-> titles are date-stamped (e.g. `Personal_Context_YYYY-MM-DD.md`). If asked to review
-> "against what you know about me," check that folder for a file newer than the one
-> committed here (don't assume the filename) and prefer it if one exists.
+> titles are date-stamped (e.g. `Personal_Context_YYYY-MM-DD.md`). At session start,
+> or whenever asked to review this repo "against what you know about me," use the
+> Google Drive tools to find the **most recently dated** file in that folder (don't
+> assume a fixed filename) and weigh suggestions against it, not just generic best
+> practice. Nothing is committed to this repo for this — the Drive folder is the only
+> source of truth, so it's always current.
 
 - **Repo:** `jonncy18-maker/Personal-Dashboard`
 - **Live URL(s):** _(fill in after first Vercel deploy)_
