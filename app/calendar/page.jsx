@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useResource } from '../../lib/useResource';
 import { timeBand } from '../../lib/time-of-day';
+import { EditIcon } from '../../components/icons';
 import styles from './page.module.css';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -95,6 +96,154 @@ function HiddenPopup({ hidden, onUnhide, onClose }) {
   );
 }
 
+// Rename an event (or its whole recurring series) purely within the
+// dashboard — never writes back to Google Calendar. Defaults to "just this
+// event"; the series choice only appears when the event actually has a
+// recurringEventId (i.e. is an occurrence of a recurring event).
+function RenameModal({ event, onSave, onRevert, onCancel }) {
+  const [title, setTitle] = useState(event.title);
+  const [scope, setScope] = useState('event');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!title.trim()) return;
+    setSaving(true);
+    await onSave(
+      scope === 'series' ? event.recurringEventId : event.id,
+      scope,
+      title.trim()
+    );
+    setSaving(false);
+  }
+
+  return (
+    <div className={styles.popupScrim} onClick={onCancel} role="presentation">
+      <div
+        className={styles.popup}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Rename event"
+      >
+        <div className={styles.popupHead}>
+          <p className={styles.popupTitle}>Rename event</p>
+          <button
+            className={styles.popupClose}
+            onClick={onCancel}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {event.renamed && (
+          <p className={styles.renameOriginal}>
+            Original title: {event.originalTitle}
+          </p>
+        )}
+
+        <input
+          className={styles.renameInput}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          autoFocus
+        />
+
+        {event.recurringEventId && (
+          <div className={styles.renameScope}>
+            <label className={styles.renameScopeOption}>
+              <input
+                type="radio"
+                name="rename-scope"
+                checked={scope === 'event'}
+                onChange={() => setScope('event')}
+              />
+              Just this event
+            </label>
+            <label className={styles.renameScopeOption}>
+              <input
+                type="radio"
+                name="rename-scope"
+                checked={scope === 'series'}
+                onChange={() => setScope('series')}
+              />
+              This and all events in the series
+            </label>
+          </div>
+        )}
+
+        <div className={styles.manageActions}>
+          <button
+            className={styles.manageSave}
+            disabled={saving || !title.trim()}
+            onClick={handleSave}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button className={styles.manageCancel} onClick={onCancel}>
+            Cancel
+          </button>
+          {event.renamed && (
+            <button
+              className={styles.renameRevert}
+              onClick={() => onRevert(event)}
+            >
+              Revert to original
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RenamedPopup({ renames, onRevert, onClose }) {
+  return (
+    <div className={styles.popupScrim} onClick={onClose} role="presentation">
+      <div
+        className={styles.popup}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Renamed events"
+      >
+        <div className={styles.popupHead}>
+          <p className={styles.popupTitle}>Renamed events</p>
+          <button
+            className={styles.popupClose}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {renames.length === 0 && (
+          <p className={styles.popupEmpty}>Nothing renamed.</p>
+        )}
+
+        <div className={styles.hiddenList}>
+          {renames.map((r) => (
+            <div key={r.scope_id} className={styles.hiddenRow}>
+              <span className={styles.hiddenTitle}>
+                {r.title}
+                <span className={styles.renameScopeTag}>
+                  {r.scope === 'series' ? 'series' : 'event'}
+                </span>
+              </span>
+              <button
+                className={styles.hiddenUndo}
+                onClick={() => onRevert(r.scope_id)}
+                title="Revert to the real Calendar title"
+              >
+                Revert
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CalendarPage() {
   // Month + time band are derived from the viewer's own clock (client-only) to
   // avoid an SSR/local-time hydration mismatch — same discipline as the Home
@@ -103,6 +252,8 @@ export default function CalendarPage() {
   const [todayKey, setTodayKey] = useState(null);
   const [view, setView] = useState('calendar'); // 'calendar' | 'list'
   const [hiddenOpen, setHiddenOpen] = useState(false);
+  const [renamedOpen, setRenamedOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState(null); // event being renamed, or null
   const [band, setBand] = useState('day');
   const [bg, setBg] = useState(null);
 
@@ -146,12 +297,14 @@ export default function CalendarPage() {
     errorMessage: 'Could not load your calendar.',
   });
   const hiddenRes = useResource('/api/calendar-hidden');
+  const renamesRes = useResource('/api/calendar-renames');
 
-  // Mirrored into local state so hiding an event can remove it immediately
-  // (the same optimistic-mutation pattern every other page uses), rather than
-  // waiting on a full re-fetch.
+  // Mirrored into local state so hiding/renaming an event can update
+  // immediately (the same optimistic-mutation pattern every other page
+  // uses), rather than waiting on a full re-fetch.
   const [events, setEvents] = useState([]);
   const [hidden, setHidden] = useState([]);
+  const [renames, setRenames] = useState([]);
 
   useEffect(() => {
     if (data) setEvents(data.events || []);
@@ -159,6 +312,9 @@ export default function CalendarPage() {
   useEffect(() => {
     if (hiddenRes.data) setHidden(hiddenRes.data.hidden || []);
   }, [hiddenRes.data]);
+  useEffect(() => {
+    if (renamesRes.data) setRenames(renamesRes.data.renames || []);
+  }, [renamesRes.data]);
 
   async function hideEvent(event) {
     setEvents((prev) => prev.filter((e) => e.id !== event.id));
@@ -184,6 +340,63 @@ export default function CalendarPage() {
   async function unhideEvent(id) {
     setHidden((prev) => prev.filter((h) => h.gcal_event_id !== id));
     await fetch(`/api/calendar-hidden/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    reloadEvents();
+  }
+
+  // Renaming never touches the real Calendar event — only the local
+  // calendar_renames override. `scopeId` is the event's own id ("just this
+  // event") or its recurringEventId ("the whole series"); when it's the
+  // latter, every occurrence sharing that recurringEventId is updated
+  // optimistically since they'll all pick up the new override on refetch.
+  async function saveRename(scopeId, scope, title) {
+    setEvents((prev) =>
+      prev.map((e) => {
+        const matches =
+          scope === 'series'
+            ? e.recurringEventId === scopeId
+            : e.id === scopeId;
+        return matches ? { ...e, title, renamed: true } : e;
+      })
+    );
+    setRenameTarget(null);
+    try {
+      const res = await fetch('/api/calendar-renames', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope_id: scopeId, scope, title }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      renamesRes.reload();
+    } catch {
+      reloadEvents(); // fall back to the real titles rather than leave a stale optimistic name
+    }
+  }
+
+  // Reverts whichever override is actually in effect for this event — it may
+  // be keyed by the event's own id or by its recurringEventId (series-level),
+  // and the modal doesn't track which, so clear both; a delete against a
+  // nonexistent row is a harmless no-op.
+  async function revertRename(event) {
+    setRenameTarget(null);
+    const ids = [event.id, event.recurringEventId].filter(Boolean);
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/calendar-renames/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        })
+      )
+    );
+    renamesRes.reload();
+    reloadEvents();
+  }
+
+  // Revert from the "Renamed events" management popup, which only has the
+  // scope_id of the row being reverted (not a live event object).
+  async function revertRenameById(scopeId) {
+    setRenames((prev) => prev.filter((r) => r.scope_id !== scopeId));
+    await fetch(`/api/calendar-renames/${encodeURIComponent(scopeId)}`, {
       method: 'DELETE',
     });
     reloadEvents();
@@ -274,6 +487,12 @@ export default function CalendarPage() {
             <div className={styles.nav}>
               <button
                 className={styles.hiddenButton}
+                onClick={() => setRenamedOpen(true)}
+              >
+                Renamed{renames.length > 0 ? ` (${renames.length})` : ''}
+              </button>
+              <button
+                className={styles.hiddenButton}
                 onClick={() => setHiddenOpen(true)}
               >
                 Hidden{hidden.length > 0 ? ` (${hidden.length})` : ''}
@@ -322,6 +541,23 @@ export default function CalendarPage() {
           />
         )}
 
+        {renamedOpen && (
+          <RenamedPopup
+            renames={renames}
+            onRevert={revertRenameById}
+            onClose={() => setRenamedOpen(false)}
+          />
+        )}
+
+        {renameTarget && (
+          <RenameModal
+            event={renameTarget}
+            onSave={saveRename}
+            onRevert={revertRename}
+            onCancel={() => setRenameTarget(null)}
+          />
+        )}
+
         {view === 'calendar' && grid && (
           <div className={styles.panel}>
             <div className={styles.grid}>
@@ -359,6 +595,18 @@ export default function CalendarPage() {
                             />
                           )}
                           <span className={styles.chipTitle}>{ev.title}</span>
+                          <button
+                            type="button"
+                            className={styles.chipEdit}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRenameTarget(ev);
+                            }}
+                            title="Rename this event"
+                            aria-label={`Rename ${ev.title}`}
+                          >
+                            <EditIcon />
+                          </button>
                           <button
                             type="button"
                             className={styles.chipHide}
@@ -426,6 +674,22 @@ export default function CalendarPage() {
                                 {ev.title}
                               </span>
                             )}
+                            {ev.renamed && (
+                              <span
+                                className={styles.renamedMark}
+                                title={`Originally: ${ev.originalTitle}`}
+                              >
+                                renamed
+                              </span>
+                            )}
+                            <button
+                              className={styles.listEdit}
+                              onClick={() => setRenameTarget(ev)}
+                              title="Rename this event"
+                              aria-label={`Rename ${ev.title}`}
+                            >
+                              <EditIcon />
+                            </button>
                             <button
                               className={styles.listHide}
                               onClick={() => hideEvent(ev)}
