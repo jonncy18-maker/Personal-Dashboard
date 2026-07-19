@@ -253,7 +253,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 6px 0;
+  padding: 7px 0;
 }
 .todoRow + .todoRow {
   border-top: 1px solid rgba(255, 255, 255, 0.16);
@@ -291,8 +291,16 @@
 .todoKindEmail {
   background: #e0a726;
 }
-.todoTitle {
+/* Title + date stacked as two lines, so the date doesn't compete with the
+   title for horizontal room in the narrow widget column. */
+.todoBody {
   flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.todoTitle {
   min-width: 0;
   font-size: 12.5px;
   font-weight: 600;
@@ -300,6 +308,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.todoDate {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
 }
 /* Shared "+N more" line — plain text in both widgets now (no single
    destination to link to, since HeroTodos also spans email + schedules). */

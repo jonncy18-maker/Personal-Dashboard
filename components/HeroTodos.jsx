@@ -3,10 +3,18 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRefresh } from '../lib/refresh';
-import { parseDateInput } from '../lib/format';
+import { parseDateInput, relativeDay } from '../lib/format';
 import styles from './HomeHero.module.css';
 
 const MAX_ROWS = 3;
+
+// A schedule's date is a real deadline; an email's is just when it was
+// flagged — label each so "Today" can't be misread as a due date for a
+// starred email.
+function dateLabel(todo) {
+  const rel = relativeDay(todo.date);
+  return todo.kind === 'schedule' ? `Due ${rel}` : `Flagged ${rel}`;
+}
 
 // Combines the two To-do sources into one list, in date order:
 //  - email: starred in /email, stored in email_todos, no real due date — the
@@ -115,9 +123,12 @@ export default function HeroTodos({ items, scheduleTasks = [] }) {
                 className={`${styles.todoKindDot} ${todo.kind === 'schedule' ? styles.todoKindSchedule : styles.todoKindEmail}`}
                 aria-hidden="true"
               />
-              <Link href={todo.href} className={styles.todoTitle}>
-                {todo.title}
-              </Link>
+              <div className={styles.todoBody}>
+                <Link href={todo.href} className={styles.todoTitle}>
+                  {todo.title}
+                </Link>
+                <span className={styles.todoDate}>{dateLabel(todo)}</span>
+              </div>
             </div>
           ))}
           {extra > 0 && <span className={styles.moreLine}>+{extra} more</span>}
