@@ -1,11 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useResource } from '../../lib/useResource';
 import { useRefresh } from '../../lib/refresh';
 import { absoluteDate, relativeDay } from '../../lib/format';
 import { EditIcon } from '../../components/icons';
 import styles from './page.module.css';
+
+const ALLOWED_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      resolve(result.slice(result.indexOf(',') + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 function LinkBadge({ item }) {
   if (item.linked_trip_id) {
@@ -378,6 +392,103 @@ function EditScheduleForm({ item, trips, projects, onSave, onCancel }) {
   );
 }
 
+// Preview for the AI screenshot import — same never-auto-save discipline as
+// French's hours-log import (CLAUDE.md §7): nothing here has touched the DB
+// yet. Each candidate task is fully editable (Haiku may misread a title or
+// miss a date entirely) and removable; "Add" only fires once every remaining
+// row has both a title and a due date, then POSTs each to the existing
+// /api/schedules route — the same endpoint AddScheduleForm uses, one call per
+// task, so no new persistence path exists just for this.
+function ImportPreviewPopup({ tasks, onChange, onConfirm, onCancel, saving }) {
+  function updateTask(i, patch) {
+    onChange(tasks.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
+  }
+  function removeTask(i) {
+    onChange(tasks.filter((_, idx) => idx !== i));
+  }
+
+  const allValid =
+    tasks.length > 0 && tasks.every((t) => t.title.trim() && t.due_date);
+
+  return (
+    <div className={styles.popupScrim} onClick={onCancel} role="presentation">
+      <div
+        className={styles.popup}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Review imported tasks"
+      >
+        <div className={styles.popupHead}>
+          <p className={styles.popupTitle}>Review before adding</p>
+          <button
+            className={styles.popupClose}
+            onClick={onCancel}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <p className={styles.importIntro}>
+          Haiku read this off your screenshot — check each title and due date
+          (or remove a row) before adding.
+        </p>
+
+        {tasks.length === 0 ? (
+          <p className={styles.popupEmpty}>Nothing left to add.</p>
+        ) : (
+          <div className={styles.importList}>
+            {tasks.map((t, i) => (
+              <div className={styles.importRow} key={i}>
+                <input
+                  type="text"
+                  className={styles.importTitleInput}
+                  value={t.title}
+                  onChange={(e) => updateTask(i, { title: e.target.value })}
+                  placeholder="Title"
+                />
+                <input
+                  type="date"
+                  className={styles.importDateInput}
+                  value={t.due_date}
+                  onChange={(e) => updateTask(i, { due_date: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className={styles.importRemove}
+                  onClick={() => removeTask(i)}
+                  aria-label="Remove this task"
+                  title="Remove this task"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className={styles.formActions}>
+          <button
+            className={styles.saveButton}
+            onClick={onConfirm}
+            disabled={saving || !allValid}
+          >
+            {saving
+              ? 'Adding…'
+              : `Add ${tasks.length} task${tasks.length === 1 ? '' : 's'}`}
+          </button>
+          <button
+            className={styles.cancelButton}
+            onClick={onCancel}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SchedulesPage() {
   // Home's Up Next / To-do's read from useHomeSummary, which caches its fetch
   // at module scope and only invalidates on the app-wide refresh signal — so
@@ -399,6 +510,15 @@ export default function SchedulesPage() {
   const [schedules, setSchedules] = useState(null);
   const trips = tripsData?.trips || [];
   const projects = projectsData?.projects || [];
+
+  // AI screenshot import (CLAUDE.md §7's narrow-AI-use discipline) — a
+  // preview-only round trip through /api/schedule-import; nothing is saved
+  // until confirmImport() posts each row to the existing /api/schedules route.
+  const [importing, setImporting] = useState(false);
+  const [importPreview, setImportPreview] = useState(null);
+  const [importSaving, setImportSaving] = useState(false);
+  const [importNote, setImportNote] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (schedulesData) setSchedules(schedulesData.schedules || []);
@@ -428,6 +548,72 @@ export default function SchedulesPage() {
     refresh();
   }
 
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!ALLOWED_MEDIA_TYPES.includes(file.type)) {
+      setImportNote(
+        'That file type isn’t supported — use a PNG, JPEG, or WEBP.'
+      );
+      return;
+    }
+
+    setImporting(true);
+    setImportNote(null);
+    try {
+      const base64 = await readFileAsBase64(file);
+      const res = await fetch('/api/schedule-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mediaType: file.type }),
+      });
+      const result = await res.json();
+      if (!res.ok || result.configured === false) {
+        setImportNote(
+          result.configured === false
+            ? 'Anthropic isn’t configured yet.'
+            : 'Could not read that screenshot.'
+        );
+        return;
+      }
+      if (!result.tasks || result.tasks.length === 0) {
+        setImportNote('Couldn’t find any tasks in that screenshot.');
+        return;
+      }
+      setImportPreview(result.tasks);
+    } catch {
+      setImportNote('Import failed — try again.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function confirmImport() {
+    setImportSaving(true);
+    try {
+      const created = [];
+      for (const t of importPreview) {
+        const res = await fetch('/api/schedules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: t.title,
+            due_date: t.due_date,
+            notes: t.notes || null,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.schedule) created.push(data.schedule);
+      }
+      setSchedules((prev) => [...(prev || []), ...created]);
+      setImportPreview(null);
+      refresh();
+    } finally {
+      setImportSaving(false);
+    }
+  }
+
   const openCount = schedules
     ? schedules.filter((s) => s.status !== 'done').length
     : 0;
@@ -444,15 +630,43 @@ export default function SchedulesPage() {
             )}
           </h1>
         </div>
-        <AddScheduleForm
-          trips={trips}
-          projects={projects}
-          onAdded={(schedule) => {
-            setSchedules((prev) => [...(prev || []), schedule]);
-            refresh();
-          }}
-        />
+        <div className={styles.headerActions}>
+          <button
+            className={styles.importButton}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+          >
+            {importing ? 'Reading…' : '📷 Import screenshot'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className={styles.hiddenFileInput}
+            onChange={handleImportFile}
+          />
+          <AddScheduleForm
+            trips={trips}
+            projects={projects}
+            onAdded={(schedule) => {
+              setSchedules((prev) => [...(prev || []), schedule]);
+              refresh();
+            }}
+          />
+        </div>
       </div>
+
+      {importNote && <p className={styles.formError}>{importNote}</p>}
+
+      {importPreview && (
+        <ImportPreviewPopup
+          tasks={importPreview}
+          onChange={setImportPreview}
+          onConfirm={confirmImport}
+          onCancel={() => setImportPreview(null)}
+          saving={importSaving}
+        />
+      )}
 
       {loadError && <p className={styles.formError}>{loadError}</p>}
 
