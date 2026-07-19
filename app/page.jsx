@@ -52,7 +52,7 @@ export default function HomePage() {
 
   return (
     <div className={styles.home}>
-      <HomeHero agenda={agenda} />
+      <HomeHero agenda={agenda} todos={summary?.todos || []} />
 
       <StatBar needAttention={needAttention} eventsToday={eventsToday} />
 

@@ -13,7 +13,7 @@
 --                      004_language_calls, 005_travel_map_brief, 006_hero_image,
 --                      007_project_meta, 008_project_category,
 --                      009_trip_wishlist_status, 010_checklists,
---                      011_language_progress
+--                      011_language_progress, 012_email_todos
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -165,6 +165,22 @@ CREATE TABLE IF NOT EXISTS app_flags (
   key    text PRIMARY KEY,
   value  jsonb NOT NULL DEFAULT '{}'::jsonb
 );
+
+-- To-do's flagged from the Email module (see 012_email_todos.sql). Read-only
+-- Gmail means the flag lives here, never a Gmail star — same boundary as
+-- email_hidden. Subject/sender/snippet are snapshotted at flag time so the
+-- Home hero renders with no live Gmail call. `done_at` = dismissible (stamped,
+-- not deleted, so it can be un-done); the hero shows only done_at IS NULL.
+CREATE TABLE IF NOT EXISTS email_todos (
+  gmail_message_id  text PRIMARY KEY,
+  subject           text,
+  sender            text,
+  snippet           text,
+  flagged_at        timestamptz NOT NULL DEFAULT now(),
+  done_at           timestamptz
+);
+CREATE INDEX IF NOT EXISTS email_todos_open_idx
+  ON email_todos (flagged_at DESC) WHERE done_at IS NULL;
 
 -- ─── Travel trip suggestions (weekly Gmail auto-detection) ────────────────────
 CREATE TABLE IF NOT EXISTS trip_suggestions (

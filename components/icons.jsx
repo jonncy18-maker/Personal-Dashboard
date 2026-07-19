@@ -53,6 +53,16 @@ export function SchedulesIcon(props) {
   );
 }
 
+export function CalendarIcon(props) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="4.5" width="18" height="16" rx="2" />
+      <path d="M3 9h18M8 2.5v4M16 2.5v4" />
+      <path d="M7 13h.01M12 13h.01M17 13h.01M7 17h.01M12 17h.01" />
+    </Svg>
+  );
+}
+
 export function LanguageIcon(props) {
   return (
     <Svg {...props}>

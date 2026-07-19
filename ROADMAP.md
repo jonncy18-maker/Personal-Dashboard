@@ -23,6 +23,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Fixed: `app/api/trip-scan/route.js`'s `matchesExistingTrip` date comparison** — 2026-07-16, see entry below. Was comparing `trips` rows' raw `start_date`/`end_date` (DB `Date` objects) against a candidate's plain `"YYYY-MM-DD"` strings with `<=`/`>=`; the `Date`-vs-string coercion went through `.toString()`, not the ISO form, so the overlap test silently always failed and real duplicate trips slipped through as new suggestions. Now both sides go through `dateOnly()` first.
 - [x] **Add a migration runner** — 2026-07-16, see entry below. Surfaced by the Travel redesign (#29): its migration file merged and deployed cleanly, but the live Neon DB was never updated, so `/api/trips` 500'd until applied by hand. `npm run migrate` now closes that gap — explicit, not automatic (Preview and Production share one Neon database here, so build-time auto-migration was rejected — see the entry below and CLAUDE.md §6).
 - [x] **Run `npm run migrate` after this merges** — 2026-07-19, applied via the Neon MCP right after merge. Migration 011 (`language_progress`) added `french_hours_daily`, `french_hours_summary`, `language_notes` to the live DB; confirmed all three exist and `schema_migrations` records the file.
+- [ ] **Run `npm run migrate` after the To-do's + Calendar PR merges** — migration 012 (`email_todos`) adds the flagged-to-do table. Same one-shared-Neon-DB gotcha as always (CLAUDE.md §6): the Home hero's To-do's block and `/email`'s star toggle 500 against a DB without this table until it's applied.
 
 ---
 
@@ -50,6 +51,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
 
 ---
+
+## 2026-07-19 (cont'd) — Hero "To-do's" (email-flagged) + a real Calendar view
+
+John wanted a "To-do's" section in the Home hero alongside "Up next", sourced from email or calendar. Grilled the scope with him across two rounds:
+
+- **Source = Email only, via an in-app flag.** Not a Gmail star — Gmail is read-only by hard rule (§2/§7), so the app can never write a star back. The `☆`/`★` toggle on each `/email` row writes to a new `email_todos` table (migration 012), keyed by `gmail_message_id`, **exactly the `email_hidden` pattern**. The email's subject/sender/snippet are **snapshotted** at flag time so the Home hero renders the list with **no live Gmail call** (same "never per page load" discipline as the trip photo / hero image / AI brief). `done_at` makes it dismissible (stamped, not deleted, so a to-do can be un-done); the hero shows only `done_at IS NULL`.
+- **Home wiring.** `home-summary` gained a `todos` array — cheap because it's our own table, unlike the still-`null` email `important_count` that would need a mailbox call. The hero's right-hand overlay is now a two-block **stack**: `HeroAgenda` ("Up next", capped at hero + 2) over a new `HeroTodos` ("To-do's", up to 3, each with a check-to-complete that PATCHes done + fires the app-wide `refresh()`). Empty state points John to `/email` so the feature is discoverable.
+- **Calendar view** — John noticed there was no actual calendar in the dashboard (Calendar was used narrowly, only for the next-tutor-call card). Added a real `/calendar` route: a month grid (6-week, prev/next/Today nav) + a "This month" agenda, off a new **read-only, fail-soft** `/api/calendar-events` window (§7 external-source shape; empty list on any error, never a broken page). All-day vs timed events are distinguished and keyed to the correct **local** day (no UTC off-by-one — same class of bug as the date-only fix on 2026-07-15). New `CalendarIcon` + Sidebar nav entry.
+
+No fabricated data anywhere: to-do's are real flagged emails, calendar cells are real events. **Run `npm run migrate` after merge** (migration 012) before relying on the deployed To-do's/star code.
 
 ## 2026-07-19 — Language domain: French hours log (screenshot import) + Spanish note
 

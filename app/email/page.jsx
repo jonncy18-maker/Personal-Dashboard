@@ -40,7 +40,14 @@ function ManageForm({ message, existingRule, onSave, onCancel }) {
   );
 }
 
-function EmailRow({ message, tier2Rule, onHide, onSaveRule }) {
+function EmailRow({
+  message,
+  tier2Rule,
+  isTodo,
+  onHide,
+  onSaveRule,
+  onToggleTodo,
+}) {
   const [managing, setManaging] = useState(false);
 
   return (
@@ -74,6 +81,16 @@ function EmailRow({ message, tier2Rule, onHide, onSaveRule }) {
               })
             : ''}
         </span>
+        <button
+          className={`${styles.starButton}${isTodo ? ` ${styles.starButtonActive}` : ''}`}
+          title={
+            isTodo ? 'Remove from To-do’s' : 'Add to To-do’s (shows on Home)'
+          }
+          aria-pressed={isTodo}
+          onClick={() => onToggleTodo(message, isTodo)}
+        >
+          {isTodo ? '★' : '☆'}
+        </button>
         <button
           className={styles.manageButton}
           title="Manage this sender (Tier 2 content rule)"
@@ -265,11 +282,13 @@ export default function EmailPage() {
     errorMessage: 'Could not load Gmail.',
   });
   const rulesRes = useResource('/api/email-rules');
+  const todosRes = useResource('/api/email-todos');
   const loadMessages = gmailRes.reload;
   const loadRules = rulesRes.reload;
 
   const [messages, setMessages] = useState(null);
   const [rules, setRules] = useState([]);
+  const [todoIds, setTodoIds] = useState(() => new Set());
   const [configured, setConfigured] = useState(true);
   const [error, setError] = useState(null);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -289,6 +308,14 @@ export default function EmailPage() {
   useEffect(() => {
     if (rulesRes.data) setRules(rulesRes.data.rules || []);
   }, [rulesRes.data]);
+
+  useEffect(() => {
+    if (todosRes.data) {
+      setTodoIds(
+        new Set((todosRes.data.todos || []).map((t) => t.gmail_message_id))
+      );
+    }
+  }, [todosRes.data]);
 
   useEffect(() => {
     // First-run onboarding scan (CLAUDE.md §7) — one-time; the API records
@@ -354,6 +381,42 @@ export default function EmailPage() {
     loadMessages();
   }
 
+  // Flag/unflag an email as a to-do (shows on the Home hero). Gmail stays
+  // untouched — this only writes our own email_todos table. Optimistic, with a
+  // revert on a failed persist (per the app's mutation convention).
+  async function handleToggleTodo(message, isTodo) {
+    setTodoIds((prev) => {
+      const next = new Set(prev);
+      if (isTodo) next.delete(message.id);
+      else next.add(message.id);
+      return next;
+    });
+    try {
+      const res = isTodo
+        ? await fetch(`/api/email-todos/${encodeURIComponent(message.id)}`, {
+            method: 'DELETE',
+          })
+        : await fetch('/api/email-todos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gmail_message_id: message.id,
+              subject: message.subject,
+              sender: message.from,
+              snippet: message.snippet,
+            }),
+          });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      setTodoIds((prev) => {
+        const next = new Set(prev);
+        if (isTodo) next.add(message.id);
+        else next.delete(message.id);
+        return next;
+      });
+    }
+  }
+
   const tier2ByDomain = new Map(
     rules.filter((r) => r.tier === 2).map((r) => [r.sender, r])
   );
@@ -412,8 +475,10 @@ export default function EmailPage() {
               tier2Rule={
                 message.domain ? tier2ByDomain.get(message.domain) : null
               }
+              isTodo={todoIds.has(message.id)}
               onHide={handleHide}
               onSaveRule={handleSaveRule}
+              onToggleTodo={handleToggleTodo}
             />
           ))}
         </div>

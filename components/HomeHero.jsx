@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import TripPhoto from './TripPhoto';
 import HeroAgenda from './HeroAgenda';
+import HeroTodos from './HeroTodos';
 import { timeBand } from '../lib/time-of-day';
 import { timeOfDayGreeting } from '../lib/format';
 import { quoteForDay } from '../lib/quotes';
@@ -17,7 +18,7 @@ import styles from './HomeHero.module.css';
 // optional — the per-band gradient behind it is the honest fallback (no key /
 // no result). The at-a-glance counts live in the StatBar directly below, so
 // the hero deliberately doesn't repeat them.
-export default function HomeHero({ agenda }) {
+export default function HomeHero({ agenda, todos = [] }) {
   const [band, setBand] = useState('day');
   const [greeting, setGreeting] = useState('Hello');
   const [quote, setQuote] = useState('');
@@ -60,7 +61,10 @@ export default function HomeHero({ agenda }) {
           </div>
         )}
       </div>
-      <HeroAgenda items={agenda} />
+      <div className={styles.widget}>
+        <HeroAgenda items={agenda} />
+        <HeroTodos items={todos} />
+      </div>
       {image?.image_attribution && (
         <span className={styles.credit}>{image.image_attribution}</span>
       )}

@@ -3,16 +3,17 @@ import { DOMAIN_META } from './domain-meta';
 import { relativeDay } from '../lib/format';
 import styles from './HomeHero.module.css';
 
-const MAX_ROWS = 3;
+const MAX_ROWS = 2;
 
-// The "Up Next" agenda, rendered inside the hero photo. Deliberately no
-// background/border/blur of its own (see HomeHero.module.css .widget) — a
-// text-shadow keeps it legible over any photo or gradient band. Each row
-// links to its own domain; the hero item plus up to MAX_ROWS more.
+// The "Up Next" agenda, rendered inside the hero photo as the top block of the
+// right-hand widget stack (HeroTodos sits below it). Deliberately no
+// background/border/blur of its own (the stack carries a text-shadow) — that
+// keeps it legible over any photo or gradient band. Each row links to its own
+// domain; the hero item plus up to MAX_ROWS more.
 export default function HeroAgenda({ items }) {
   if (items.length === 0) {
     return (
-      <div className={styles.widget} aria-label="Up next">
+      <div className={styles.section} aria-label="Up next">
         <p className={styles.widgetEyebrow}>Up next</p>
         <p className={styles.widgetEmpty}>
           Nothing scheduled in the next 30 days. Enjoy the quiet.
@@ -27,7 +28,7 @@ export default function HeroAgenda({ items }) {
   const shown = rest.slice(0, MAX_ROWS);
 
   return (
-    <div className={styles.widget} aria-label="Up next">
+    <div className={styles.section} aria-label="Up next">
       <p className={styles.widgetEyebrow}>Up next</p>
 
       <Link

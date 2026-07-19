@@ -24,6 +24,7 @@ export const GET = route(async () => {
     ideaRows,
     tutorCall,
     [frenchSummary],
+    todoRows,
   ] = await Promise.all([
     // Statuses (not just a count) so the Home card can render a status-dot row.
     sql`SELECT status FROM projects ORDER BY created_at DESC`,
@@ -53,6 +54,17 @@ export const GET = route(async () => {
     sql`SELECT domain_tag, status FROM ideas`,
     findNextTutorCall(),
     sql`SELECT total_hours, as_of_date FROM french_hours_summary WHERE id = 1`,
+    // To-do's flagged from the Email module. Own DB table (email_todos) — a
+    // cheap read, no live Gmail call (the subject/sender were snapshotted at
+    // flag time), so it's honest to render on every Home load. Unlike the
+    // email card's important_count (still null below), this needs no mailbox.
+    sql`
+        SELECT gmail_message_id, subject, sender, flagged_at
+        FROM email_todos
+        WHERE done_at IS NULL
+        ORDER BY flagged_at DESC
+        LIMIT 6
+      `,
   ]);
 
   const trips = tripRows.map((t) => ({
@@ -104,5 +116,13 @@ export const GET = route(async () => {
     // this app deliberately avoids doing on every page load (see CLAUDE.md
     // §7 and the Unsplash/Vercel "never per page load" precedent).
     email: { important_count: null, note: null },
+    // To-do's flagged from the Email module — snapshot fields only, no Gmail
+    // call. Rendered as the hero's "To-do's" block beside "Up next".
+    todos: todoRows.map((t) => ({
+      id: t.gmail_message_id,
+      title: t.subject || '(no subject)',
+      sender: t.sender,
+      flagged_at: t.flagged_at,
+    })),
   });
 });
