@@ -206,3 +206,194 @@
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+.sectionTitle {
+  margin: 28px 0 12px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* ─── French hours log ─────────────────────────────────────────────────────── */
+.frenchCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
+  border-left: 3px solid var(--card-accent);
+  margin-bottom: 20px;
+}
+.frenchHeadRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.frenchTotal {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+.frenchTotalUnit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.hiddenFileInput {
+  display: none;
+}
+
+.dailyList {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dailyRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+.dailyDate {
+  color: var(--ink-muted);
+}
+.dailyHours {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ─── Screenshot-import preview (confirm/edit before saving) ──────────────── */
+.previewBox {
+  margin-top: 14px;
+  background: var(--card-soft);
+  border: 1px solid var(--card-accent);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.previewHead {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+.previewTotalRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.previewLabel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+.previewInput {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.previewDaily {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.previewDailyRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.previewDailyDate {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.previewDailyInput {
+  width: 64px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 7px;
+  font-size: 12.5px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.previewDailyRemove {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.previewDailyRemove:hover {
+  color: var(--ink);
+}
+.previewActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Spanish note ─────────────────────────────────────────────────────────── */
+.noteWrap {
+  margin-top: 14px;
+}
+.noteCard {
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.noteCard:hover {
+  border-color: var(--card-accent);
+}
+.noteText {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+.noteEditHint {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--card-accent);
+}
+.noteEdit {
+  background: var(--surface);
+  border: 1px solid var(--card-accent);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.noteTextarea {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--surface-sunken);
+  color: var(--ink);
+  resize: vertical;
+  margin-bottom: 10px;
+}

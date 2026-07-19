@@ -12,7 +12,8 @@
 -- Applied migrations: 001_initial, 002_trip_images, 003_trip_suggestions,
 --                      004_language_calls, 005_travel_map_brief, 006_hero_image,
 --                      007_project_meta, 008_project_category,
---                      009_trip_wishlist_status, 010_checklists
+--                      009_trip_wishlist_status, 010_checklists,
+--                      011_language_progress
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -237,3 +238,43 @@ CREATE INDEX IF NOT EXISTS trip_checklists_trip_id_idx ON trip_checklists (trip_
 DROP TRIGGER IF EXISTS trip_checklists_set_updated_at ON trip_checklists;
 CREATE TRIGGER trip_checklists_set_updated_at
   BEFORE UPDATE ON trip_checklists FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ─── Language progress (French hours log + per-language note) ────────────────
+-- French: a screenshot-based Haiku import (CLAUDE.md §7) — Dreaming French has
+-- no public API, so John pastes a screenshot of its progress page and Haiku
+-- reads whatever numbers are legible. Never auto-saved (see
+-- app/api/french-progress/save) — John confirms/edits the preview first,
+-- since a vision read of a bar chart is inherently approximate.
+CREATE TABLE IF NOT EXISTS french_hours_daily (
+  log_date    date PRIMARY KEY,
+  hours       numeric NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS french_hours_daily_set_updated_at ON french_hours_daily;
+CREATE TRIGGER french_hours_daily_set_updated_at
+  BEFORE UPDATE ON french_hours_daily FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Singleton headline total — kept separate from french_hours_daily's SUM()
+-- since a screenshot rarely shows full history.
+CREATE TABLE IF NOT EXISTS french_hours_summary (
+  id          smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  total_hours numeric NOT NULL,
+  as_of_date  date NOT NULL,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS french_hours_summary_set_updated_at ON french_hours_summary;
+CREATE TRIGGER french_hours_summary_set_updated_at
+  BEFORE UPDATE ON french_hours_summary FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Spanish's editable "maintenance mode" line — Spanish is ambient/daily
+-- immersion (phone, podcasts, music, tutor calls), not something with an
+-- hours metric to track; this is a note, not a derived stat.
+CREATE TABLE IF NOT EXISTS language_notes (
+  language    text PRIMARY KEY CHECK (language IN ('spanish', 'french')),
+  note        text NOT NULL DEFAULT '',
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS language_notes_set_updated_at ON language_notes;
+CREATE TRIGGER language_notes_set_updated_at
+  BEFORE UPDATE ON language_notes FOR EACH ROW EXECUTE FUNCTION set_updated_at();

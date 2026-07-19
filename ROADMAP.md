@@ -22,6 +22,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Fix: date-only fields showing the wrong relative day/weekday for negative-UTC-offset viewers (e.g. Eastern)** — 2026-07-15, see entry below. Real bug in every Schedules due_date / Travel start_date-end_date display.
 - [x] **Fixed: `app/api/trip-scan/route.js`'s `matchesExistingTrip` date comparison** — 2026-07-16, see entry below. Was comparing `trips` rows' raw `start_date`/`end_date` (DB `Date` objects) against a candidate's plain `"YYYY-MM-DD"` strings with `<=`/`>=`; the `Date`-vs-string coercion went through `.toString()`, not the ISO form, so the overlap test silently always failed and real duplicate trips slipped through as new suggestions. Now both sides go through `dateOnly()` first.
 - [x] **Add a migration runner** — 2026-07-16, see entry below. Surfaced by the Travel redesign (#29): its migration file merged and deployed cleanly, but the live Neon DB was never updated, so `/api/trips` 500'd until applied by hand. `npm run migrate` now closes that gap — explicit, not automatic (Preview and Production share one Neon database here, so build-time auto-migration was rejected — see the entry below and CLAUDE.md §6).
+- [ ] **Run `npm run migrate` after this merges** — migration 011 (`language_progress`) adds `french_hours_daily`, `french_hours_summary`, `language_notes`. Same one-shared-Neon-DB gotcha as every migration since (CLAUDE.md §6): `/language`, `/api/french-progress*`, and `/api/home-summary` will error on these new tables until applied.
 
 ---
 
@@ -47,6 +48,31 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+
+---
+
+## 2026-07-19 — Language domain: French hours log (screenshot import) + Spanish note
+
+First real build-out of Language beyond the live tutor-call card, scoped in chat with John first (per the project's scope-before-build convention). Starting point: John tracks Spanish and French through Dreaming Spanish / Dreaming French, but the two languages needed genuinely different shapes, not one generic "hours" stat forced onto both.
+
+**Scoping, resolved with John:**
+
+- Checked first whether Dreaming Spanish/French have a public API — confirmed no: the only third-party tools found (e.g. a Chrome extension importer) work by riding a logged-in browser session, not a stable server-to-server credential, so there's no fit for this app's server-side route pattern.
+- **French** is the active learning project (early stage) — John wants to paste a screenshot of Dreaming French's progress page and have hours pulled from it. This is genuine extraction (an arbitrary chart image, not a fixed template), so it needs Haiku vision — same reasoning that already keeps Travel's itinerary import on Haiku rather than a deterministic parser. John's own cost-discipline instinct (avoid AI where it's not needed) was checked against this and it holds: there's no non-AI way to read numbers off an arbitrary screenshot reliably.
+- **Spanish** is already C1 (heading to C2) and is ambient/daily — phone in Spanish, podcasts, music, periodic tutor calls. Not something with an hours metric to log (forcing one would be either meaningless or busywork); it gets an editable freeform note instead, no AI, no derived stat.
+- Three concrete decisions from John: (1) French history as a **logged history** (dated rows, not a single overwritten snapshot) so progress/trend is visible over time; (2) Spanish's note is **editable in-app**, not hardcoded; (3) Home's Language card **does** show the French hours total alongside the existing tutor-call countdown.
+
+**Built (migration 011, additive):**
+
+- `french_hours_daily` (dated log, upserted by date — a re-imported overlapping screenshot just corrects those days) + `french_hours_summary` (singleton headline total, kept separate from `SUM(french_hours_daily)` since a screenshot rarely shows full history — summing would understate real progress) + `language_notes` (freeform per-language note; only Spanish uses it today).
+- `lib/french-progress.js` — the app's fourth distinct AI use. Haiku (vision) reads a screenshot and returns `{totalHours, asOfDate, dailyEntries}`, instructed to leave a field null/empty rather than estimate/guess anything illegible — never invent a number.
+- `app/api/french-progress` (GET, current summary + recent log), `.../import` (POST, Haiku parse — **fails soft**, an AI/external route per CLAUDE.md §7's error convention, nothing saved), `.../save` (POST, **route()-wrapped** mutation — only this ever writes to the DB, and only with what John confirmed). Same never-auto-save discipline as Travel's itinerary import: the client shows an editable preview (`ProgressPreview`) before anything persists.
+- `app/api/language-notes` (GET all notes, PATCH upsert one by language).
+- `app/language/page.jsx` — full rebuild: a French section (headline total, "Upload screenshot" → preview/edit → save, recent daily list) and a Spanish section (the existing tutor-call card + Gmail-scan banner, now with an editable note card). Both `useResource` consumers surface a real fetch error distinctly from "no data yet" (fixed during verification below — the first pass silently showed "No hours logged yet" on a fetch failure, which would have been dishonest in exactly the way this app's own data rules forbid).
+- `app/api/home-summary` + `components/DomainGrid.jsx` — Home's Language card gains the French hours line next to the tutor countdown.
+- CLAUDE.md §2/§5/§6/§7 updated: the new AI use documented alongside Travel Brief/itinerary import, the Language routes-table row rewritten to describe the French/Spanish split, and the "settled domains have tables" note updated (Language's core call-lookup still isn't a table, but this one slice now is).
+
+**Verified:** `next build` clean; Prettier passes on all touched files. **Rendered the actual `/language` page headlessly (Chromium)** against a dev server with no live Neon (same sandbox limitation as every prior domain build) — first pass exposed the dishonest-error-state bug above; after the fix, the page correctly shows "Could not load French progress." / "Could not load note." rather than masking the failure as empty data. Not exercised against live Neon/Anthropic in this sandbox — first real run happens on the deployed preview once migration 011 is applied (**run `npm run migrate` after merge** — tracked above).
 
 ---
 
