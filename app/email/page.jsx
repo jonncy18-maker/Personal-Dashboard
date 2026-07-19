@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useResource } from '../../lib/useResource';
+import { useRefresh } from '../../lib/refresh';
 import styles from './page.module.css';
 
 function ManageForm({ message, existingRule, onSave, onCancel }) {
@@ -274,6 +275,12 @@ function RulesPopup({ rules, onUnhide, onClose }) {
 }
 
 export default function EmailPage() {
+  // Home's To-do's widget reads from useHomeSummary, which caches its fetch
+  // at module scope and only invalidates on the app-wide refresh signal — so
+  // starring/unstarring here needs to fire refresh() itself, same gap fixed
+  // on /calendar's and /schedules' mutations.
+  const { refresh } = useRefresh();
+
   // Gmail + rules go through the shared hook so the TopBar refresh button
   // re-fetches them; local state is mirrored from the loaded data so the
   // optimistic hide/rule mutations still work. `reload()` replaces the old
@@ -407,6 +414,7 @@ export default function EmailPage() {
             }),
           });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      refresh();
     } catch {
       setTodoIds((prev) => {
         const next = new Set(prev);
