@@ -49,11 +49,57 @@ function eventTime(event) {
   });
 }
 
+function HiddenPopup({ hidden, onUnhide, onClose }) {
+  return (
+    <div className={styles.popupScrim} onClick={onClose} role="presentation">
+      <div
+        className={styles.popup}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Hidden events"
+      >
+        <div className={styles.popupHead}>
+          <p className={styles.popupTitle}>Hidden events</p>
+          <button
+            className={styles.popupClose}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {hidden.length === 0 && (
+          <p className={styles.popupEmpty}>Nothing hidden.</p>
+        )}
+
+        <div className={styles.hiddenList}>
+          {hidden.map((h) => (
+            <div key={h.gcal_event_id} className={styles.hiddenRow}>
+              <span className={styles.hiddenTitle}>
+                {h.title || '(no title)'}
+              </span>
+              <button
+                className={styles.hiddenUndo}
+                onClick={() => onUnhide(h.gcal_event_id)}
+                title="Unhide this event"
+              >
+                Unhide
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CalendarPage() {
   // Month is derived from the viewer's own clock (client-only) to avoid an
   // SSR/local-time hydration mismatch — same discipline as the Home hero.
   const [viewDate, setViewDate] = useState(null);
   const [todayKey, setTodayKey] = useState(null);
+  const [hiddenOpen, setHiddenOpen] = useState(false);
 
   useEffect(() => {
     const now = new Date();
@@ -81,30 +127,77 @@ export default function CalendarPage() {
   const url = grid
     ? `/api/calendar-events?from=${grid.from}&to=${grid.to}`
     : '/api/calendar-events';
-  const { data, error } = useResource(url, {
+  const {
+    data,
+    error,
+    reload: reloadEvents,
+  } = useResource(url, {
     errorMessage: 'Could not load your calendar.',
   });
+  const hiddenRes = useResource('/api/calendar-hidden');
+
+  // Mirrored into local state so hiding an event can remove it immediately
+  // (the same optimistic-mutation pattern every other page uses), rather than
+  // waiting on a full re-fetch.
+  const [events, setEvents] = useState([]);
+  const [hidden, setHidden] = useState([]);
+
+  useEffect(() => {
+    if (data) setEvents(data.events || []);
+  }, [data]);
+  useEffect(() => {
+    if (hiddenRes.data) setHidden(hiddenRes.data.hidden || []);
+  }, [hiddenRes.data]);
+
+  async function hideEvent(event) {
+    setEvents((prev) => prev.filter((e) => e.id !== event.id));
+    try {
+      const res = await fetch('/api/calendar-hidden', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gcal_event_id: event.id,
+          title: event.title,
+          start: event.start,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      hiddenRes.reload();
+    } catch {
+      setEvents((prev) =>
+        prev.some((e) => e.id === event.id) ? prev : [...prev, event]
+      );
+    }
+  }
+
+  async function unhideEvent(id) {
+    setHidden((prev) => prev.filter((h) => h.gcal_event_id !== id));
+    await fetch(`/api/calendar-hidden/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    reloadEvents();
+  }
 
   const eventsByDay = useMemo(() => {
     const map = new Map();
-    for (const ev of data?.events || []) {
+    for (const ev of events) {
       const key = eventDayKey(ev);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(ev);
     }
     return map;
-  }, [data]);
+  }, [events]);
 
   // Agenda: this-month events only, in chronological order.
   const agenda = useMemo(() => {
     if (!viewDate) return [];
     const month = viewDate.getMonth();
-    return (data?.events || [])
+    return events
       .filter(
         (ev) => new Date(eventDayKey(ev) + 'T00:00:00').getMonth() === month
       )
       .sort((a, b) => new Date(a.start) - new Date(b.start));
-  }, [data, viewDate]);
+  }, [events, viewDate]);
 
   function shiftMonth(delta) {
     setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1));
@@ -123,10 +216,16 @@ export default function CalendarPage() {
           <h1 className={styles.title}>
             {viewDate
               ? `${MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`
-              : ' '}
+              : ' '}
           </h1>
         </div>
         <div className={styles.nav}>
+          <button
+            className={styles.hiddenButton}
+            onClick={() => setHiddenOpen(true)}
+          >
+            Hidden{hidden.length > 0 ? ` (${hidden.length})` : ''}
+          </button>
           <button
             className={styles.navBtn}
             onClick={() => shiftMonth(-1)}
@@ -162,6 +261,14 @@ export default function CalendarPage() {
       )}
       {error && <p className={styles.note}>{error}</p>}
 
+      {hiddenOpen && (
+        <HiddenPopup
+          hidden={hidden}
+          onUnhide={unhideEvent}
+          onClose={() => setHiddenOpen(false)}
+        />
+      )}
+
       {grid && (
         <div className={styles.grid}>
           {WEEKDAYS.map((w) => (
@@ -194,7 +301,19 @@ export default function CalendarPage() {
                       {!ev.allDay && (
                         <span className={styles.chipDot} aria-hidden="true" />
                       )}
-                      {ev.title}
+                      <span className={styles.chipTitle}>{ev.title}</span>
+                      <button
+                        type="button"
+                        className={styles.chipHide}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hideEvent(ev);
+                        }}
+                        title="Hide this event"
+                        aria-label={`Hide ${ev.title}`}
+                      >
+                        ×
+                      </button>
                     </span>
                   ))}
                   {dayEvents.length > 3 && (
@@ -233,6 +352,13 @@ export default function CalendarPage() {
               ) : (
                 <span className={styles.agendaTitle}>{ev.title}</span>
               )}
+              <button
+                className={styles.agendaHide}
+                onClick={() => hideEvent(ev)}
+                title="Hide this event from the dashboard"
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>

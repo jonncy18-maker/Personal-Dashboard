@@ -56,6 +56,111 @@
   opacity: 0.5;
   cursor: default;
 }
+.hiddenButton {
+  height: 34px;
+  padding: 0 14px;
+  margin-right: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hiddenButton:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ── Hidden events popup (mirrors Email's Rules popup) ────────────────── */
+.popupScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(10, 14, 24, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+}
+.popup {
+  width: 100%;
+  max-width: 440px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 16px 18px 18px;
+}
+.popupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.popupTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+.popupClose {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.popupClose:hover {
+  color: var(--ink);
+}
+.popupEmpty {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.hiddenList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hiddenRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 6px;
+  border-top: 1px solid var(--border);
+}
+.hiddenRow:first-child {
+  border-top: none;
+}
+.hiddenTitle {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hiddenUndo {
+  flex: 0 0 auto;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.hiddenUndo:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
 
 .note {
   padding: 16px 0;
@@ -127,16 +232,13 @@
 .chip {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-size: 11px;
   font-weight: 600;
   color: var(--ink);
   background: var(--surface-sunken);
   border-radius: 5px;
-  padding: 2px 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 2px 4px 2px 6px;
 }
 .chipAllDay {
   background: var(--accent-soft);
@@ -148,6 +250,44 @@
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
+}
+.chipTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Hidden until the chip is hovered/focused, so the compact grid stays clean
+   at rest — this is a dense 96px cell, not room for a permanent affordance. */
+.chipHide {
+  flex: 0 0 auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.chip:hover .chipHide,
+.chip:focus-within .chipHide {
+  display: flex;
+}
+.chipHide:hover {
+  color: var(--critical);
+}
+@media (hover: none) {
+  /* No hover on touch — keep the affordance reachable there too. */
+  .chipHide {
+    display: flex;
+  }
 }
 .chipMore {
   font-size: 10.5px;
@@ -169,6 +309,9 @@
   gap: 12px;
   padding: 9px 4px;
   border-top: 1px solid var(--border);
+}
+.agendaRow:hover .agendaHide {
+  opacity: 1;
 }
 .agendaRow:first-of-type {
   border-top: none;
@@ -198,6 +341,30 @@
 a.agendaTitle:hover {
   color: var(--accent-ink);
   text-decoration: underline;
+}
+.agendaHide {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.agendaHide:hover {
+  color: var(--critical);
+  border-color: var(--critical);
+}
+@media (hover: none) {
+  /* No hover on touch — keep the affordance visible so it stays reachable. */
+  .agendaHide {
+    opacity: 1;
+  }
 }
 
 @media (max-width: 640px) {

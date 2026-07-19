@@ -13,7 +13,8 @@
 --                      004_language_calls, 005_travel_map_brief, 006_hero_image,
 --                      007_project_meta, 008_project_category,
 --                      009_trip_wishlist_status, 010_checklists,
---                      011_language_progress, 012_email_todos
+--                      011_language_progress, 012_email_todos,
+--                      013_calendar_hidden
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -181,6 +182,18 @@ CREATE TABLE IF NOT EXISTS email_todos (
 );
 CREATE INDEX IF NOT EXISTS email_todos_open_idx
   ON email_todos (flagged_at DESC) WHERE done_at IS NULL;
+
+-- ─── Calendar ───────────────────────────────────────────────────────────────
+-- Hides individual events from the /calendar view (see 013_calendar_hidden.sql).
+-- Google Calendar is read-only (§2/§7) — this only sets a local flag, never a
+-- real calendar write. Title/start snapshotted at hide time so the "Hidden
+-- events" popup can list them without a second live Calendar call.
+CREATE TABLE IF NOT EXISTS calendar_hidden (
+  gcal_event_id  text PRIMARY KEY,
+  title          text,
+  start_label    text,
+  hidden_at      timestamptz NOT NULL DEFAULT now()
+);
 
 -- ─── Travel trip suggestions (weekly Gmail auto-detection) ────────────────────
 CREATE TABLE IF NOT EXISTS trip_suggestions (
