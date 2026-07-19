@@ -71,7 +71,7 @@ export default function HeroTodos({ items }) {
             </div>
           ))}
           {extra > 0 && (
-            <Link href="/email" className={styles.todoMore}>
+            <Link href="/email" className={styles.moreLine}>
               +{extra} more
             </Link>
           )}

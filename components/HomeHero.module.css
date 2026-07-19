@@ -128,34 +128,38 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* ── Overlay widget stack — fully transparent, no panel of its own.
-   Legibility comes from the .scrim's right-side darkening + this
-   text-shadow, not a background/border/blur. Holds two stacked sections:
-   "Up next" (HeroAgenda) and "To-do's" (HeroTodos). ────────────────── */
+/* ── Overlay widget — fully transparent, no panel of its own. Legibility
+   comes from the .scrim's right-side darkening + this text-shadow, not a
+   background/border/blur. Holds two side-by-side columns: "Up next"
+   (HeroAgenda) and "To-do's" (HeroTodos) — each gets its own vertical row
+   budget instead of competing for one shared stack's height. ──────────── */
 .widget {
   position: absolute;
   z-index: 1;
   top: 22px;
   right: 24px;
   bottom: 22px;
-  width: 280px;
+  width: 440px;
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-direction: row;
   overflow: hidden;
   color: #fff;
   text-shadow:
     0 1px 6px rgba(0, 0, 0, 0.55),
     0 1px 2px rgba(0, 0, 0, 0.4);
 }
-/* A section inside the stack. The second one (To-do's) gets a hairline
-   divider above it so the two blocks read as distinct. */
+/* Two columns. The first carries the gap as right padding; the second
+   mirrors it as left padding plus a hairline divider, so the two blocks
+   read as distinct without double-counting the spacing. */
 .section {
-  min-height: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  padding-right: 20px;
 }
 .section + .section {
-  padding-top: 13px;
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  padding-right: 0;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
 }
 .widgetEyebrow {
   margin: 0 0 10px;
@@ -282,7 +286,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.todoMore {
+/* Shared "+N more" line — a plain span in HeroAgenda (no single destination
+   to link to, since its items span several domains), a Link in HeroTodos
+   (always /email). */
+.moreLine {
   display: inline-block;
   margin-top: 6px;
   font-size: 11px;
@@ -303,7 +310,12 @@
   text-underline-offset: 2px;
 }
 
-@media (max-width: 640px) {
+/* 900px, not 640px: the widget widened to 440px for the two-column layout,
+   so it needs to switch to a stacked, narrower column well before the
+   original single-list breakpoint — otherwise on a medium/tablet-width hero
+   the still-side-by-side widget can visually crowd the quote text on its
+   left (both sit at the same z-index, .widget painting on top in DOM order). */
+@media (max-width: 900px) {
   /* .body's `height: 100%` and .widget's overlay offsets both assume a
      hero with a definite height. Once .hero switches to `height: auto`,
      make it a flex column too — percentage-height resolution against an
@@ -324,7 +336,21 @@
     flex: 0 0 auto;
     position: static;
     width: auto;
+    /* Too narrow here for side-by-side columns — stack them instead. */
+    flex-direction: column;
+    gap: 14px;
     margin: 6px 16px 24px;
+  }
+  /* Divider flips from a vertical rule (desktop columns) to a horizontal one
+     (stacked), matching the column-vs-row switch above. */
+  .section {
+    padding-right: 0;
+  }
+  .section + .section {
+    padding-left: 0;
+    padding-top: 13px;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
   }
 }
 
