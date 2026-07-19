@@ -128,9 +128,10 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* ── Up Next overlay widget — fully transparent, no panel of its own.
+/* ── Overlay widget stack — fully transparent, no panel of its own.
    Legibility comes from the .scrim's right-side darkening + this
-   text-shadow, not a background/border/blur. ────────────────────── */
+   text-shadow, not a background/border/blur. Holds two stacked sections:
+   "Up next" (HeroAgenda) and "To-do's" (HeroTodos). ────────────────── */
 .widget {
   position: absolute;
   z-index: 1;
@@ -140,10 +141,21 @@
   width: 280px;
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
   color: #fff;
   text-shadow:
     0 1px 6px rgba(0, 0, 0, 0.55),
     0 1px 2px rgba(0, 0, 0, 0.4);
+}
+/* A section inside the stack. The second one (To-do's) gets a hairline
+   divider above it so the two blocks read as distinct. */
+.section {
+  min-height: 0;
+}
+.section + .section {
+  padding-top: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
 }
 .widgetEyebrow {
   margin: 0 0 10px;
@@ -230,6 +242,65 @@
   height: 6px;
   border-radius: 50%;
   background: var(--row-accent, #fff);
+}
+
+/* ── To-do's block (HeroTodos) ─────────────────────────────────────── */
+.todoRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 0;
+}
+.todoRow + .todoRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+/* An open circle that fills on hover — the "check me off" affordance. */
+.todoCheck {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.72);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.todoCheck:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: #fff;
+}
+.todoTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.todoMore {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+}
+.todoEmpty {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 220px;
+}
+.todoEmptyLink {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 @media (max-width: 640px) {

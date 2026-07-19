@@ -287,6 +287,27 @@
   opacity: 0.4;
   cursor: default;
 }
+.starButton {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+  font-size: 13px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.starButton:hover {
+  color: var(--warn, #e0a500);
+  border-color: var(--warn, #e0a500);
+}
+/* Flagged as a to-do — filled star, held state. */
+.starButtonActive {
+  color: var(--warn, #e0a500);
+  border-color: var(--warn, #e0a500);
+  background: color-mix(in srgb, var(--warn, #e0a500) 14%, transparent);
+}
 .manageButton {
   background: var(--surface-sunken);
   border: 1px solid var(--border-strong);
