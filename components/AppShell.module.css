@@ -13,10 +13,10 @@
    touching any page's own max-width/card layout, so nothing goes uneven. */
 .shellContent {
   flex: 1 1 auto;
-  padding: 20px 20px 56px;
+  padding: 20px 10px 56px;
 }
 @media (max-width: 720px) {
   .shellContent {
-    padding: 16px 12px 40px;
+    padding: 16px 8px 40px;
   }
 }

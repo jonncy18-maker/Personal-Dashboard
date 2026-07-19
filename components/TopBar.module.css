@@ -2,7 +2,9 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 18px 32px;
+  /* Horizontal padding matches .shellContent (AppShell.module.css) so the
+     header's edge lines up with the page content's edge below it. */
+  padding: 18px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   position: sticky;
@@ -234,7 +236,7 @@
 }
 @media (max-width: 720px) {
   .topbar {
-    padding: 14px 16px;
+    padding: 14px 8px;
     gap: 10px;
     flex-wrap: wrap;
     row-gap: 12px;
