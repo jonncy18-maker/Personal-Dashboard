@@ -276,6 +276,21 @@
   background: rgba(255, 255, 255, 0.85);
   border-color: #fff;
 }
+/* Which source a to-do came from — matches the Up Next accent colors so the
+   two widgets read as one consistent color language (schedules = yellow);
+   email keeps the star's warm gold since it's not one of the Up Next domains. */
+.todoKindDot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.todoKindSchedule {
+  background: #f2c94c;
+}
+.todoKindEmail {
+  background: #e0a726;
+}
 .todoTitle {
   flex: 1 1 auto;
   min-width: 0;
@@ -286,9 +301,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Shared "+N more" line — a plain span in HeroAgenda (no single destination
-   to link to, since its items span several domains), a Link in HeroTodos
-   (always /email). */
+/* Shared "+N more" line — plain text in both widgets now (no single
+   destination to link to, since HeroTodos also spans email + schedules). */
 .moreLine {
   display: inline-block;
   margin-top: 6px;

@@ -66,7 +66,11 @@ export default function HomePage() {
 
   return (
     <div className={styles.home}>
-      <HomeHero agenda={agenda} todos={summary?.todos || []} />
+      <HomeHero
+        agenda={agenda}
+        todos={summary?.todos || []}
+        scheduleTasks={summary?.schedules?.items || []}
+      />
 
       <StatBar needAttention={needAttention} eventsToday={eventsToday} />
 

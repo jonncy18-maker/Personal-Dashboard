@@ -18,7 +18,7 @@ import styles from './HomeHero.module.css';
 // optional — the per-band gradient behind it is the honest fallback (no key /
 // no result). The at-a-glance counts live in the StatBar directly below, so
 // the hero deliberately doesn't repeat them.
-export default function HomeHero({ agenda, todos = [] }) {
+export default function HomeHero({ agenda, todos = [], scheduleTasks = [] }) {
   const [band, setBand] = useState('day');
   const [greeting, setGreeting] = useState('Hello');
   const [quote, setQuote] = useState('');
@@ -63,7 +63,7 @@ export default function HomeHero({ agenda, todos = [] }) {
       </div>
       <div className={styles.widget}>
         <HeroAgenda items={agenda} />
-        <HeroTodos items={todos} />
+        <HeroTodos items={todos} scheduleTasks={scheduleTasks} />
       </div>
       {image?.image_attribution && (
         <span className={styles.credit}>{image.image_attribution}</span>

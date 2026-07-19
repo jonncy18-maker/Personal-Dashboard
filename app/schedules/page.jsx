@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useResource } from '../../lib/useResource';
+import { useRefresh } from '../../lib/refresh';
 import { absoluteDate, relativeDay } from '../../lib/format';
 import styles from './page.module.css';
 
@@ -225,6 +226,13 @@ function AddScheduleForm({ trips, projects, onAdded }) {
 }
 
 export default function SchedulesPage() {
+  // Home's Up Next / To-do's read from useHomeSummary, which caches its fetch
+  // at module scope and only invalidates on the app-wide refresh signal — so
+  // every mutation here needs to fire refresh() itself, or a new/updated/
+  // completed task keeps showing stale on Home until the TopBar button is
+  // clicked by hand (same gap fixed on /calendar's mutations).
+  const { refresh } = useRefresh();
+
   // Shared fetches (all re-fetch on the TopBar refresh signal). Local
   // `schedules` state is kept for optimistic mutations; trips/projects feed the
   // add-task link dropdowns.
@@ -258,11 +266,13 @@ export default function SchedulesPage() {
         prev.map((s) => (s.id === id ? { ...s, ...data.schedule } : s))
       );
     }
+    refresh();
   }
 
   async function deleteSchedule(id) {
     setSchedules((prev) => prev.filter((s) => s.id !== id));
     await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+    refresh();
   }
 
   const openCount = schedules
@@ -284,9 +294,10 @@ export default function SchedulesPage() {
         <AddScheduleForm
           trips={trips}
           projects={projects}
-          onAdded={(schedule) =>
-            setSchedules((prev) => [...(prev || []), schedule])
-          }
+          onAdded={(schedule) => {
+            setSchedules((prev) => [...(prev || []), schedule]);
+            refresh();
+          }}
         />
       </div>
 
