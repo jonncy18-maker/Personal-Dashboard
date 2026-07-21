@@ -133,6 +133,31 @@ function PlannedMeta({ trip }) {
   );
 }
 
+// ─── Travel Stats bar ──────────────────────────────────────────────────────
+// Every tile is real trip data (CLAUDE.md's no-fabricated-metrics rule):
+// counts/nights come straight from the rows, Countries from reverse-geocoded
+// coords. No points/miles tile — that needs a loyalty integration with no
+// source today, so it's left out rather than invented.
+function StatsBar({ stats }) {
+  if (!stats) return null;
+  const tiles = [
+    { label: 'Trips', value: stats.trips },
+    { label: 'Nights', value: stats.nights },
+    { label: 'Countries', value: stats.countries },
+    { label: 'Cruise nights', value: stats.cruiseNights },
+  ];
+  return (
+    <div className={styles.statsBar}>
+      {tiles.map((t) => (
+        <div key={t.label} className={styles.statTile}>
+          <span className={`${styles.statValue} tabular`}>{t.value}</span>
+          <span className={styles.statLabel}>{t.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── AI Travel Brief ───────────────────────────────────────────────────────
 function TravelBrief({ brief }) {
   if (!brief) return null;
@@ -569,6 +594,7 @@ export default function TravelPage() {
   });
   const { data: briefData } = useResource('/api/travel-brief');
   const { data: mapData } = useResource('/api/trip-map');
+  const { data: statsData } = useResource('/api/travel-stats');
   const suggestionsRes = useResource('/api/trip-suggestions');
   const loadSuggestions = suggestionsRes.reload;
 
@@ -696,6 +722,7 @@ export default function TravelPage() {
 
       {trips && trips.length > 0 && (
         <>
+          <StatsBar stats={statsData?.stats} />
           <div className={styles.topRow}>
             <TravelBrief brief={brief} />
             {hero ? (
