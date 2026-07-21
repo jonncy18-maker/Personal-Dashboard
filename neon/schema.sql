@@ -14,7 +14,8 @@
 --                      007_project_meta, 008_project_category,
 --                      009_trip_wishlist_status, 010_checklists,
 --                      011_language_progress, 012_email_todos,
---                      013_calendar_hidden, 014_calendar_renames
+--                      013_calendar_hidden, 014_calendar_renames,
+--                      015_trip_country
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -75,6 +76,9 @@ CREATE TABLE IF NOT EXISTS trips (
   latitude      numeric,           -- geocoded destination coords for the Trip Map
   longitude     numeric,           -- (see lib/geocode.js) — one lookup per trip change
   geocoded_at   timestamptz,       -- when coords were last resolved (null = not yet tried)
+  country              text,       -- reverse-geocoded from coords (Travel Stats "Countries" tile)
+  country_code         text,       -- ISO code from the same reverse lookup
+  country_geocoded_at  timestamptz, -- when country was last resolved (null = not yet tried)
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
