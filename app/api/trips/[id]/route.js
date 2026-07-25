@@ -99,12 +99,21 @@ export const PATCH = route(async (request, { params }) => {
   let latitude = existing.latitude;
   let longitude = existing.longitude;
   let geocodedAt = existing.geocoded_at;
-  if (destination !== existing.destination || existing.latitude == null) {
+  // A destination change also invalidates the cached country (Travel Stats):
+  // null it and its stamp so /api/travel-stats re-derives it from the new coords
+  // on the next load, same lazy backfill as a brand-new trip.
+  const destinationChanged = destination !== existing.destination;
+  if (destinationChanged || existing.latitude == null) {
     const coords = await geocodeDestination(destination);
     latitude = coords?.latitude ?? null;
     longitude = coords?.longitude ?? null;
     geocodedAt = new Date();
   }
+  const country = destinationChanged ? null : existing.country;
+  const countryCode = destinationChanged ? null : existing.country_code;
+  const countryGeocodedAt = destinationChanged
+    ? null
+    : existing.country_geocoded_at;
 
   const [row] = await sql`
     UPDATE trips SET
@@ -120,7 +129,10 @@ export const PATCH = route(async (request, { params }) => {
       image_source = ${imageSource},
       latitude = ${latitude},
       longitude = ${longitude},
-      geocoded_at = ${geocodedAt}
+      geocoded_at = ${geocodedAt},
+      country = ${country},
+      country_code = ${countryCode},
+      country_geocoded_at = ${countryGeocodedAt}
     WHERE id = ${id}
     RETURNING id, destination, start_date, end_date, status, notes, budget,
               itinerary, image_url, image_attribution, image_source,
