@@ -51,7 +51,35 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
-- [ ] **PTO planner.** Raised 2026-08-08, not yet scoped. Open questions for a future grill session: own domain/route vs. a card/section within Schedules or Home? What's tracked — an annual PTO balance/accrual, a log of planned/taken days, or both? Data source — manual entry, or does it read off Travel trip dates to suggest/reserve days? Does it need employer-specific accrual rules, or just a simple balance John maintains himself?
+- [ ] **PTO planner — scoped 2026-08-08, build-ready.** Grill session resolved every open question (see the 2026-08-08 entry below for decisions + data model). Not a 7th domain: a PTO section on `/travel` + one line on Home's Travel card. No AI anywhere in it. Build is the next step.
+
+---
+
+## 2026-08-08 — PTO planner scoped (grill session — no code yet)
+
+Scoping session per the project's scope-before-build convention; every open question from the Future Domain Ideas entry resolved with John. **Nothing built this session** — this entry is the spec for the build session.
+
+**The core job (root decision):** answer "how many days do I have left?" — a live balance, not a scenario-planning engine and not just a history log.
+
+**The model — a self-set budget, not employer accrual.** CrossCountry's PTO is **unlimited** with a "20–25 days/year" guideline, so there is no employer balance to track or accrue — the only honest number is John's own target. Decisions: annual budget = **25 days**, resetting on the **calendar year** (Jan 1, use-it-or-lose-it framing). Headline = budget minus days logged, with the split visible: **"X left · Y taken · Z planned"** (planned = future logged days; both net against the balance). The budget is stored as John's editable number — explicitly his target, never presented as an employer-provided balance (the no-fabricated-data rule).
+
+**The log — auto-derived from trips, with overrides; manual entries for the rest.**
+
+- A real trip (status `upcoming`/`past`; **wishlist excluded**) in the current PTO year auto-counts its **weekdays minus firm holidays** as PTO days. Past trip days = taken; future trip days = planned.
+- **Per-trip editable override** (John's pick over exclude-only or pure-auto): each trip shows its auto-computed PTO days; John can override the number (worked remotely part of a trip) or mark a trip as consuming no PTO. An override **sticks — auto never overwrites it** (same discipline as `image_source = 'manual'`).
+- **Standalone manual entries** exist for non-trip PTO days, but are expected to be rare — John's appointments generally don't consume PTO (he takes part of the day and makes the hours up), so no partial-day/hours modeling in v1. Whole days only.
+
+**Firm holidays — a table, editable in-app.** Seeded with CrossCountry's 2026 list (9 days, from John): New Year's Day (Jan 1), MLK Day (Jan 19), Memorial Day (May 25), Juneteenth (Jun 19), Independence Day (Jul 4 falls on a Saturday in 2026 — seed the observed Fri Jul 3, flagged for John to confirm against the real firm calendar), Labor Day (Sep 7), Thanksgiving (Nov 26), Day after Thanksgiving (Nov 27), Christmas Day (Dec 25). A small in-app editor lets John add each new year's dates himself (with the fallback that he can always hand a list to a Claude session).
+
+**Banked holidays — a second, separate ledger (added same session).** If John works a firm holiday, he banks it and can take that day later. Decisions: (1) **separate counter** — the PTO headline stays "X left · taken · planned" and a distinct small stat shows "N holidays banked"; the two ledgers never mix into one number. (2) **Use-it-or-lose-it, same year** — banked holidays reset Jan 1 with the PTO year. (3) **Spending is a manual offset — no auto-offsetting** (John's revision, same session): a spent banked day is simply its own dated entry, and if it happens to fall inside a trip's range the trip math ignores it — John adjusts that trip's PTO override himself when he wants the overlap reflected. The two ledgers never touch each other automatically. Mechanics: the holiday row itself carries a "worked" toggle in the holidays editor (worked → +1 banked), and spending is an entry type alongside manual PTO days. Banked = holidays marked worked − banked-spend entries, floor 0 (spending can't be logged past what's banked).
+
+**Simulation — planning scenarios on top of the real ledger (added same session).** Beyond tracking, John wants to simulate: the real balance stays strictly taken + planned, and three what-if surfaces sit on top, none of which ever touches the real numbers — every simulated figure renders as "would leave X", visually distinct from the real balance. (1) **Wishlist what-if:** a dated wishlist trip appears as a scenario row — "would cost N days → balance would drop to X" (undated wishlist trips can't be simulated and just say so); promoting wishlist → upcoming is the existing flow that makes it real. (2) **Quick sandbox calculator:** type any date range → its weekday-minus-holiday cost and resulting balance; nothing saved. (3) **Saved named scenarios:** a scenario ("Plan A: Japan + Christmas") is a named set of items — wishlist-trip references and/or ad-hoc date ranges — with costs computed live against the chosen year, never stored. Plus a **year switcher** spanning the current year **plus two ahead** (2026 → 2028 while in 2026 — John wants to plan up to two years out): same math against that year's fresh budget (the same editable annual number), that year's holidays (empty until John enters them, stated honestly in the UI), and trips/wishlist/scenario items dated in that year.
+
+**Placement:** a **PTO section on `/travel`** (near the Stats bar) — the feature is small and tightly Travel-coupled, so no 7th domain/route. Home's existing **Travel card gains one PTO line** (e.g. "12 PTO left") via `home-summary`. No new Home card.
+
+**No AI.** Pure date math + CRUD — nothing here needs a model, per the app's AI-minimal defaults.
+
+**Build sketch (next session):** migration 016 — `pto_settings` (or a per-year budget row), `pto_entries` (manual whole-day entries, with a `kind` distinguishing PTO days from banked-holiday spends), `pto_holidays` (with a `worked` flag feeding the banked counter), `pto_scenarios` (named item sets for saved simulations), plus `trips.pto_days_override` / `trips.pto_exempt`; a pure `lib/pto.js` (weekday/holiday math + summary), `route()`-wrapped `/api/pto` CRUD + a computed summary consumed by `/travel` and `home-summary`; `useResource`-wired so the TopBar refresh covers it. Run `npm run migrate` after merge, as always (CLAUDE.md §6).
 
 ---
 
