@@ -95,8 +95,12 @@ Seed CrossCountry's 2026 firm holidays in the same migration
 | 2026-11-27 | Day after Thanksgiving                                      |
 | 2026-12-25 | Christmas Day                                               |
 
-\* Flagged for John to confirm against the real firm calendar; it's editable
-in-app either way.
+\* Confirmed by John (2026-08-08): the firm's observance convention is
+**Saturday holiday → the prior Friday, Sunday holiday → the following
+Monday**. Holidays are always stored as their **observed weekday date** (that's
+the workday that becomes non-PTO), so the app never needs observance math —
+but the holidays editor should warn (not block) when a weekend date is
+entered, since that's almost certainly an unobserved date typed by mistake.
 
 Then update `neon/schema.sql` (tables + trips columns + "Applied migrations:"
 line → `016_pto`).
