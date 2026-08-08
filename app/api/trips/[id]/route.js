@@ -115,6 +115,20 @@ export const PATCH = route(async (request, { params }) => {
     ? null
     : existing.country_geocoded_at;
 
+  // PTO Planner per-trip corrections (PTO_BUILD_PLAN.md §4) — an override
+  // sticks once set; auto PTO math never overwrites it, same discipline as
+  // image_source = 'manual'.
+  const ptoDaysOverride =
+    body.pto_days_override !== undefined
+      ? body.pto_days_override === '' || body.pto_days_override == null
+        ? null
+        : body.pto_days_override
+      : existing.pto_days_override;
+  const ptoExempt =
+    body.pto_exempt !== undefined
+      ? Boolean(body.pto_exempt)
+      : existing.pto_exempt;
+
   const [row] = await sql`
     UPDATE trips SET
       destination = ${destination},
@@ -132,11 +146,14 @@ export const PATCH = route(async (request, { params }) => {
       geocoded_at = ${geocodedAt},
       country = ${country},
       country_code = ${countryCode},
-      country_geocoded_at = ${countryGeocodedAt}
+      country_geocoded_at = ${countryGeocodedAt},
+      pto_days_override = ${ptoDaysOverride},
+      pto_exempt = ${ptoExempt}
     WHERE id = ${id}
     RETURNING id, destination, start_date, end_date, status, notes, budget,
               itinerary, image_url, image_attribution, image_source,
-              latitude, longitude, created_at, updated_at
+              latitude, longitude, pto_days_override, pto_exempt,
+              created_at, updated_at
   `;
   return Response.json({ trip: serializeTrip(row) });
 });

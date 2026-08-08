@@ -185,6 +185,9 @@ export default function DomainGrid({ summary }) {
               </p>
             </>
           )}
+          {summary.pto?.left != null && (
+            <p className={styles.detail}>{summary.pto.left} PTO left</p>
+          )}
         </Card>
 
         <Card domain="schedules" pill="Upcoming">
