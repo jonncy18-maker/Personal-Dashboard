@@ -2,6 +2,7 @@ import { getDb, num, dateOnly } from '../../../lib/db';
 import { route } from '../../../lib/route';
 import { findNextTutorCall } from '../../../lib/tutor-call';
 import { fetchCalendarEvents } from '../../../lib/calendar-events';
+import { yearOf, ptoSummary } from '../../../lib/pto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -27,6 +28,10 @@ export const GET = route(async () => {
     [frenchSummary],
     todoRows,
     calendarResult,
+    [ptoSettings],
+    ptoHolidayRows,
+    ptoEntryRows,
+    ptoTripRows,
   ] = await Promise.all([
     // Statuses (not just a count) so the Home card can render a status-dot row.
     sql`SELECT status FROM projects ORDER BY created_at DESC`,
@@ -77,6 +82,17 @@ export const GET = route(async () => {
       timeMax: new Date(Date.now() + 30 * DAY_MS).toISOString(),
       maxResults: 50,
     }),
+    // PTO Planner's Home line (CLAUDE.md §7 / PTO_BUILD_PLAN.md §4) — all
+    // DB-local queries, cheap and consistent with Home's no-external-calls
+    // rule, computed via the same lib/pto.js math the /travel panel uses.
+    sql`SELECT annual_budget FROM pto_settings WHERE id = 1`,
+    sql`SELECT holiday_date, worked FROM pto_holidays`,
+    sql`SELECT entry_date, kind FROM pto_entries`,
+    sql`
+        SELECT id, destination, start_date, end_date, status,
+               pto_days_override, pto_exempt
+        FROM trips
+      `,
   ]);
 
   const trips = tripRows.map((t) => ({
@@ -96,6 +112,26 @@ export const GET = route(async () => {
   const ideaByTag = Object.entries(ideaTagCounts)
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const pto = ptoSummary({
+    trips: ptoTripRows.map((t) => ({
+      ...t,
+      start_date: dateOnly(t.start_date),
+      end_date: dateOnly(t.end_date),
+    })),
+    entries: ptoEntryRows.map((e) => ({
+      ...e,
+      entry_date: dateOnly(e.entry_date),
+    })),
+    holidays: ptoHolidayRows.map((h) => ({
+      ...h,
+      holiday_date: dateOnly(h.holiday_date),
+    })),
+    budget: ptoSettings?.annual_budget ?? 25,
+    year: yearOf(today),
+    todayStr: today,
+  });
 
   return Response.json({
     projects: {
@@ -140,5 +176,6 @@ export const GET = route(async () => {
       sender: t.sender,
       flagged_at: t.flagged_at,
     })),
+    pto: { left: pto.left },
   });
 });

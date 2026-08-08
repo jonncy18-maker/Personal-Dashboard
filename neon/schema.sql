@@ -15,7 +15,7 @@
 --                      009_trip_wishlist_status, 010_checklists,
 --                      011_language_progress, 012_email_todos,
 --                      013_calendar_hidden, 014_calendar_renames,
---                      015_trip_country
+--                      015_trip_country, 016_pto
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS trips (
   country              text,       -- reverse-geocoded from coords (Travel Stats "Countries" tile)
   country_code         text,       -- ISO code from the same reverse lookup
   country_geocoded_at  timestamptz, -- when country was last resolved (null = not yet tried)
+  pto_days_override  integer,       -- PTO Planner: sticks once set, auto math never overwrites
+  pto_exempt         boolean NOT NULL DEFAULT false, -- PTO Planner: trip contributes 0 PTO days
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
@@ -325,3 +327,47 @@ CREATE TABLE IF NOT EXISTS language_notes (
 DROP TRIGGER IF EXISTS language_notes_set_updated_at ON language_notes;
 CREATE TRIGGER language_notes_set_updated_at
   BEFORE UPDATE ON language_notes FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ─── PTO Planner (migration 016) ───────────────────────────────────────────
+-- Self-set 25-day annual budget (no accrual — CrossCountry PTO is unlimited),
+-- reset each calendar year. Days auto-derive from trips.pto_days_override/
+-- pto_exempt above (weekdays minus firm holidays); manual whole-day entries
+-- and a separate banked-holiday ledger sit alongside; see lib/pto.js.
+CREATE TABLE IF NOT EXISTS pto_settings (
+  id            smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  annual_budget integer NOT NULL DEFAULT 25,  -- John's target, not an employer number
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- Firm holidays, editable in-app. `worked` feeds the banked counter. Stored
+-- as the observed weekday date — the app never needs weekend observance math.
+CREATE TABLE IF NOT EXISTS pto_holidays (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  holiday_date date NOT NULL UNIQUE,
+  name         text NOT NULL,
+  worked       boolean NOT NULL DEFAULT false,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+-- Manual whole-day entries. kind='pto' = a non-trip PTO day;
+-- kind='banked_spend' = spending one banked holiday on that date.
+CREATE TABLE IF NOT EXISTS pto_entries (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  entry_date date NOT NULL,
+  kind       text NOT NULL CHECK (kind IN ('pto', 'banked_spend')),
+  note       text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (entry_date, kind)
+);
+
+-- Saved simulation scenarios. Items are references + ranges only; costs are
+-- always computed live against the chosen year's holidays, never stored.
+-- item shapes: {kind:'wishlist_trip', trip_id} — a dated wishlist trip —
+--          or  {kind:'range', label, start_date, end_date} — an ad-hoc range.
+CREATE TABLE IF NOT EXISTS pto_scenarios (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       text NOT NULL,
+  items      jsonb NOT NULL DEFAULT '[]',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);

@@ -6,6 +6,7 @@ import { useResource } from '../../lib/useResource';
 import TripPhoto from '../../components/TripPhoto';
 import WorldMap from '../../components/WorldMap';
 import ChecklistTemplates from '../../components/ChecklistTemplates';
+import PtoPanel from '../../components/PtoPanel';
 import { parseDateInput, daysUntil } from '../../lib/format';
 import styles from './page.module.css';
 
@@ -660,7 +661,9 @@ export default function TravelPage() {
       return a.start_date.localeCompare(b.start_date);
     });
   const past = (trips || [])
-    .filter((t) => t.status === 'past' || (t.status === 'upcoming' && isPast(t)))
+    .filter(
+      (t) => t.status === 'past' || (t.status === 'upcoming' && isPast(t))
+    )
     .sort((a, b) => {
       if (!a.start_date) return 1;
       if (!b.start_date) return -1;
@@ -723,6 +726,7 @@ export default function TravelPage() {
       {trips && trips.length > 0 && (
         <>
           <StatsBar stats={statsData?.stats} />
+          <PtoPanel />
           <div className={styles.topRow}>
             <TravelBrief brief={brief} />
             {hero ? (
