@@ -51,6 +51,7 @@ _(Raised 2026-07-16 by John. Layout/interaction polish across pages and cards �
 _(Candidates for a future domain/card — not yet grilled. Do not build schema or UI for these until a scoping session resolves the open questions, per the project's own convention of scoping before Build.)_
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
+- [ ] **PTO planner.** Raised 2026-08-08, not yet scoped. Open questions for a future grill session: own domain/route vs. a card/section within Schedules or Home? What's tracked — an annual PTO balance/accrual, a log of planned/taken days, or both? Data source — manual entry, or does it read off Travel trip dates to suggest/reserve days? Does it need employer-specific accrual rules, or just a simple balance John maintains himself?
 
 ---
 
