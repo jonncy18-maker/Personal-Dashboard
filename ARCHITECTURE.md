@@ -45,7 +45,7 @@ All external calls are **read-only** except writes to this app's own Neon DB.
 | ----------- | -------------- | ---------------------------------------------------------------------- | ---------------------------- |
 | Home        | `/`            | Neon (summary counts per domain)                                       | No                           |
 | AI Projects | `/ai-projects` | Vercel API (deploy status) + GitHub (`## Next Up`) + Neon (`projects`) | No                           |
-| Travel      | `/travel`      | Neon (`trips`) + Gmail (itinerary import)                              | Haiku — import parse only    |
+| Travel      | `/travel`      | Neon (`trips`, `travel_brief`) + Gmail (itinerary import). Also hosts the PTO Planner: Neon (`pto_settings`, `pto_holidays`, `pto_entries`, `pto_scenarios`) — pure date math, no external calls | Haiku — import parse + AI Brief |
 | Schedules   | `/schedules`   | Neon (`schedules`)                                                     | No                           |
 | Calendar    | `/calendar`    | Google Calendar (read-only month window) + Neon (`calendar_hidden`)   | No                           |
 | Language    | `/language`    | Google Calendar (next tutor call) + Gmail (italki booking scan)        | No                           |
