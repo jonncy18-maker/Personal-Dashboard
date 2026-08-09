@@ -608,3 +608,47 @@
   border-color: var(--critical);
   color: var(--critical);
 }
+
+/* Collapsible panel header. The whole title row is the toggle; when collapsed
+   the balance rides along in the header so the panel still answers its own
+   question at a glance. */
+.panelToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.panelToggle:hover .panelTitle,
+.panelToggle:focus-visible .panelTitle {
+  color: var(--ink);
+}
+.panelToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.chevron {
+  display: inline-flex;
+  color: var(--ink-muted);
+  transition: transform 160ms ease;
+}
+.chevronClosed {
+  transform: rotate(-90deg);
+}
+.collapsedSummary {
+  margin-left: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

@@ -624,6 +624,13 @@ export default function TravelPage() {
       const data = await res.json();
       if (data.configured === false) {
         setScanNote('Gmail isn’t connected yet.');
+      } else if (data.error === 'gmail_auth') {
+        // Never report a scan that never reached Gmail as "no new trips".
+        setScanNote(
+          'Gmail access has expired — reconnect Google (refresh token) to scan.'
+        );
+      } else if (data.error) {
+        setScanNote('Couldn’t reach Gmail — try again.');
       } else {
         setScanNote(
           data.created > 0

@@ -89,6 +89,8 @@ function YearSwitcher({ year, currentYear, onChange }) {
   );
 }
 
+const PANEL_OPEN_KEY = 'pto-panel-open';
+
 // ─── per-trip row ────────────────────────────────────────────────────────
 function TripRow({ trip, onSave }) {
   const [override, setOverride] = useState(trip.override ?? '');
@@ -613,6 +615,31 @@ export default function PtoPanel() {
   });
   const [trips, setTrips] = useState([]);
   const [holidaysOpen, setHolidaysOpen] = useState(false);
+  // Collapsed state is remembered across visits. Read from localStorage in an
+  // effect rather than in the initializer so the server-rendered markup and the
+  // first client render agree (no hydration mismatch).
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(PANEL_OPEN_KEY);
+      if (saved !== null) setOpen(saved === '1');
+    } catch {
+      /* storage unavailable — panel just stays open */
+    }
+  }, []);
+
+  function toggleOpen() {
+    setOpen((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(PANEL_OPEN_KEY, next ? '1' : '0');
+      } catch {
+        /* non-fatal */
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (data) {
@@ -728,82 +755,119 @@ export default function PtoPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.panelHead}>
-        <span className={styles.panelDot} aria-hidden="true" />
-        <span className={styles.panelTitle}>PTO</span>
-        <YearSwitcher
-          year={data.year}
-          currentYear={data.currentYear}
-          onChange={setYear}
-        />
-      </div>
-
-      <div className={styles.headline}>
-        <span className={`${styles.headlineFigure} tabular`}>
-          {data.left} left
-        </span>
-        <span className={`${styles.headlineDetail} tabular`}>
-          · {data.taken} taken · {data.planned} planned
-        </span>
-      </div>
-      {!data.holidaysEntered && (
-        <p className={styles.holidayNotice}>
-          No {data.year} holidays entered yet — this count doesn't exclude them.
-        </p>
-      )}
-      <div className={styles.headRow}>
-        <BudgetEditor budget={data.budget} onSave={saveBudget} />
         <button
-          className={styles.bankedChip}
-          onClick={() => setHolidaysOpen(true)}
+          type="button"
+          className={styles.panelToggle}
+          onClick={toggleOpen}
+          aria-expanded={open}
+          aria-controls="pto-panel-body"
         >
-          {data.banked.available} holiday
-          {data.banked.available === 1 ? '' : 's'} banked · edit holidays
+          <span className={styles.panelDot} aria-hidden="true" />
+          <span className={styles.panelTitle}>PTO</span>
+          <span
+            className={`${styles.chevron} ${open ? '' : styles.chevronClosed}`}
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12">
+              <path
+                d="M4 6l4 4 4-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          {/* Collapsed, the panel still has to answer its own question — so the
+              balance rides in the header rather than disappearing with it. */}
+          {!open && (
+            <span className={`${styles.collapsedSummary} tabular`}>
+              {data.left} left · {data.taken} taken · {data.planned} planned
+            </span>
+          )}
         </button>
+        {open && (
+          <YearSwitcher
+            year={data.year}
+            currentYear={data.currentYear}
+            onChange={setYear}
+          />
+        )}
       </div>
 
-      {trips.length > 0 && (
-        <div className={styles.subSection}>
-          <p className={styles.subSectionTitle}>
-            Trips counted toward {data.year}
-          </p>
-          <div className={styles.tripList}>
-            {trips.map((t) => (
-              <TripRow key={t.id} trip={t} onSave={saveTrip} />
-            ))}
+      {!open ? null : (
+        <div id="pto-panel-body">
+          <div className={styles.headline}>
+            <span className={`${styles.headlineFigure} tabular`}>
+              {data.left} left
+            </span>
+            <span className={`${styles.headlineDetail} tabular`}>
+              · {data.taken} taken · {data.planned} planned
+            </span>
+          </div>
+          {!data.holidaysEntered && (
+            <p className={styles.holidayNotice}>
+              No {data.year} holidays entered yet — this count doesn't exclude
+              them.
+            </p>
+          )}
+          <div className={styles.headRow}>
+            <BudgetEditor budget={data.budget} onSave={saveBudget} />
+            <button
+              className={styles.bankedChip}
+              onClick={() => setHolidaysOpen(true)}
+            >
+              {data.banked.available} holiday
+              {data.banked.available === 1 ? '' : 's'} banked · edit holidays
+            </button>
+          </div>
+
+          {trips.length > 0 && (
+            <div className={styles.subSection}>
+              <p className={styles.subSectionTitle}>
+                Trips counted toward {data.year}
+              </p>
+              <div className={styles.tripList}>
+                {trips.map((t) => (
+                  <TripRow key={t.id} trip={t} onSave={saveTrip} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <ManualEntries
+            entries={data.entries}
+            banked={data.banked}
+            onAdd={addEntry}
+            onDelete={deleteEntry}
+          />
+
+          <div className={styles.simSection}>
+            <p className={styles.simLabel}>
+              Planning (simulation) — never counted above
+            </p>
+            <WishlistWhatIfs wishlist={data.wishlist} left={data.left} />
+            <SandboxCalculator
+              year={data.year}
+              holidaySet={holidaySet}
+              left={data.left}
+            />
+            <SavedScenarios
+              scenarios={data.scenarios}
+              wishlist={data.wishlist.filter((t) => t.start_date && t.end_date)}
+              year={data.year}
+              holidaySet={holidaySet}
+              left={data.left}
+              onCreate={createScenario}
+              onRename={patchScenario}
+              onDelete={deleteScenario}
+              onAddItem={patchScenario}
+              onRemoveItem={patchScenario}
+            />
           </div>
         </div>
       )}
-
-      <ManualEntries
-        entries={data.entries}
-        banked={data.banked}
-        onAdd={addEntry}
-        onDelete={deleteEntry}
-      />
-
-      <div className={styles.simSection}>
-        <p className={styles.simLabel}>
-          Planning (simulation) — never counted above
-        </p>
-        <WishlistWhatIfs wishlist={data.wishlist} left={data.left} />
-        <SandboxCalculator
-          year={data.year}
-          holidaySet={holidaySet}
-          left={data.left}
-        />
-        <SavedScenarios
-          scenarios={data.scenarios}
-          wishlist={data.wishlist.filter((t) => t.start_date && t.end_date)}
-          year={data.year}
-          holidaySet={holidaySet}
-          left={data.left}
-          onCreate={createScenario}
-          onRename={patchScenario}
-          onDelete={deleteScenario}
-          onAddItem={patchScenario}
-          onRemoveItem={patchScenario}
-        />
-      </div>
 
       {holidaysOpen && (
         <HolidaysPopup
