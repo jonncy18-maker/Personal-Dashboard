@@ -11,6 +11,10 @@ import { parseItalkiAcceptance } from '../../../lib/language-detect';
 // Dismiss; nothing is auto-added. Runs on a weekly Vercel Cron (GET) and the
 // manual "Scan Gmail" button on /language (POST) — both call runScan().
 
+// A full scan is a Gmail list + up to MAX_CANDIDATES sequential fetches —
+// can exceed Vercel's 10s default function duration.
+export const maxDuration = 60;
+
 const LOOKBACK_DAYS = 60; // italki bookings have been seen weeks in advance
 const MAX_CANDIDATES = 30;
 
@@ -77,7 +81,9 @@ export async function GET(request) {
   }
   try {
     return Response.json(await runScan());
-  } catch {
+  } catch (err) {
+    // Same fix as trip-scan (2026-08-09): never swallow the real cause.
+    console.error('[language-scan] scan failed:', err);
     return Response.json({ error: 'scan failed' }, { status: 502 });
   }
 }
@@ -85,7 +91,8 @@ export async function GET(request) {
 export async function POST() {
   try {
     return Response.json(await runScan());
-  } catch {
+  } catch (err) {
+    console.error('[language-scan] scan failed:', err);
     return Response.json({ error: 'scan failed' }, { status: 502 });
   }
 }
