@@ -63,7 +63,12 @@ export const PATCH = route(async (request, { params }) => {
     const { stops } = await geocodeStops(body.itinerary);
     itinerary = JSON.stringify(stops);
   } else {
-    itinerary = existing.itinerary;
+    // existing.itinerary is a decoded JS array; the driver serializes a raw
+    // array param as a Postgres array literal, not JSON, which a jsonb column
+    // rejects — so a PATCH that doesn't touch the itinerary (e.g. the PTO
+    // panel's pto_exempt toggle) must re-stringify it.
+    itinerary =
+      existing.itinerary == null ? null : JSON.stringify(existing.itinerary);
   }
   const imageSource =
     body.image_source === 'manual' || body.image_source === 'auto'

@@ -127,10 +127,11 @@ function TripRow({ trip, onSave }) {
       </div>
       <div className={styles.tripRowMeta}>
         <span className={styles.tripRowAuto}>
-          auto {trip.autoDays}
-          {trip.override != null && !exempt
-            ? ` · override ${trip.counted}`
-            : ''}
+          {exempt
+            ? 'not counted'
+            : trip.override != null
+              ? `${trip.counted} days · auto would be ${trip.autoDays}`
+              : `${trip.autoDays} days (auto)`}
         </span>
         <input
           type="number"
@@ -636,7 +637,16 @@ export default function PtoPanel() {
 
   async function saveTrip(id, patch) {
     const prev = trips;
-    setTrips((cur) => cur.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    // Optimistically patch the VIEW-shaped fields (exempt/override) — TripRow
+    // reads those, so a failed persist's setTrips(prev) visibly reverts the
+    // row instead of leaving stale optimistic state on screen.
+    const viewPatch = {};
+    if (patch.pto_exempt !== undefined) viewPatch.exempt = patch.pto_exempt;
+    if (patch.pto_days_override !== undefined)
+      viewPatch.override = patch.pto_days_override;
+    setTrips((cur) =>
+      cur.map((t) => (t.id === id ? { ...t, ...viewPatch } : t))
+    );
     const res = await fetch(`/api/trips/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
