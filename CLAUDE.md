@@ -21,18 +21,18 @@ Master personal planning hub consolidating John's AI projects, travel, schedules
 
 ## 1. Stack
 
-| Layer      | Choice                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| Framework  | Next.js (App Router)                                                                     |
-| Frontend   | React                                                                                    |
-| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                      |
-| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard              |
-| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_ |
-| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                       |
-| Auth       | **None — deliberately dropped.** See §7.                                                 |
-| Hosting    | Vercel (native Git integration — no CI workflow)                                         |
-| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)  |
-| AI         | Claude Haiku (`claude-haiku-4-5`) — used narrowly; see §7                                |
+| Layer      | Choice                                                                                                                  |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js (App Router)                                                                                                    |
+| Frontend   | React                                                                                                                   |
+| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                     |
+| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                             |
+| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                |
+| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                      |
+| Auth       | **None — deliberately dropped.** See §7.                                                                                |
+| Hosting    | Vercel (native Git integration — no CI workflow)                                                                        |
+| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                 |
+| AI         | Claude Haiku (`claude-haiku-4-5`) — narrow uses; Claude Opus (`claude-opus-5`) — the app-wide AI Assistant only; see §7 |
 
 **Two deliberate divergences from the NextGen-Immersion gold standard, documented so a future session doesn't "fix" them back:**
 
@@ -132,6 +132,14 @@ Lightweight convention — no ORM (overkill for one user), but a small runner cl
 ## 7. Key Rules for Claude Code
 
 **No auth — and don't add it back.** Single-user private app. The blueprint's same-origin Neon Auth pattern does not apply here. If access needs gating, do it at the Vercel project level, not by reintroducing an auth layer.
+
+**The AI Assistant is the app's sixth AI use — the one agentic surface, and the one non-Haiku model.** A floating chat panel on every page (`components/AssistantPanel.jsx`, mounted in `AppShell`) posts to `/api/assistant`, where `lib/assistant.js` runs a Claude Opus (`claude-opus-5`) tool loop. Rules that keep it honest and inside the app's boundaries:
+
+- **Its tools are an explicit allowlisted catalog of this app's OWN api routes, called over same-origin fetch** — the assistant does exactly what the UI does, through the same validation, geocoding, photo caching, PTO math, and error handling. Never give it a direct DB handle, a raw-fetch tool, or a third-party API call — new capability = add the underlying route first, then a catalog entry.
+- **Gmail stays read-only structurally, not just by prompt.** The catalog only reaches the read-only Gmail proxy and the local-flag routes (`email-rules`, `email-todos`); no Gmail write endpoint exists anywhere for a tool to name.
+- **Deletes are prompt-gated:** the system prompt requires John's explicit in-conversation confirmation before any delete tool. Same no-fabricated-data rule as the UI — answers must come from tool results.
+- **Opus, not Haiku, deliberately** — the five narrow uses stay on Haiku (`lib/anthropic.js` is still pinned), but an agentic multi-tool assistant needs a stronger model. `ASSISTANT_MODEL` in `lib/assistant.js` is the one place to change it.
+- **Conversation state lives in the browser tab only** (raw Anthropic message blocks resent each turn); nothing is persisted server-side, and a successful write triggers the app-wide `refresh()` signal so every page re-fetches.
 
 **The Vercel API token is a real secret with write-capable scope if over-provisioned.** Scope it read-only in Vercel's token UI if possible, and never let it reach client code. A leaked deploy-capable token is a materially worse failure than a leaked read-only one.
 

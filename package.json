@@ -11,7 +11,7 @@
     "migrate": "node scripts/migrate.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.30.1",
+    "@anthropic-ai/sdk": "^0.116.0",
     "@neondatabase/serverless": "^0.10.4",
     "googleapis": "^144.0.0",
     "next": "^16.2.9",
