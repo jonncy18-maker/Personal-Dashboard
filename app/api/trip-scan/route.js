@@ -109,6 +109,24 @@ function travelSenderQuery(domain) {
   return `${keywords} after:${sinceStamp()} from:${domain}`;
 }
 
+// A dead/revoked GOOGLE_REFRESH_TOKEN fails every query identically, so it has
+// to be told apart from "this one brand's search errored". Surfaced 2026-08-09:
+// the token had expired, every list threw invalid_grant, and swallowing that as
+// an empty result reported a confident "No new trips found" over a scan that
+// never reached Gmail — the dishonest-empty-state failure this app's own rules
+// forbid.
+function isAuthFailure(err) {
+  const message = String(err?.message || '');
+  const status = err?.response?.status ?? err?.code;
+  return (
+    message.includes('invalid_grant') ||
+    message.includes('invalid_client') ||
+    message.includes('unauthorized_client') ||
+    status === 401 ||
+    status === 403
+  );
+}
+
 async function listIds(gmail, q, maxResults) {
   try {
     const res = await gmail.users.messages.list({
@@ -116,11 +134,12 @@ async function listIds(gmail, q, maxResults) {
       q,
       maxResults,
     });
-    return (res.data.messages || []).map((m) => m.id);
+    return { ids: (res.data.messages || []).map((m) => m.id), failed: false };
   } catch (err) {
-    // One brand's query failing must not sink the whole scan.
+    // One brand's transient failure must not sink the whole scan — but the
+    // caller still needs to know it happened, and an auth failure is fatal.
     console.error('[trip-scan] list failed for query:', q, err?.message || err);
-    return [];
+    return { ids: [], failed: true, authFailed: isAuthFailure(err) };
   }
 }
 
@@ -185,13 +204,29 @@ async function runScan() {
   // per-brand query over the travel allowlist (whose booking mail Gmail files
   // under Promotions). Brand queries run concurrently and are capped
   // individually, so no single sender can crowd out the rest.
-  const [primaryIds, travelLists] = await Promise.all([
+  const [primary, travelResults] = await Promise.all([
     listIds(gmail, lookbackQuery(), MAX_CANDIDATES),
     mapWithConcurrency(TRAVEL_SENDER_DOMAINS, 6, (domain) =>
       listIds(gmail, travelSenderQuery(domain), MAX_PER_TRAVEL_SENDER)
     ),
   ]);
-  const travelIds = [...new Set(travelLists.flat())].slice(
+
+  // Report a search that never ran as an error, never as "nothing found".
+  const all = [primary, ...travelResults];
+  if (all.some((r) => r.authFailed)) {
+    return { configured: true, error: 'gmail_auth', scanned: 0, created: 0 };
+  }
+  if (primary.failed) {
+    return {
+      configured: true,
+      error: 'gmail_unavailable',
+      scanned: 0,
+      created: 0,
+    };
+  }
+
+  const primaryIds = primary.ids;
+  const travelIds = [...new Set(travelResults.flatMap((r) => r.ids))].slice(
     0,
     MAX_TRAVEL_CANDIDATES
   );
