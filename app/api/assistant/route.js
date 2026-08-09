@@ -3,7 +3,7 @@ import { runAssistant } from '../../../lib/assistant';
 
 // App-wide AI Assistant (CLAUDE.md §7). The client posts the full raw message
 // history (Anthropic block form) plus the new user text; this handler runs the
-// Opus tool loop server-side — tools fetch this app's own api routes on the
+// Sonnet tool loop server-side — tools fetch this app's own api routes on the
 // same origin — and returns the new turns for the client to append and resend
 // next time. Conversation state lives entirely in the browser tab; nothing is
 // persisted server-side.
