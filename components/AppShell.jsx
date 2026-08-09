@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import RegisterSW from './RegisterSW';
+import AssistantPanel from './AssistantPanel';
 import { RefreshProvider } from '../lib/refresh';
 import styles from './AppShell.module.css';
 
@@ -27,6 +28,7 @@ export default function AppShell({ children }) {
           <main className={styles.shellContent}>{children}</main>
         </div>
       </div>
+      <AssistantPanel />
       <RegisterSW />
     </RefreshProvider>
   );

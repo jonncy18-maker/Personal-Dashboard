@@ -66,4 +66,6 @@ Current tables live in `neon/schema.sql` (canonical). Settled domains have table
 2. **Email Tier 2** — Haiku, _only_ for the semantic residual Gmail's native categories can't express. Ongoing small per-email cost.
 3. **Travel import** — Haiku, one-shot extraction-and-confirm from a Gmail itinerary email. Always previewed before save.
 
+_(Since scoped beyond three: French screenshot import, Schedules screenshot import, the AI Travel Brief — all Haiku — and the **app-wide AI Assistant**, the one agentic surface and the one Sonnet use: `/api/assistant` runs a tool loop whose tools are an allowlisted catalog of this app's own api routes, called over same-origin fetch. See `CLAUDE.md` §7.)_
+
 _(Build fills in: exact request/response shapes, error/fallback handling, and any caching of Vercel/GitHub responses.)_
