@@ -21,6 +21,10 @@ import { detectTripFromEmail } from '../../../lib/trip-detect';
 // this cut a 30-day match set from ~200 to ~50 and surfaced a Singapore Airlines
 // booking that the bare-word query had truncated. (Distinct from travel-import's
 // terms, which can stay broad because a destination narrows them.)
+// A full scan is a Gmail list + up to MAX_CANDIDATES sequential fetch+Haiku
+// rounds — well past Vercel's 10s default function duration.
+export const maxDuration = 60;
+
 const SEARCH_TERMS = [
   '"booking confirmation"',
   '"flight confirmation"',
@@ -139,7 +143,10 @@ export async function GET(request) {
   }
   try {
     return Response.json(await runScan());
-  } catch {
+  } catch (err) {
+    // Surfaced 2026-08-09: a silent catch here made a failing scan
+    // undiagnosable from the Vercel logs — always log the real cause.
+    console.error('[trip-scan] scan failed:', err);
     return Response.json({ error: 'scan failed' }, { status: 502 });
   }
 }
@@ -147,7 +154,8 @@ export async function GET(request) {
 export async function POST() {
   try {
     return Response.json(await runScan());
-  } catch {
+  } catch (err) {
+    console.error('[trip-scan] scan failed:', err);
     return Response.json({ error: 'scan failed' }, { status: 502 });
   }
 }
