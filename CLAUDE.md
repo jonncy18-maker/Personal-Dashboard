@@ -204,13 +204,20 @@ _Other things that kill a production refresh token_ (all rarer): revoking the ap
 
 _(Other quirks: fill in as they surface.)_
 
-## 9. Agentic Loop
+## 9. Coder Profile & Agentic Loop
 
-Follow the Agentic Loop protocol ([Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop)) for any change touching 3+ files, or introducing a new component, new data domain/table, or user-visible structural change.
+Two layers, both from the [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop):
+
+- **Coder Profile** — https://raw.githubusercontent.com/jonncy18-maker/Agentic-Loop/main/CODER_PROFILE.md
+  Applies to **every task, no threshold**. Governs how code is written and how it gets verified. Read it at the start of every session.
+- **Agentic Loop protocol** — https://raw.githubusercontent.com/jonncy18-maker/Agentic-Loop/main/AGENTIC_LOOP.md
+  Applies to any change touching 3+ files, or introducing a new component, new data domain/table, or user-visible structural change. Governs whether the right thing was built.
+
+A change small enough to skip the loop is still governed by the profile.
 
 ## 10. References
 
-- [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop) — shared development protocol
+- [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop) — shared development protocol and coder profile
 - `STACK_BLUEPRINT.md` — canonical stack/structure source (from NextGen-Immersion)
 - Sibling repos for pattern reference: NextGen-Scholars, NextGen-Immersion (numeric-coercion gotcha; same-origin auth pattern — not used here)
 
