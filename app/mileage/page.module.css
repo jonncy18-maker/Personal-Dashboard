@@ -618,7 +618,8 @@
   flex-direction: column;
   gap: 8px;
 }
-.newScenarioForm input {
+.newScenarioForm input,
+.newScenarioForm select {
   padding: 7px 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -626,6 +627,30 @@
   color: var(--ink);
   font: inherit;
   font-size: 12.5px;
+}
+.scenarioModeRow {
+  display: flex;
+  gap: 6px;
+}
+.scenarioModeRow button {
+  flex: 1;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.scenarioModeRow button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.scenarioModeActive {
+  background: var(--dom-mileage) !important;
+  border-color: var(--dom-mileage) !important;
+  color: #fff !important;
 }
 .impactRow {
   display: flex;

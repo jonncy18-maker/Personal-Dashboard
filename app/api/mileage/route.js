@@ -7,14 +7,21 @@ import { mileageSummary } from '../../../lib/mileage';
 // pace/checkpoint forecast all come back together.
 
 async function loadAll(sql) {
-  const [[settings], readingRows, tripRows, scenarioRows, usualLegRows] =
-    await Promise.all([
-      sql`SELECT * FROM mileage_settings WHERE id = 1`,
-      sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
-      sql`SELECT * FROM mileage_trips ORDER BY trip_date DESC NULLS LAST, created_at DESC`,
-      sql`SELECT * FROM mileage_scenarios ORDER BY created_at ASC`,
-      sql`SELECT * FROM mileage_usual_legs ORDER BY created_at ASC`,
-    ]);
+  const [
+    [settings],
+    readingRows,
+    tripRows,
+    scenarioRows,
+    usualLegRows,
+    placeRows,
+  ] = await Promise.all([
+    sql`SELECT * FROM mileage_settings WHERE id = 1`,
+    sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
+    sql`SELECT * FROM mileage_trips ORDER BY trip_date DESC NULLS LAST, created_at DESC`,
+    sql`SELECT * FROM mileage_scenarios ORDER BY created_at ASC`,
+    sql`SELECT * FROM mileage_usual_legs ORDER BY created_at ASC`,
+    sql`SELECT * FROM mileage_places ORDER BY label ASC`,
+  ]);
 
   return {
     settings: settings
@@ -39,12 +46,17 @@ async function loadAll(sql) {
       miles: num(l.miles),
       times_per_week: num(l.times_per_week),
     })),
+    places: placeRows.map((p) => ({
+      ...p,
+      lat: num(p.lat),
+      lng: num(p.lng),
+    })),
   };
 }
 
 export const GET = route(async () => {
   const sql = getDb();
-  const { settings, readings, trips, scenarios, usualLegs } =
+  const { settings, readings, trips, scenarios, usualLegs, places } =
     await loadAll(sql);
   const summary = mileageSummary({ settings, readings, scenarios });
 
@@ -54,6 +66,7 @@ export const GET = route(async () => {
     trips,
     scenarios,
     usualLegs,
+    places,
     ...summary,
   });
 });

@@ -79,6 +79,16 @@ John: leasing a Tesla Model 3, 10k miles/year allowance, wants to track actual m
 
 ---
 
+## 2026-08-26 (cont'd 4) — Mileage: favorite places + leg-based scenarios
+
+Two follow-ups John raised together after using the routes popup: (1) he noticed lookups kept falling back to manual mile entry, and asked if they could be address-based; (2) the scenario planner should let him express "what if I went to the cafe 3x/week instead of 2x" directly, not as a typed mile guess.
+
+**Root cause of (1):** the trip journal and routes popup both default an origin to the literal label "Home" — not a real geocodable place, so every "Home"-anchored lookup silently failed. **Migration 020** adds `mileage_places` (label + address, geocoded and cached once at save time — same one-lookup-per-change discipline as everywhere else). `lib/route-distance.js`'s `fetchDrivingDistanceMiles` gained an optional `placesByLabel` map, checked before geocoding a bare label; `loadPlacesByLabel(sql)` builds it. Both `mileage_trips` and `mileage_usual_legs` POST routes now load places and pass them through. New "Favorite places" button + popup on `/mileage` (add/delete, same popup chrome as the routes popup) and a shared `<datalist id="mileage-places">` on every origin/destination input, so typing "Gym" suggests a saved label without forcing a rigid picker.
+
+**Feature (2): leg-based scenarios.** **Migration 021** adds `leg_id`/`new_times_per_week` to `mileage_scenarios`. `lib/mileage.js`'s new `legFrequencyScenarioImpacts()` computes `impact_1yr/2yr/3yr` from a leg's miles × the frequency delta, extrapolated linearly from lease start to each checkpoint — the same model the pace baseline already uses, so a leg-based scenario's numbers sit on the same footing as everything else on the page. `projectCheckpoint()` itself is untouched: a leg-based scenario is still just a row with `impact_1yr/2yr/3yr`, computed server-side (never trusted from the client) rather than typed. `AddScenarioForm` gained a Manual/From-a-route toggle; picking a route + a new ×/week shows a live preview before saving. Toggling a scenario's `active` flag alone never triggers a recompute (only a body carrying `new_times_per_week` does), so the existing include/exclude behavior is unchanged.
+
+**Verified:** `next build` clean (caught and fixed a real gap in review: the first pass added the `mileage_places` query but never wired `places` into `/api/mileage`'s `loadAll()` return or the `GET` response — found before shipping, not after), Prettier clean on all touched files, `/mileage` rendered against a dev server with no live Neon in this sandbox — no crash. **Run `npm run migrate`** (migrations 020 and 021) after merge.
+
 ## 2026-08-26 (cont'd 3) — Mileage: "usual trips" detail popup (named routes)
 
 John wanted a way to build the "usual trips" rate from real named routes ("Home from gym, etc.") instead of guessing one aggregate number, with a button opening a detail popup — and mentioned Google Maps for computing each leg's miles.
