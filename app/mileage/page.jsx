@@ -623,7 +623,7 @@ function AddPlaceForm({ onAdd }) {
     setError(null);
     try {
       // Manually entered coordinates are a deliberate override for a place
-      // Nominatim has no data for — trust them over an autocomplete pick.
+      // the geocoder has no data for — trust them over an autocomplete pick.
       const effectiveCoords = manualValid
         ? { lat: manualLatNum, lng: manualLngNum }
         : coords;
@@ -634,7 +634,7 @@ function AddPlaceForm({ onAdd }) {
       });
       if (saved && saved.lat == null) {
         // It's saved either way (an obscure/new address may genuinely have
-        // no Nominatim match yet), but leave the fields in place — clearing
+        // no geocode match yet), but leave the fields in place — clearing
         // them would hide the exact typo that caused the failure.
         setError(
           "Saved, but couldn't verify that address — check for a typo (e.g. a missing space or comma before the city), pick a suggestion from the dropdown, or enter coordinates manually below, then delete and re-add."
@@ -723,8 +723,8 @@ function AddPlaceForm({ onAdd }) {
             />
           </div>
           <p className={styles.manualCoordsHint}>
-            From a map app: find the place, then copy its coordinates — this app
-            never calls a paid maps API.
+            From a map app: find the place, then copy its coordinates for when
+            the geocoder still can&rsquo;t resolve an address.
           </p>
         </div>
       )}

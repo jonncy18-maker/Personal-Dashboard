@@ -82,6 +82,18 @@ Could not reproduce the two specific failing queries directly — this sandbox's
 
 **Verified:** `next build` clean, Prettier clean on all touched files.
 
+## 2026-08-26 (cont'd 11) — Switched geocoding from Nominatim to the Google Geocoding API
+
+Follow-up to the Mileage geocoding investigation earlier today: John's take after seeing Nominatim genuinely had no data for a real Buckner, KY address — "It's free to a certain point I believe and I don't think I'll get to that point, so we should just configure it out." A deliberate reversal of the app's standing "free/keyless-only" geocoding rule, made explicitly by John after seeing the real failure mode, not a rule quietly relaxed.
+
+`lib/geocode.js` — the single module every geocode/reverse-geocode call in the app goes through — now calls the Google Geocoding API instead of Nominatim, keeping every exported function's signature and `'ok'/'none'/'error'` status contract identical, so no caller (Travel's trip map + country stats, Mileage's places/trip-journal/usual-legs, `lib/route-distance.js`) needed a code change. Requires a new `GOOGLE_MAPS_API_KEY` (server-only); a missing/invalid key fails soft to `'error'`, same as any other transient failure. Scope is geocoding only — OSRM driving-distance routing, the static world-map SVG, and the "no paid map-tile provider" rule are untouched and still free/keyless; this was never about routing or maps rendering, just point lookups.
+
+Updated every comment/doc that asserted the old Nominatim-specific facts (rate limits, "deliberately not Google Maps" language) across `lib/geocode.js`, `lib/route-distance.js`, `lib/itinerary.js`, `app/api/travel-stats/route.js`, `app/api/mileage/geocode-suggest/route.js`, `app/mileage/page.jsx`'s manual-coordinates hint text, `ARCHITECTURE.md`, and `CLAUDE.md` §2/§4/§7 — left ROADMAP's own past entries and the immutable migration files untouched, since those are historical record of what was true when written, not living reference.
+
+**Not yet live**: this ships the code path, but needs `GOOGLE_MAPS_API_KEY` actually created (Google Cloud Console → enable the Geocoding API on a billing-enabled project → create an API key) and added to Vercel (Production + Preview) before it does anything — until then every geocode call fails soft to `'error'`, same as a missing key always has for every other integration in this app.
+
+**Verified:** `next build` clean, Prettier clean on all touched files.
+
 ## 2026-08-26 (cont'd 10) — AI Assistant: paste/drag-drop/attach images and files
 
 John's follow-up after the Mileage catalog fix: "we really did not do a good job of building it out" — the assistant could read/act on dashboard data but had no way to see anything John shared visually (a screenshot of a to-do list, a receipt, a PDF). Asked for it to ingest "anything Claude can ingest."
