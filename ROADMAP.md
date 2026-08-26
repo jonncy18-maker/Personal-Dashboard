@@ -82,6 +82,22 @@ Could not reproduce the two specific failing queries directly — this sandbox's
 
 **Verified:** `next build` clean, Prettier clean on all touched files.
 
+## 2026-08-26 (cont'd 10) — AI Assistant: paste/drag-drop/attach images and files
+
+John's follow-up after the Mileage catalog fix: "we really did not do a good job of building it out" — the assistant could read/act on dashboard data but had no way to see anything John shared visually (a screenshot of a to-do list, a receipt, a PDF). Asked for it to ingest "anything Claude can ingest."
+
+`components/AssistantPanel.jsx` gained paste (`onPaste` on the input), drag-and-drop (over the whole messages pane, with a "Drop to attach" overlay), and an explicit paperclip/file-picker button. Three attachment shapes, handled differently by design rather than uniformly base64-encoding everything:
+
+- **Images** (png/jpeg/gif/webp) → Anthropic `image` content blocks. Large ones (phone photos, full-page screenshots) are downscaled via canvas to a 1600px max dimension and re-encoded as JPEG q0.85 before sending — this isn't a Claude limitation (it downscales oversized images internally anyway), it's Vercel's serverless request body-size ceiling, which base64 inflation eats into fast.
+- **PDFs** → base64 `document` blocks, the API's real mechanism for PDFs.
+- **Text-like files** (`.txt`/`.csv`/`.md`) → read client-side as text and inlined as a plain `text` block, deliberately _not_ forced through the document-block base64 path — that source type is for PDFs; a bare text file is unambiguous and more robust sent as text.
+
+`app/api/assistant/route.js` validates every attachment server-side regardless of what the client claims (allowed media-type allowlist, per-attachment and total size caps) — the same "never trust the client alone" posture as every other route. Its history-trimming boundary check (`isSafeTrimBoundary`) was also broken by this change in a way worth calling out: it previously only recognized a plain-string user turn as safe to start the resent window at; once a user turn could be a multimodal content array, the search would silently walk off the end of the array and return an **empty** trimmed history. Fixed to recognize an array turn as safe too (as long as every block is text/image/document, never a stray tool_result), with a fallback to the untrouched full history if no safe boundary exists at all rather than ever slicing to nothing.
+
+System prompt updated: John can now share images/PDFs/text directly, and the assistant should read them like any other input — an attachment is context, not itself a write; turning "here's a screenshot" into real dashboard data still goes through the matching tool call.
+
+**Verified:** `next build` clean, Prettier clean on all touched files, dev server smoke-tested (`/` and `/mileage` both 200, no crash — AssistantPanel mounts app-wide via AppShell).
+
 ## 2026-08-26 (cont'd 6) — AI Assistant: added the missing Mileage tool catalog
 
 John asked to build his Mileage "usual trips" baseline through the AI Assistant, and it turned out the assistant had **zero** Mileage tools — the whole 7th domain was built across five PRs this session without ever adding a `lib/assistant.js` catalog entry for it, so the assistant could not read or act on Mileage at all despite CLAUDE.md §7's rule that a new route is only actually assistant-usable once cataloged.

@@ -150,11 +150,88 @@
   padding: 8px 12px;
 }
 
+.attachChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.attachChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-muted);
+  border-radius: 999px;
+  padding: 3px 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachRemove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0 0 2px;
+}
+
+.dropOverlay {
+  position: sticky;
+  bottom: 0;
+  align-self: stretch;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-md, 10px);
+  padding: 10px;
+}
+
+.pendingAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px 0;
+}
+
 .inputRow {
   display: flex;
+  align-items: center;
   gap: 8px;
   padding: 12px;
   border-top: 1px solid var(--border);
+}
+.fileInput {
+  display: none;
+}
+.attachBtn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.attachBtn:hover {
+  color: var(--ink);
+}
+.attachBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 .input {
   flex: 1;
