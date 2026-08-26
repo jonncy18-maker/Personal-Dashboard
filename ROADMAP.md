@@ -56,6 +56,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-08-26 (cont'd 6) — AI Assistant: added the missing Mileage tool catalog
+
+John asked to build his Mileage "usual trips" baseline through the AI Assistant, and it turned out the assistant had **zero** Mileage tools — the whole 7th domain was built across five PRs this session without ever adding a `lib/assistant.js` catalog entry for it, so the assistant could not read or act on Mileage at all despite CLAUDE.md §7's rule that a new route is only actually assistant-usable once cataloged.
+
+Added 13 tools covering every Mileage route: `get_mileage` (full state — settings, odometer log, trip journal, scenarios, usual-trip legs, favorite places, computed forecast); `update_mileage_settings` (lease fields **and** the `usual_miles`/`usual_period`/`usual_active` baseline override — the specific ask); `add_/delete_mileage_reading`; `add_/delete_mileage_trip`; `add_/update_/delete_mileage_scenario` (manual or leg-based, same server-side-computed-impacts rule as the UI); `add_/delete_mileage_usual_leg`; `add_/delete_mileage_place`. System prompt updated: domain count six → seven, Mileage named explicitly, and a house rule added so the assistant never flips `usual_active` or a scenario's `active` flag without John asking for that specific outcome (mirrors the existing delete-confirmation rule).
+
+No new API routes — every one of these already existed from the Mileage build; this was purely wiring the existing routes into the catalog the assistant is allowed to call, same allowlist-only shape as every other domain.
+
+**Verified:** `next build` clean, Prettier clean, no duplicate tool names in the catalog (checked directly).
+
 ## 2026-08-26 — Tesla lease mileage calculator scoped (grill session — no code yet)
 
 John: leasing a Tesla Model 3, 10k miles/year allowance, wants to track actual mileage against the lease and forecast whether he'll come in under/over by the 1yr/2yr/3yr checkpoints. Scoped per the project's scope-before-build convention (same pattern as the 2026-08-08 PTO session below) — every open question resolved with John via `AskUserQuestion` before writing this entry. **Nothing built this session** — this is the spec for the build session.
@@ -79,6 +89,14 @@ John: leasing a Tesla Model 3, 10k miles/year allowance, wants to track actual m
 
 ---
 
+## 2026-08-26 (cont'd 5) — Mileage: address autocomplete + validation on Favorite places
+
+John's follow-up on the favorite-places feature: "The real address doesn't have a drop down? I feel like it should, similar to how websites try to complete the address and give you options when you type an also validate the address." The address field was plain free text with no feedback on whether it would actually geocode.
+
+No new schema (`mileage_places.lat`/`lng` already existed from migration 020). Added `searchPlaces(query, limit)` to `lib/geocode.js` — the same Nominatim `/search` endpoint `geocodeQueryResult` already used, but `limit` isn't hardcoded to 1, so it returns a pick-list instead of silently taking the first match. New route `app/api/mileage/geocode-suggest/route.js` proxies it (the browser can't call Nominatim directly per CLAUDE.md §2); it's deliberately uncached, unlike every other geocode call in this app, since a keystroke-driven suggestion list isn't the "one lookup per change" pattern the rest of Mileage follows. `AddPlaceForm` debounces the address input (350ms, 3-char minimum) and shows the returned suggestions in a dropdown; picking one fills the address text and carries validated `lat`/`lng` straight into the save payload. `POST /api/mileage/places` now accepts optional `lat`/`lng` and trusts them instead of re-geocoding when present — a picked suggestion can't drift to a different result than what was shown. Editing the address text after a pick clears the stored coords, so a stale pick is never silently saved against edited text; a hand-typed address with no pick still saves and geocodes server-side exactly as before. Deliberately Nominatim, not Google Places Autocomplete — same free/keyless-only rule as every other Mileage lookup this session.
+
+**Verified:** `next build` clean, Prettier clean on all touched files.
+
 ## 2026-08-26 (cont'd 4) — Mileage: favorite places + leg-based scenarios
 
 Two follow-ups John raised together after using the routes popup: (1) he noticed lookups kept falling back to manual mile entry, and asked if they could be address-based; (2) the scenario planner should let him express "what if I went to the cafe 3x/week instead of 2x" directly, not as a typed mile guess.
@@ -88,14 +106,6 @@ Two follow-ups John raised together after using the routes popup: (1) he noticed
 **Feature (2): leg-based scenarios.** **Migration 021** adds `leg_id`/`new_times_per_week` to `mileage_scenarios`. `lib/mileage.js`'s new `legFrequencyScenarioImpacts()` computes `impact_1yr/2yr/3yr` from a leg's miles × the frequency delta, extrapolated linearly from lease start to each checkpoint — the same model the pace baseline already uses, so a leg-based scenario's numbers sit on the same footing as everything else on the page. `projectCheckpoint()` itself is untouched: a leg-based scenario is still just a row with `impact_1yr/2yr/3yr`, computed server-side (never trusted from the client) rather than typed. `AddScenarioForm` gained a Manual/From-a-route toggle; picking a route + a new ×/week shows a live preview before saving. Toggling a scenario's `active` flag alone never triggers a recompute (only a body carrying `new_times_per_week` does), so the existing include/exclude behavior is unchanged.
 
 **Verified:** `next build` clean (caught and fixed a real gap in review: the first pass added the `mileage_places` query but never wired `places` into `/api/mileage`'s `loadAll()` return or the `GET` response — found before shipping, not after), Prettier clean on all touched files, `/mileage` rendered against a dev server with no live Neon in this sandbox — no crash. **Run `npm run migrate`** (migrations 020 and 021) after merge.
-
-## 2026-08-26 (cont'd 5) — Mileage: address autocomplete + validation on Favorite places
-
-John's follow-up on the favorite-places feature: "The real address doesn't have a drop down? I feel like it should, similar to how websites try to complete the address and give you options when you type an also validate the address." The address field was plain free text with no feedback on whether it would actually geocode.
-
-No new schema (`mileage_places.lat`/`lng` already existed from migration 020). Added `searchPlaces(query, limit)` to `lib/geocode.js` — the same Nominatim `/search` endpoint `geocodeQueryResult` already used, but `limit` isn't hardcoded to 1, so it returns a pick-list instead of silently taking the first match. New route `app/api/mileage/geocode-suggest/route.js` proxies it (the browser can't call Nominatim directly per CLAUDE.md §2); it's deliberately uncached, unlike every other geocode call in this app, since a keystroke-driven suggestion list isn't the "one lookup per change" pattern the rest of Mileage follows. `AddPlaceForm` debounces the address input (350ms, 3-char minimum) and shows the returned suggestions in a dropdown; picking one fills the address text and carries validated `lat`/`lng` straight into the save payload. `POST /api/mileage/places` now accepts optional `lat`/`lng` and trusts them instead of re-geocoding when present — a picked suggestion can't drift to a different result than what was shown. Editing the address text after a pick clears the stored coords, so a stale pick is never silently saved against edited text; a hand-typed address with no pick still saves and geocodes server-side exactly as before. Deliberately Nominatim, not Google Places Autocomplete — same free/keyless-only rule as every other Mileage lookup this session.
-
-**Verified:** `next build` clean, Prettier clean on all touched files.
 
 ## 2026-08-26 (cont'd 3) — Mileage: "usual trips" detail popup (named routes)
 
