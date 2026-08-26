@@ -56,6 +56,14 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-08-26 (cont'd 8) — Favorite places: surface a failed geocode instead of hiding it
+
+John's follow-up, with a screenshot: the "Gym" place he'd just added showed "20 Quality PlBuckner, KY 40010 · could not geocode yet" — missing a space between "Pl" and "Buckner." He said he'd typed the full correct address. The (cont'd 7) autocomplete-race fix didn't cause or fix this — this is a save-time issue, not a suggestion-list issue: the address that got typed/saved was already malformed (no space/comma before the city), Nominatim correctly couldn't resolve it, and the app quietly saved it anyway with `lat`/`lng` null and only a small, easy-to-miss aside noting it. "Could not geocode yet" was also misleading — it implies a transient state that resolves itself, when a malformed address string won't ever resolve on its own.
+
+Fixed the feedback loop, not the typo (the row is real John-entered data — not something to silently rewrite): `addPlace()` in `app/mileage/page.jsx` now returns the saved row instead of void, and `AddPlaceForm.submit` checks it — if `lat` comes back null, it shows a clear inline message ("couldn't verify that address — check for a typo... or pick a suggestion from the dropdown, then delete and re-add") and **deliberately leaves the label/address fields filled in** rather than clearing them, so the exact text that failed stays visible to spot the typo in. The place is still saved either way (an obscure or brand-new address might genuinely have no Nominatim match yet — same fail-soft principle as the rest of Mileage), just no longer silently. The list row's wording changed from "could not geocode yet" to "address not verified — check for typos," since "yet" was never true for a malformed string.
+
+**Verified:** `next build` clean, Prettier clean on all touched files.
+
 ## 2026-08-26 (cont'd 7) — Favorite-places autocomplete: fixed a stale-response race, added diagnostic logging
 
 John reported the address autocomplete "couldn't find" real places ("YMCA Oldham county", "20 Quality Pl, Buckner, KY 40010"). Checked production runtime logs (Vercel MCP): typing "YMCA Oldham county" fired **18** `/api/mileage/geocode-suggest` requests in under a minute, all HTTP 200 — but `searchPlaces()` swallowed a non-ok Nominatim response or an empty result into the same bare `[]`, so the logs couldn't distinguish "Nominatim genuinely found nothing" from "got rate-limited/errored." Real, verifiable bug found alongside it: the debounced fetches weren't cancelled, so a slow response to an early partial keystroke (e.g. "YMCA O") could resolve _after_ a later, better query and silently overwrite its results with an empty list.
