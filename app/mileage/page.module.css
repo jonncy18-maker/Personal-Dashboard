@@ -692,6 +692,54 @@
   flex: none;
 }
 
+.autocompleteField {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+}
+.autocompleteField input {
+  width: 100%;
+}
+.autocompleteList {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+}
+.autocompleteOption {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  border-radius: var(--radius-xs, 4px);
+  cursor: pointer;
+}
+.autocompleteOption:hover,
+.autocompleteOption:focus {
+  background: var(--surface-hover, rgba(0, 0, 0, 0.06));
+}
+.autocompleteHint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--success, #2a8a4a);
+}
+
 .tripList {
   display: flex;
   flex-direction: column;
