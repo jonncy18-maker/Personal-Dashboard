@@ -89,6 +89,14 @@ Two follow-ups John raised together after using the routes popup: (1) he noticed
 
 **Verified:** `next build` clean (caught and fixed a real gap in review: the first pass added the `mileage_places` query but never wired `places` into `/api/mileage`'s `loadAll()` return or the `GET` response — found before shipping, not after), Prettier clean on all touched files, `/mileage` rendered against a dev server with no live Neon in this sandbox — no crash. **Run `npm run migrate`** (migrations 020 and 021) after merge.
 
+## 2026-08-26 (cont'd 5) — Mileage: address autocomplete + validation on Favorite places
+
+John's follow-up on the favorite-places feature: "The real address doesn't have a drop down? I feel like it should, similar to how websites try to complete the address and give you options when you type an also validate the address." The address field was plain free text with no feedback on whether it would actually geocode.
+
+No new schema (`mileage_places.lat`/`lng` already existed from migration 020). Added `searchPlaces(query, limit)` to `lib/geocode.js` — the same Nominatim `/search` endpoint `geocodeQueryResult` already used, but `limit` isn't hardcoded to 1, so it returns a pick-list instead of silently taking the first match. New route `app/api/mileage/geocode-suggest/route.js` proxies it (the browser can't call Nominatim directly per CLAUDE.md §2); it's deliberately uncached, unlike every other geocode call in this app, since a keystroke-driven suggestion list isn't the "one lookup per change" pattern the rest of Mileage follows. `AddPlaceForm` debounces the address input (350ms, 3-char minimum) and shows the returned suggestions in a dropdown; picking one fills the address text and carries validated `lat`/`lng` straight into the save payload. `POST /api/mileage/places` now accepts optional `lat`/`lng` and trusts them instead of re-geocoding when present — a picked suggestion can't drift to a different result than what was shown. Editing the address text after a pick clears the stored coords, so a stale pick is never silently saved against edited text; a hand-typed address with no pick still saves and geocodes server-side exactly as before. Deliberately Nominatim, not Google Places Autocomplete — same free/keyless-only rule as every other Mileage lookup this session.
+
+**Verified:** `next build` clean, Prettier clean on all touched files.
+
 ## 2026-08-26 (cont'd 3) — Mileage: "usual trips" detail popup (named routes)
 
 John wanted a way to build the "usual trips" rate from real named routes ("Home from gym, etc.") instead of guessing one aggregate number, with a button opening a detail popup — and mentioned Google Maps for computing each leg's miles.

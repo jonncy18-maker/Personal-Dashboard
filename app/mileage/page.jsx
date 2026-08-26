@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useResource } from '../../lib/useResource';
 import { useRefresh } from '../../lib/refresh';
 import {
@@ -542,8 +542,45 @@ function UsualLegsPopup({ legs, onAdd, onDelete, onApply, onClose }) {
 function AddPlaceForm({ onAdd }) {
   const [label, setLabel] = useState('');
   const [address, setAddress] = useState('');
+  const [coords, setCoords] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    // A picked suggestion's coords stop being valid the moment the address
+    // text is hand-edited again — force a fresh geocode at save time.
+    setCoords(null);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = address.trim();
+    if (q.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/mileage/geocode-suggest?q=${encodeURIComponent(q)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setSuggestions(data.suggestions || []);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 350);
+    return () => clearTimeout(debounceRef.current);
+  }, [address]);
+
+  function pickSuggestion(s) {
+    setAddress(s.displayName);
+    setCoords({ lat: s.latitude, lng: s.longitude });
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -551,9 +588,15 @@ function AddPlaceForm({ onAdd }) {
     setSaving(true);
     setError(null);
     try {
-      await onAdd({ label: label.trim(), address: address.trim() });
+      await onAdd({
+        label: label.trim(),
+        address: address.trim(),
+        ...(coords || {}),
+      });
       setLabel('');
       setAddress('');
+      setCoords(null);
+      setSuggestions([]);
     } catch (err) {
       setError(err.message || 'Could not save that place.');
     } finally {
@@ -569,12 +612,36 @@ function AddPlaceForm({ onAdd }) {
         value={label}
         onChange={(e) => setLabel(e.target.value)}
       />
-      <input
-        type="text"
-        placeholder="Real address"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-      />
+      <div className={styles.autocompleteField}>
+        <input
+          type="text"
+          placeholder="Real address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          autoComplete="off"
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <ul className={styles.autocompleteList}>
+            {suggestions.map((s, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  className={styles.autocompleteOption}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pickSuggestion(s)}
+                >
+                  {s.displayName}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {coords && (
+          <p className={styles.autocompleteHint}>Address verified ✓</p>
+        )}
+      </div>
       <button type="submit" disabled={saving}>
         {saving ? 'Saving…' : 'Save place'}
       </button>
