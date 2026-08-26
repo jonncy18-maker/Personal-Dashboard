@@ -29,6 +29,8 @@
   --dom-projects-soft: rgba(59, 107, 224, 0.12);
   --dom-travel: #0f9b8e;
   --dom-travel-soft: rgba(15, 155, 142, 0.12);
+  --dom-mileage: #0e93b4;
+  --dom-mileage-soft: rgba(14, 147, 180, 0.12);
   --dom-schedules: #e0842f;
   --dom-schedules-soft: rgba(224, 132, 47, 0.13);
   --dom-language: #2f9e52;
@@ -76,6 +78,8 @@
   --dom-projects-soft: rgba(109, 147, 255, 0.16);
   --dom-travel: #35c2b3;
   --dom-travel-soft: rgba(53, 194, 179, 0.16);
+  --dom-mileage: #3fd0f2;
+  --dom-mileage-soft: rgba(63, 208, 242, 0.16);
   --dom-schedules: #f0a24a;
   --dom-schedules-soft: rgba(240, 162, 74, 0.16);
   --dom-language: #4bc178;

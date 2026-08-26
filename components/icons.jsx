@@ -98,6 +98,16 @@ export function EmailIcon(props) {
   );
 }
 
+export function MileageIcon(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 13l3.2-3.6" />
+      <path d="M8.5 6.7L7 4.2M15.5 6.7L17 4.2M5.3 10.2L2.8 9M18.7 10.2l2.5-1.2" />
+    </Svg>
+  );
+}
+
 export function MenuIcon(props) {
   return (
     <Svg {...props}>

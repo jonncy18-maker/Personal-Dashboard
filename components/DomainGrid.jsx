@@ -101,11 +101,16 @@ function IdeaTagChips({ byTag }) {
 const CARD_VARIANT = {
   projects: styles.cardProjects,
   travel: styles.cardTravel,
+  mileage: styles.cardMileage,
   schedules: styles.cardSchedules,
   language: styles.cardLanguage,
   ideas: styles.cardIdeas,
   email: styles.cardEmail,
 };
+
+function fmtMiles(n) {
+  return Math.round(n).toLocaleString('en-US');
+}
 
 function Card({ domain, pill, children, figure, onClick }) {
   const meta = DOMAIN_META[domain];
@@ -187,6 +192,65 @@ export default function DomainGrid({ summary }) {
           )}
           {summary.pto?.left != null && (
             <p className={styles.detail}>{summary.pto.left} PTO left</p>
+          )}
+        </Card>
+
+        <Card
+          domain="mileage"
+          pill={
+            !summary.mileage?.configured
+              ? 'Set up'
+              : summary.mileage.pace == null
+                ? 'Log a reading'
+                : summary.mileage.checkpoint1?.deltaMiles > 0
+                  ? 'On pace to run over'
+                  : 'On pace'
+          }
+        >
+          {!summary.mileage?.configured ? (
+            <p className={styles.detail}>Add your lease info to get started</p>
+          ) : summary.mileage.pace == null ? (
+            <p className={styles.detail}>No odometer readings logged yet</p>
+          ) : (
+            <>
+              <div className={styles.metric}>
+                <span className={`${styles.metricNum} tabular`}>
+                  {fmtMiles(summary.mileage.latestOdometer)}
+                </span>
+                <span className={styles.metricUnit}>
+                  mi &middot; {summary.mileage.pace.toFixed(1)}/day
+                </span>
+              </div>
+              {summary.mileage.checkpoint1 && (
+                <p className={styles.detail}>
+                  Projected{' '}
+                  <strong>
+                    {fmtMiles(summary.mileage.checkpoint1.projectedMiles)} mi
+                  </strong>{' '}
+                  at Year 1
+                  {summary.mileage.checkpoint1.deltaMiles > 0 ? (
+                    <>
+                      {' '}
+                      &mdash;{' '}
+                      <strong>
+                        {fmtMiles(summary.mileage.checkpoint1.deltaMiles)} over
+                      </strong>{' '}
+                      allowance
+                    </>
+                  ) : (
+                    <>
+                      {' '}
+                      &mdash;{' '}
+                      <strong>
+                        {fmtMiles(-summary.mileage.checkpoint1.deltaMiles)}{' '}
+                        under
+                      </strong>{' '}
+                      allowance
+                    </>
+                  )}
+                </p>
+              )}
+            </>
           )}
         </Card>
 

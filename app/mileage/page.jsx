@@ -1,0 +1,771 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useResource } from '../../lib/useResource';
+import { useRefresh } from '../../lib/refresh';
+import { mileageSummary } from '../../lib/mileage';
+import { MileageIcon } from '../../components/icons';
+import styles from './page.module.css';
+
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function parseISO(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function fmtDate(dateStr) {
+  const d = parseISO(dateStr);
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+function fmtNum(n) {
+  if (n == null || !Number.isFinite(n)) return '—';
+  return Math.round(n).toLocaleString('en-US');
+}
+function checkpointLabel(n) {
+  return n === 1 ? '1 Year Mark' : n === 2 ? '2 Year Mark' : '3 Year Mark';
+}
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function SettingsForm({ settings, onSave, onCancel }) {
+  const [leaseStart, setLeaseStart] = useState(
+    settings?.lease_start_date || ''
+  );
+  const [termMonths, setTermMonths] = useState(
+    settings?.lease_term_months ?? 36
+  );
+  const [startingOdometer, setStartingOdometer] = useState(
+    settings?.starting_odometer ?? ''
+  );
+  const [allowance, setAllowance] = useState(
+    settings?.annual_allowance_miles ?? 10000
+  );
+  const [overageCents, setOverageCents] = useState(
+    settings?.overage_rate_cents ?? 25
+  );
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(leaseStart)) {
+      setFormError('Lease start date must be YYYY-MM-DD.');
+      return;
+    }
+    if (startingOdometer === '' || Number(startingOdometer) < 0) {
+      setFormError('Starting odometer is required.');
+      return;
+    }
+    setSaving(true);
+    setFormError(null);
+    try {
+      await onSave({
+        lease_start_date: leaseStart,
+        lease_term_months: Number(termMonths) || 36,
+        starting_odometer: Number(startingOdometer),
+        annual_allowance_miles: Number(allowance) || 10000,
+        overage_rate_cents: Number(overageCents) || 0,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className={styles.settingsForm} onSubmit={submit}>
+      <div className={styles.settingsGrid}>
+        <label className={styles.fieldLabel}>
+          Lease start date
+          <input
+            type="date"
+            value={leaseStart}
+            onChange={(e) => setLeaseStart(e.target.value)}
+          />
+        </label>
+        <label className={styles.fieldLabel}>
+          Term (months)
+          <input
+            type="number"
+            min="1"
+            value={termMonths}
+            onChange={(e) => setTermMonths(e.target.value)}
+          />
+        </label>
+        <label className={styles.fieldLabel}>
+          Starting odometer (mi)
+          <input
+            type="number"
+            min="0"
+            value={startingOdometer}
+            onChange={(e) => setStartingOdometer(e.target.value)}
+          />
+        </label>
+        <label className={styles.fieldLabel}>
+          Annual allowance (mi)
+          <input
+            type="number"
+            min="0"
+            value={allowance}
+            onChange={(e) => setAllowance(e.target.value)}
+          />
+        </label>
+        <label className={styles.fieldLabel}>
+          Overage rate (¢/mi)
+          <input
+            type="number"
+            min="0"
+            value={overageCents}
+            onChange={(e) => setOverageCents(e.target.value)}
+          />
+        </label>
+      </div>
+      {formError && <p className={styles.formError}>{formError}</p>}
+      <div className={styles.settingsActions}>
+        <button type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Save lease info'}
+        </button>
+        {onCancel && (
+          <button type="button" className={styles.cancelBtn} onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function AddTripForm({ onAdd }) {
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [date, setDate] = useState(todayStr());
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!destination.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onAdd({
+        origin: origin.trim() || 'Home',
+        destination: destination.trim(),
+        trip_date: date || null,
+        notes: notes.trim() || null,
+      });
+      setDestination('');
+      setNotes('');
+    } catch (err) {
+      setError(err.message || 'Could not look up that route.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className={styles.addTripForm} onSubmit={submit}>
+      <input
+        type="text"
+        placeholder="From (Home)"
+        value={origin}
+        onChange={(e) => setOrigin(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="To"
+        value={destination}
+        onChange={(e) => setDestination(e.target.value)}
+      />
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Notes (optional)"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+      />
+      <button type="submit" disabled={saving}>
+        {saving ? 'Looking up…' : 'Add trip'}
+      </button>
+      {error && <p className={styles.formError}>{error}</p>}
+    </form>
+  );
+}
+
+function AddScenarioForm({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [note, setNote] = useState('');
+  const [impact1, setImpact1] = useState('');
+  const [impact2, setImpact2] = useState('');
+  const [impact3, setImpact3] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        className={styles.addScenarioToggle}
+        onClick={() => setOpen(true)}
+      >
+        + New scenario
+      </button>
+    );
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await onAdd({
+        name: name.trim(),
+        note: note.trim() || null,
+        impact_1yr: Number(impact1) || 0,
+        impact_2yr: Number(impact2) || 0,
+        impact_3yr: Number(impact3) || 0,
+      });
+      setOpen(false);
+      setName('');
+      setNote('');
+      setImpact1('');
+      setImpact2('');
+      setImpact3('');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className={styles.newScenarioForm} onSubmit={submit}>
+      <input
+        type="text"
+        placeholder="Scenario name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Note (optional)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+      <div className={styles.impactRow}>
+        <input
+          type="number"
+          placeholder="+mi by 1yr"
+          value={impact1}
+          onChange={(e) => setImpact1(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="+mi by 2yr"
+          value={impact2}
+          onChange={(e) => setImpact2(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="+mi by 3yr"
+          value={impact3}
+          onChange={(e) => setImpact3(e.target.value)}
+        />
+      </div>
+      <div className={styles.settingsActions}>
+        <button type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Save scenario'}
+        </button>
+        <button
+          type="button"
+          className={styles.cancelBtn}
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export default function MileagePage() {
+  const { refresh } = useRefresh();
+  const {
+    data,
+    error: loadError,
+    reload,
+  } = useResource('/api/mileage', {
+    errorMessage: 'Could not load mileage data.',
+  });
+
+  const [settings, setSettings] = useState(null);
+  const [readings, setReadings] = useState([]);
+  const [trips, setTrips] = useState([]);
+  const [scenarios, setScenarios] = useState([]);
+  const [editingSettings, setEditingSettings] = useState(false);
+  const [draftOdometer, setDraftOdometer] = useState('');
+  const [draftDate, setDraftDate] = useState(todayStr());
+
+  useEffect(() => {
+    if (!data) return;
+    setSettings(data.settings);
+    setReadings(data.readings || []);
+    setTrips(data.trips || []);
+    setScenarios(data.scenarios || []);
+  }, [data]);
+
+  const summary =
+    settings != null
+      ? mileageSummary({ settings, readings, scenarios })
+      : { configured: false, pace: null, checkpoints: [] };
+
+  async function saveSettings(patch) {
+    const res = await fetch('/api/mileage', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const body = await res.json();
+    if (res.ok) {
+      setSettings(body.settings);
+      setEditingSettings(false);
+      refresh();
+    }
+  }
+
+  async function logReading(e) {
+    e.preventDefault();
+    const value = Number(draftOdometer);
+    if (!value || value <= 0) return;
+    const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(draftDate)
+      ? draftDate
+      : todayStr();
+    const prev = readings;
+    setReadings((r) => [
+      ...r.filter((x) => x.reading_date !== dateStr),
+      { reading_date: dateStr, odometer: value },
+    ]);
+    const res = await fetch('/api/mileage/readings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reading_date: dateStr, odometer: value }),
+    });
+    if (res.ok) {
+      const body = await res.json();
+      setReadings((r) => [
+        ...r.filter((x) => x.reading_date !== dateStr),
+        body.reading,
+      ]);
+      setDraftOdometer('');
+      reload();
+    } else {
+      setReadings(prev);
+    }
+    refresh();
+  }
+
+  async function deleteReading(id) {
+    const prev = readings;
+    setReadings((r) => r.filter((x) => x.id !== id));
+    const res = await fetch(`/api/mileage/readings/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) setReadings(prev);
+    refresh();
+  }
+
+  async function addTrip(payload) {
+    const res = await fetch('/api/mileage/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Could not add trip');
+    setTrips((t) => [body.trip, ...t]);
+    refresh();
+  }
+
+  async function deleteTrip(id) {
+    const prev = trips;
+    setTrips((t) => t.filter((x) => x.id !== id));
+    const res = await fetch(`/api/mileage/trips/${id}`, { method: 'DELETE' });
+    if (!res.ok) setTrips(prev);
+    refresh();
+  }
+
+  async function addScenario(payload) {
+    const res = await fetch('/api/mileage/scenarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (res.ok) {
+      setScenarios((s) => [...s, body.scenario]);
+      refresh();
+    }
+  }
+
+  async function toggleScenario(id, active) {
+    const prev = scenarios;
+    setScenarios((s) => s.map((x) => (x.id === id ? { ...x, active } : x)));
+    const res = await fetch(`/api/mileage/scenarios/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    });
+    if (!res.ok) setScenarios(prev);
+    refresh();
+  }
+
+  async function deleteScenario(id) {
+    const prev = scenarios;
+    setScenarios((s) => s.filter((x) => x.id !== id));
+    const res = await fetch(`/api/mileage/scenarios/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) setScenarios(prev);
+    refresh();
+  }
+
+  if (loadError) {
+    return (
+      <div className={styles.page}>
+        <p className={styles.loadError}>{loadError}</p>
+      </div>
+    );
+  }
+  if (!data || settings == null) {
+    return (
+      <div className={styles.page}>
+        <p className={styles.loading}>Loading…</p>
+      </div>
+    );
+  }
+
+  if (!summary.configured) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.headRow}>
+          <div className={styles.headLeft}>
+            <div className={styles.headIcon}>
+              <MileageIcon />
+            </div>
+            <div>
+              <p className={styles.eyebrow}>Mileage</p>
+              <h1 className={styles.pageTitle}>Set up your lease</h1>
+              <p className={styles.pageSub}>
+                Enter your lease start date and starting odometer to begin
+                tracking.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className={styles.panel}>
+          <SettingsForm settings={settings} onSave={saveSettings} />
+        </div>
+      </div>
+    );
+  }
+
+  const sortedReadings = [...readings]
+    .sort((a, b) => (a.reading_date < b.reading_date ? 1 : -1))
+    .slice(0, 4);
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.headRow}>
+        <div className={styles.headLeft}>
+          <div className={styles.headIcon}>
+            <MileageIcon />
+          </div>
+          <div>
+            <p className={styles.eyebrow}>Mileage</p>
+            <h1 className={styles.pageTitle}>Tesla Model 3 lease</h1>
+            <p className={styles.pageSub}>
+              Started {fmtDate(settings.lease_start_date)} &middot;{' '}
+              {settings.lease_term_months}-month term &middot;{' '}
+              {fmtNum(settings.annual_allowance_miles)} mi/yr allowance
+            </p>
+          </div>
+        </div>
+        <div className={styles.headRight}>
+          <div className={styles.odoChip}>
+            <div>
+              <div className={`${styles.odoChipNum} tabular`}>
+                {fmtNum(summary.latestOdometer)}
+              </div>
+              <div className={styles.odoChipUnit}>CURRENT ODOMETER</div>
+            </div>
+            <div className={styles.odoDivider} />
+            <div className={styles.odoChipMeta}>
+              {summary.latestDate
+                ? `Last logged ${fmtDate(summary.latestDate)}`
+                : 'No readings yet'}
+            </div>
+          </div>
+          <button
+            className={styles.editSettingsBtn}
+            onClick={() => setEditingSettings((v) => !v)}
+          >
+            Edit lease info
+          </button>
+        </div>
+      </div>
+
+      {editingSettings && (
+        <div className={styles.panel}>
+          <SettingsForm
+            settings={settings}
+            onSave={saveSettings}
+            onCancel={() => setEditingSettings(false)}
+          />
+        </div>
+      )}
+
+      <div className={styles.checkRow}>
+        {summary.checkpoints.map((cp) => {
+          const over = cp.deltaMiles != null && cp.deltaMiles > 0;
+          const barPct =
+            cp.projectedMiles != null
+              ? Math.max(
+                  4,
+                  Math.min(100, (cp.projectedMiles / cp.allowanceMiles) * 100)
+                )
+              : 4;
+          return (
+            <div className={styles.checkCard} key={cp.n}>
+              <div className={styles.checkLabel}>{checkpointLabel(cp.n)}</div>
+              <div className={styles.checkDate}>{fmtDate(cp.date)}</div>
+              <div className={styles.checkFigureRow}>
+                <span className={`${styles.checkFigure} tabular`}>
+                  {fmtNum(cp.projectedMiles)}
+                </span>
+                <span className={styles.checkUnit}>mi projected</span>
+              </div>
+              <p className={styles.checkAllowance}>
+                of {fmtNum(cp.allowanceMiles)} mi allowance
+              </p>
+              {cp.projectedMiles == null ? (
+                <span className={styles.checkStatusPending}>
+                  Log a reading to forecast
+                </span>
+              ) : (
+                <span
+                  className={styles.checkStatus}
+                  style={{
+                    color: over ? 'var(--critical)' : 'var(--good)',
+                    background: over
+                      ? 'var(--critical-soft)'
+                      : 'var(--good-soft)',
+                  }}
+                >
+                  {over
+                    ? `Over by ${fmtNum(cp.deltaMiles)} mi · ~$${fmtNum(cp.overageCost)}`
+                    : `Under by ${fmtNum(-cp.deltaMiles)} mi`}
+                </span>
+              )}
+              <div className={styles.checkBar}>
+                <div
+                  className={styles.checkBarFill}
+                  style={{
+                    width: `${barPct}%`,
+                    background: over ? 'var(--critical)' : 'var(--good)',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className={styles.twoCol}>
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <span className={styles.panelDot} />
+            <span className={styles.panelTitle}>Current pace</span>
+          </div>
+          {summary.pace == null ? (
+            <p className={styles.detail}>
+              No odometer readings logged yet — log one below to see your pace.
+            </p>
+          ) : (
+            <>
+              <div className={styles.paceHeadline}>
+                <span className={`${styles.paceFigure} tabular`}>
+                  {summary.pace.toFixed(1)}
+                </span>
+                <span className={styles.paceUnit}>
+                  mi/day &middot; ~{fmtNum(summary.pace * 365)} mi/yr pace
+                </span>
+              </div>
+              <p className={styles.paceDetail}>
+                <strong>{fmtNum(summary.milesElapsed)} mi</strong> driven in{' '}
+                <strong>{fmtNum(summary.daysElapsed)} days</strong> since lease
+                start
+              </p>
+            </>
+          )}
+
+          <div className={styles.readingList}>
+            {sortedReadings.map((r) => (
+              <div className={styles.readingRow} key={r.id || r.reading_date}>
+                <span className={styles.readingDate}>
+                  {fmtDate(r.reading_date)}
+                </span>
+                <span className={`${styles.readingMiles} tabular`}>
+                  {fmtNum(r.odometer)} mi
+                </span>
+                {r.id && (
+                  <button
+                    className={styles.rowDelete}
+                    onClick={() => deleteReading(r.id)}
+                    aria-label="Delete reading"
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <form className={styles.addReadingForm} onSubmit={logReading}>
+            <input
+              type="number"
+              placeholder="New reading"
+              value={draftOdometer}
+              onChange={(e) => setDraftOdometer(e.target.value)}
+            />
+            <input
+              type="date"
+              value={draftDate}
+              onChange={(e) => setDraftDate(e.target.value)}
+            />
+            <button type="submit">Log reading</button>
+          </form>
+          <p className={styles.addReadingHint}>
+            Logging a reading recalculates pace and every forecast above.
+          </p>
+        </div>
+
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <span className={styles.panelDot} />
+            <span className={styles.panelTitle}>Forecast scenarios</span>
+          </div>
+          <div className={styles.scenarioList}>
+            {scenarios.map((s) => (
+              <div
+                className={`${styles.scenarioCard} ${s.active ? styles.scenarioCardActive : ''}`}
+                key={s.id}
+              >
+                <div className={styles.scenarioTop}>
+                  <div>
+                    <p className={styles.scenarioName}>{s.name}</p>
+                    {s.note && <p className={styles.scenarioNote}>{s.note}</p>}
+                  </div>
+                  <div className={styles.scenarioActions}>
+                    <label className={styles.toggleLabel}>
+                      <input
+                        type="checkbox"
+                        checked={s.active}
+                        onChange={(e) => toggleScenario(s.id, e.target.checked)}
+                      />
+                      Included
+                    </label>
+                    <button
+                      className={styles.rowDelete}
+                      onClick={() => deleteScenario(s.id)}
+                      aria-label="Delete scenario"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+                <p className={styles.scenarioImpact}>
+                  Adds <strong>+{fmtNum(s.impact_3yr)}</strong> mi by the 3-year
+                  mark
+                </p>
+              </div>
+            ))}
+            {scenarios.length === 0 && (
+              <p className={styles.detail}>No saved scenarios yet.</p>
+            )}
+          </div>
+          <AddScenarioForm onAdd={addScenario} />
+          <p className={styles.scenarioLegendNote}>
+            Only checked scenarios are added to the forecast above &mdash;
+            unchecked ones stay saved but excluded. Every other future period
+            uses your plain average pace.
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.panel}>
+        <div className={styles.panelHead}>
+          <span className={styles.panelDot} />
+          <span className={styles.panelTitle}>Trip log</span>
+        </div>
+        <AddTripForm onAdd={addTrip} />
+        <div className={styles.tripList}>
+          {trips.map((t) => (
+            <div className={styles.tripRow} key={t.id}>
+              <div className={styles.tripIcon}>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="6" cy="7" r="2.4" />
+                  <circle cx="18" cy="17" r="2.4" />
+                  <path d="M8.1 8.4L15.9 15.6" strokeDasharray="2.6 2.6" />
+                </svg>
+              </div>
+              <div className={styles.tripInfo}>
+                <p className={styles.tripRoute}>
+                  {t.origin} → {t.destination}
+                </p>
+                <p className={styles.tripDate}>
+                  {t.trip_date ? fmtDate(t.trip_date) : 'No date'}
+                  {t.notes ? ` · ${t.notes}` : ''}
+                </p>
+              </div>
+              <span className={`${styles.tripMiles} tabular`}>
+                {fmtNum(t.miles)} mi
+              </span>
+              <button
+                className={styles.rowDelete}
+                onClick={() => deleteTrip(t.id)}
+                aria-label="Delete trip"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          {trips.length === 0 && (
+            <p className={styles.detail}>No trips logged yet.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

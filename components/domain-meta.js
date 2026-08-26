@@ -6,6 +6,7 @@ import {
   LanguageIcon,
   IdeasIcon,
   EmailIcon,
+  MileageIcon,
 } from './icons';
 
 export const DOMAIN_META = {
@@ -22,6 +23,13 @@ export const DOMAIN_META = {
     icon: TravelIcon,
     color: 'var(--dom-travel)',
     soft: 'var(--dom-travel-soft)',
+  },
+  mileage: {
+    label: 'Mileage',
+    href: '/mileage',
+    icon: MileageIcon,
+    color: 'var(--dom-mileage)',
+    soft: 'var(--dom-mileage-soft)',
   },
   schedules: {
     label: 'Schedules',

@@ -1,0 +1,588 @@
+.page {
+  max-width: 1180px;
+}
+
+.loading,
+.loadError {
+  padding: 16px 0;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+}
+.loadError {
+  color: var(--critical);
+}
+
+/* ── header ─────────────────────────────────────────────── */
+.headRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.headLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.headIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--dom-mileage-soft);
+  color: var(--dom-mileage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.headIcon svg {
+  width: 24px;
+  height: 24px;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--dom-mileage);
+  margin: 0 0 2px;
+}
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.pageSub {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+.headRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.odoChip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  box-shadow: var(--shadow-card);
+}
+.odoChipNum {
+  font-size: 20px;
+  font-weight: 800;
+}
+.odoChipUnit {
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+.odoChipMeta {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.odoDivider {
+  width: 1px;
+  height: 26px;
+  background: var(--border-strong);
+}
+.editSettingsBtn {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.editSettingsBtn:hover {
+  border-color: var(--dom-mileage);
+  color: var(--dom-mileage);
+}
+
+/* ── panel chrome ───────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.panelDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dom-mileage);
+  box-shadow: 0 0 0 3px var(--dom-mileage-soft);
+  flex: none;
+}
+.panelTitle {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-muted);
+}
+.detail {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+.detail strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ── settings form ──────────────────────────────────────── */
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.fieldLabel input {
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.settingsActions {
+  display: flex;
+  gap: 8px;
+}
+.settingsActions button {
+  background: var(--dom-mileage);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cancelBtn {
+  background: var(--surface-sunken) !important;
+  color: var(--ink-muted) !important;
+}
+.formError {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--critical);
+}
+
+/* ── checkpoint cards ───────────────────────────────────── */
+.checkRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.checkCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+}
+.checkLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.checkDate {
+  margin: 2px 0 12px;
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.checkFigureRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.checkFigure {
+  font-size: 27px;
+  font-weight: 800;
+}
+.checkUnit {
+  font-size: 12px;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+.checkAllowance {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.checkStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.checkStatusPending {
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+.checkBar {
+  margin-top: 12px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+  position: relative;
+}
+.checkBarFill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* ── two-col row ────────────────────────────────────────── */
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 16px;
+  margin-bottom: 18px;
+  align-items: start;
+}
+
+.paceHeadline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.paceFigure {
+  font-size: 22px;
+  font-weight: 800;
+}
+.paceUnit {
+  font-size: 12px;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+.paceDetail {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.paceDetail strong {
+  color: var(--ink);
+}
+
+.readingList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 14px 0;
+}
+.readingRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 2px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.readingRow:first-child {
+  border-top: none;
+}
+.readingDate {
+  color: var(--ink-muted);
+  flex: 1;
+}
+.readingMiles {
+  font-weight: 700;
+}
+.rowDelete {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.rowDelete:hover {
+  color: var(--critical);
+}
+
+.addReadingForm {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-strong);
+}
+.addReadingForm input {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+.addReadingForm input[type='number'] {
+  width: 108px;
+}
+.addReadingForm input[type='date'] {
+  width: 140px;
+}
+.addReadingForm button {
+  background: var(--dom-mileage);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.addReadingHint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ── scenarios ──────────────────────────────────────────── */
+.scenarioList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.scenarioCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+.scenarioCardActive {
+  border-color: var(--dom-mileage);
+  background: var(--dom-mileage-soft);
+}
+.scenarioTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.scenarioName {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+.scenarioNote {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.scenarioImpact {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.scenarioImpact strong {
+  color: var(--ink);
+}
+.scenarioActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.toggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.toggleLabel input {
+  accent-color: var(--dom-mileage);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+.scenarioLegendNote {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.addScenarioToggle {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 13px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.addScenarioToggle:hover {
+  border-color: var(--dom-mileage);
+  color: var(--dom-mileage);
+}
+.newScenarioForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.newScenarioForm input {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+.impactRow {
+  display: flex;
+  gap: 8px;
+}
+.impactRow input {
+  flex: 1;
+}
+
+/* ── trip log ───────────────────────────────────────────── */
+.addTripForm {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--border-strong);
+}
+.addTripForm input {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  flex: 1;
+  min-width: 120px;
+}
+.addTripForm button {
+  background: var(--dom-mileage);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  flex: none;
+}
+
+.tripList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tripRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-top: 1px solid var(--border);
+}
+.tripRow:first-child {
+  border-top: none;
+}
+.tripIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  flex: none;
+  background: var(--dom-mileage-soft);
+  color: var(--dom-mileage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tripIcon svg {
+  width: 15px;
+  height: 15px;
+}
+.tripInfo {
+  flex: 1;
+  min-width: 0;
+}
+.tripRoute {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tripDate {
+  margin: 1px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.tripMiles {
+  font-size: 13.5px;
+  font-weight: 800;
+  flex: none;
+}
+
+@media (max-width: 880px) {
+  .checkRow {
+    grid-template-columns: 1fr;
+  }
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+}
