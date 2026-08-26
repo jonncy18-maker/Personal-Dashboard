@@ -3,6 +3,7 @@ import { route } from '../../../lib/route';
 import { findNextTutorCall } from '../../../lib/tutor-call';
 import { fetchCalendarEvents } from '../../../lib/calendar-events';
 import { yearOf, ptoSummary } from '../../../lib/pto';
+import { mileageSummary } from '../../../lib/mileage';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -32,6 +33,9 @@ export const GET = route(async () => {
     ptoHolidayRows,
     ptoEntryRows,
     ptoTripRows,
+    [mileageSettings],
+    mileageReadingRows,
+    mileageScenarioRows,
   ] = await Promise.all([
     // Statuses (not just a count) so the Home card can render a status-dot row.
     sql`SELECT status FROM projects ORDER BY created_at DESC`,
@@ -93,6 +97,11 @@ export const GET = route(async () => {
                pto_days_override, pto_exempt
         FROM trips
       `,
+    // Mileage calculator's Home line — DB-local only, same discipline as PTO
+    // above (no external calls on a Home load).
+    sql`SELECT * FROM mileage_settings WHERE id = 1`,
+    sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
+    sql`SELECT id, active, impact_1yr, impact_2yr, impact_3yr FROM mileage_scenarios`,
   ]);
 
   const trips = tripRows.map((t) => ({
@@ -131,6 +140,20 @@ export const GET = route(async () => {
     budget: ptoSettings?.annual_budget ?? 25,
     year: yearOf(today),
     todayStr: today,
+  });
+
+  const mileage = mileageSummary({
+    settings: mileageSettings
+      ? {
+          ...mileageSettings,
+          lease_start_date: dateOnly(mileageSettings.lease_start_date),
+        }
+      : null,
+    readings: mileageReadingRows.map((r) => ({
+      ...r,
+      reading_date: dateOnly(r.reading_date),
+    })),
+    scenarios: mileageScenarioRows,
   });
 
   return Response.json({
@@ -177,5 +200,17 @@ export const GET = route(async () => {
       flagged_at: t.flagged_at,
     })),
     pto: { left: pto.left },
+    mileage: {
+      configured: mileage.configured,
+      pace: mileage.pace ?? null,
+      latestOdometer: mileage.latestOdometer ?? null,
+      checkpoint1: mileage.checkpoints?.[0]
+        ? {
+            projectedMiles: mileage.checkpoints[0].projectedMiles,
+            allowanceMiles: mileage.checkpoints[0].allowanceMiles,
+            deltaMiles: mileage.checkpoints[0].deltaMiles,
+          }
+        : null,
+    },
   });
 });

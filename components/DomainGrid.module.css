@@ -213,6 +213,7 @@
    surface through the middle. Strength is the theme token --card-hue-alpha.
    Travel is deliberately excluded: it carries the trip photo instead. */
 .cardProjects::before,
+.cardMileage::before,
 .cardSchedules::before,
 .cardLanguage::before,
 .cardIdeas::before,
@@ -237,6 +238,10 @@
 .cardProjects {
   --hue-tl: 90 79 224; /* indigo */
   --hue-br: 47 159 224; /* cyan */
+}
+.cardMileage {
+  --hue-tl: 14 147 180; /* cyan */
+  --hue-br: 59 107 224; /* blue */
 }
 .cardSchedules {
   --hue-tl: 224 167 47; /* amber */
