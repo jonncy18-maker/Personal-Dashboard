@@ -740,6 +740,41 @@
   color: var(--success, #2a8a4a);
 }
 
+.manualCoordsToggle {
+  background: none;
+  border: none;
+  color: var(--dom-mileage);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 0;
+  flex: none;
+}
+.manualCoords {
+  width: 100%;
+  margin-top: 4px;
+}
+.manualCoordsRow {
+  display: flex;
+  gap: 8px;
+}
+.manualCoordsRow input {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  flex: 1;
+  min-width: 100px;
+}
+.manualCoordsHint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
 .tripList {
   display: flex;
   flex-direction: column;

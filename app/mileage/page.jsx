@@ -547,6 +547,9 @@ function AddPlaceForm({ onAdd }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualLat, setManualLat] = useState('');
+  const [manualLng, setManualLng] = useState('');
   const debounceRef = useRef(null);
   const abortRef = useRef(null);
 
@@ -594,23 +597,47 @@ function AddPlaceForm({ onAdd }) {
     setShowSuggestions(false);
   }
 
+  const manualLatNum = manualLat.trim() === '' ? null : Number(manualLat);
+  const manualLngNum = manualLng.trim() === '' ? null : Number(manualLng);
+  const manualValid =
+    manualLatNum != null &&
+    manualLngNum != null &&
+    Number.isFinite(manualLatNum) &&
+    Number.isFinite(manualLngNum) &&
+    manualLatNum >= -90 &&
+    manualLatNum <= 90 &&
+    manualLngNum >= -180 &&
+    manualLngNum <= 180;
+  const manualTouched = manualLat.trim() !== '' || manualLng.trim() !== '';
+
   async function submit(e) {
     e.preventDefault();
     if (!label.trim() || !address.trim()) return;
+    if (manualTouched && !manualValid) {
+      setError(
+        'Latitude must be between -90 and 90, longitude between -180 and 180.'
+      );
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
+      // Manually entered coordinates are a deliberate override for a place
+      // Nominatim has no data for — trust them over an autocomplete pick.
+      const effectiveCoords = manualValid
+        ? { lat: manualLatNum, lng: manualLngNum }
+        : coords;
       const saved = await onAdd({
         label: label.trim(),
         address: address.trim(),
-        ...(coords || {}),
+        ...(effectiveCoords || {}),
       });
       if (saved && saved.lat == null) {
         // It's saved either way (an obscure/new address may genuinely have
         // no Nominatim match yet), but leave the fields in place — clearing
         // them would hide the exact typo that caused the failure.
         setError(
-          "Saved, but couldn't verify that address — check for a typo (e.g. a missing space or comma before the city) or pick a suggestion from the dropdown, then delete and re-add."
+          "Saved, but couldn't verify that address — check for a typo (e.g. a missing space or comma before the city), pick a suggestion from the dropdown, or enter coordinates manually below, then delete and re-add."
         );
         return;
       }
@@ -618,6 +645,9 @@ function AddPlaceForm({ onAdd }) {
       setAddress('');
       setCoords(null);
       setSuggestions([]);
+      setManualOpen(false);
+      setManualLat('');
+      setManualLng('');
     } catch (err) {
       setError(err.message || 'Could not save that place.');
     } finally {
@@ -659,7 +689,7 @@ function AddPlaceForm({ onAdd }) {
             ))}
           </ul>
         )}
-        {coords && (
+        {coords && !manualValid && (
           <p className={styles.autocompleteHint}>Address verified ✓</p>
         )}
       </div>
@@ -667,6 +697,37 @@ function AddPlaceForm({ onAdd }) {
         {saving ? 'Saving…' : 'Save place'}
       </button>
       {error && <p className={styles.formError}>{error}</p>}
+      <button
+        type="button"
+        className={styles.manualCoordsToggle}
+        onClick={() => setManualOpen((v) => !v)}
+      >
+        {manualOpen ? '− Hide' : "+ Can't find it? Enter coordinates"}
+      </button>
+      {manualOpen && (
+        <div className={styles.manualCoords}>
+          <div className={styles.manualCoordsRow}>
+            <input
+              type="number"
+              step="any"
+              placeholder="Latitude"
+              value={manualLat}
+              onChange={(e) => setManualLat(e.target.value)}
+            />
+            <input
+              type="number"
+              step="any"
+              placeholder="Longitude"
+              value={manualLng}
+              onChange={(e) => setManualLng(e.target.value)}
+            />
+          </div>
+          <p className={styles.manualCoordsHint}>
+            From a map app: find the place, then copy its coordinates — this app
+            never calls a paid maps API.
+          </p>
+        </div>
+      )}
     </form>
   );
 }

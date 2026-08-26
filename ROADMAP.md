@@ -56,6 +56,14 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-08-26 (cont'd 9) — Favorite places: manual coordinate override for addresses Nominatim can't find
+
+Root cause confirmed on retry, via the new (cont'd 7) diagnostic logging: production logs showed `searchPlaces: Nominatim found no matches for '20 Quality Pl, Buckner, KY 40010'`. Not a bug — Nominatim/OpenStreetMap's address coverage is community-maintained and genuinely sparse for some rural residential streets (unlike indexed POIs like Kroger/Starbucks, which resolved fine). Confirmed with John this is the real cause, not app-side.
+
+Added a fallback rather than switching geocoders (still free/keyless-only, per CLAUDE.md's standing rule against a paid Maps API): `AddPlaceForm` gained a "+ Can't find it? Enter coordinates" toggle revealing latitude/longitude number inputs, validated to real ranges (±90/±180). When filled, they're trusted directly as the place's coordinates — same as picking an autocomplete suggestion, just sourced from wherever John looked the coordinates up himself (a map app), never a paid API call from this app. No backend change needed: `POST /api/mileage/places` already accepted optional `lat`/`lng` from PR #79's autocomplete work.
+
+**Verified:** `next build` clean, Prettier clean on all touched files.
+
 ## 2026-08-26 (cont'd 8) — Favorite places: surface a failed geocode instead of hiding it
 
 John's follow-up, with a screenshot: the "Gym" place he'd just added showed "20 Quality PlBuckner, KY 40010 · could not geocode yet" — missing a space between "Pl" and "Buckner." He said he'd typed the full correct address. The (cont'd 7) autocomplete-race fix didn't cause or fix this — this is a save-time issue, not a suggestion-list issue: the address that got typed/saved was already malformed (no space/comma before the city), Nominatim correctly couldn't resolve it, and the app quietly saved it anyway with `lat`/`lng` null and only a small, easy-to-miss aside noting it. "Could not geocode yet" was also misleading — it implies a transient state that resolves itself, when a malformed address string won't ever resolve on its own.
