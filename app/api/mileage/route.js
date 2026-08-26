@@ -54,7 +54,9 @@ const NUMERIC_FIELDS = [
   'annual_allowance_miles',
   'overage_rate_cents',
   'starting_odometer',
+  'usual_miles',
 ];
+const USUAL_PERIODS = ['day', 'week', 'month'];
 
 export const PATCH = route(async (request) => {
   const body = await request.json();
@@ -84,6 +86,18 @@ export const PATCH = route(async (request) => {
       updates[field] = value;
     }
   }
+  if ('usual_period' in body) {
+    if (!USUAL_PERIODS.includes(body.usual_period)) {
+      return Response.json(
+        { error: 'usual_period must be day, week, or month' },
+        { status: 400 }
+      );
+    }
+    updates.usual_period = body.usual_period;
+  }
+  if ('usual_active' in body) {
+    updates.usual_active = !!body.usual_active;
+  }
   if (Object.keys(updates).length === 0) {
     return Response.json(
       { error: 'no valid fields to update' },
@@ -99,6 +113,9 @@ export const PATCH = route(async (request) => {
       annual_allowance_miles = COALESCE(${updates.annual_allowance_miles ?? null}, annual_allowance_miles),
       overage_rate_cents = COALESCE(${updates.overage_rate_cents ?? null}, overage_rate_cents),
       starting_odometer = COALESCE(${updates.starting_odometer ?? null}, starting_odometer),
+      usual_miles = COALESCE(${updates.usual_miles ?? null}, usual_miles),
+      usual_period = COALESCE(${updates.usual_period ?? null}, usual_period),
+      usual_active = COALESCE(${updates.usual_active ?? null}, usual_active),
       updated_at = now()
     WHERE id = 1
     RETURNING *

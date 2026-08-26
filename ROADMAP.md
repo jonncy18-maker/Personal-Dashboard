@@ -52,7 +52,7 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 - [ ] **Health & Fitness card/subsection.** Raised 2026-07-13, not yet scoped. Open questions for a future grill session: Is this a 7th full domain (own route, own table) or a card/section within an existing domain (e.g. Home)? What's the data source — manual entry, or an integration (Apple Health, a wearable API, etc.)? What's the minimal v1 slice, matching how Language and Email started as a single live card before expanding?
 - [x] **PTO planner — scoped 2026-08-08, built 2026-08-08.** Grill session resolved every open question (see the 2026-08-08 entries below for decisions + data model, then the build). Not a 7th domain: a PTO section on `/travel` + one line on Home's Travel card. No AI anywhere in it.
-- [x] **Tesla lease mileage calculator — scoped 2026-08-26, built 2026-08-26.** New 7th domain (`/mileage`). See the 2026-08-26 entries below for the spec, the mockup review, and the build. No AI anywhere in it. **Run `npm run migrate` after merge** (migration 017).
+- [x] **Tesla lease mileage calculator — scoped 2026-08-26, built 2026-08-26, "usual trips" baseline added 2026-08-26.** New 7th domain (`/mileage`). See the 2026-08-26 entries below for the spec, the mockup review, the build, and the follow-up baseline override. No AI anywhere in it. **Run `npm run migrate` after merge** (migrations 017 and 018).
 
 ---
 
@@ -78,6 +78,16 @@ John: leasing a Tesla Model 3, 10k miles/year allowance, wants to track actual m
 **Build sketch (next session):** new migration — `mileage_settings` (singleton), `mileage_readings` (dated odometer log), `mileage_trips` (point-to-point log with cached geocode + routed distance), `mileage_scenarios` (named date-tied mileage deltas). `lib/mileage.js` (pace calc, checkpoint projection, scenario blending — pure), `lib/route-distance.js` (OSRM lookup, mirrors `lib/geocode.js`'s fail-soft shape — a failed route lookup just leaves that trip's miles blank for John to fill in by hand, never a broken save). `route()`-wrapped `/api/mileage/*` CRUD (settings, readings, trips, scenarios) + a computed-forecast endpoint; `useResource`-wired `/mileage` page (odometer log entry, trip log + mini map, checkpoint cards showing baseline vs scenario-adjusted projections with the scenario checkboxes, settings form). Home gains a new Mileage card (`DomainGrid.jsx` + `home-summary`) showing current pace vs allowance — real data only, same discipline as every other Home tile. Update `CLAUDE.md` §1/§3/§5/§7 and `ARCHITECTURE.md`'s domain table once built, same as every prior domain build.
 
 ---
+
+## 2026-08-26 (cont'd 2) — Mileage: "usual trips" baseline override
+
+John asked for a checkable "usual trips" section (a routine mi/day, mi/week, or mi/month rate via a dropdown) that, when checked, replaces the logged-pace baseline for every checkpoint's forecast — scenarios still add on top either way; unchecked, the checkpoints use the existing logged pace + scenarios exactly as before.
+
+**Migration 018** — `mileage_settings` gains `usual_miles` (nullable numeric), `usual_period` (`day`/`week`/`month`, default `week`), `usual_active` (boolean, default false). `lib/mileage.js` converts the rate to a daily pace (`usualPaceMilesPerDay`, using the Gregorian month average for `month` so it isn't off by a day or two across a multi-year lease) and `mileageSummary()` picks whichever pace feeds `projectCheckpoint()`'s baseline based on `usual_active` — a one-line branch, since the checkpoint math itself was already pace-parametric from the original build. The logged pace (`pace`) is still always returned for display, even when "usual trips" is the active baseline, so switching the toggle never hides real data, just changes which number drives the forecast.
+
+**UI:** a new `UsualTripsPanel` on `/mileage`, between the checkpoint cards and the current-pace/scenarios row — a miles input + period dropdown + Save, and a separate checkbox that PATCHes `usual_active` immediately (same auto-save-on-toggle pattern as the scenario `active` checkboxes). A legend line under the form states plainly which baseline is currently in effect and its mi/day equivalent, so the checkpoint cards above are never left unexplained. `home-summary`'s Mileage card needed no route change — it already selects `SELECT * FROM mileage_settings` and calls the same `mileageSummary()`, so the new columns flow through automatically.
+
+**Verified:** `next build` clean, Prettier clean on all touched JS/CSS, `/mileage` rendered against a dev server with no live Neon in this sandbox (same limitation as the original build) — no crash, fails soft to the loading state. **Run `npm run migrate`** (migration 018) after merge, same as 017.
 
 ## 2026-08-26 (cont'd) — Mileage calculator built (7th domain)
 

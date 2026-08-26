@@ -15,7 +15,8 @@
 --                      009_trip_wishlist_status, 010_checklists,
 --                      011_language_progress, 012_email_todos,
 --                      013_calendar_hidden, 014_calendar_renames,
---                      015_trip_country, 016_pto, 017_mileage
+--                      015_trip_country, 016_pto, 017_mileage,
+--                      018_mileage_usual_trips
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -383,6 +384,10 @@ CREATE TABLE IF NOT EXISTS mileage_settings (
   annual_allowance_miles  integer NOT NULL DEFAULT 10000,
   overage_rate_cents      integer NOT NULL DEFAULT 25,  -- cents per mile
   starting_odometer       integer,
+  usual_miles             numeric,        -- "usual trips" baseline override (migration 018)
+  usual_period            text NOT NULL DEFAULT 'week'
+                          CHECK (usual_period IN ('day', 'week', 'month')),
+  usual_active            boolean NOT NULL DEFAULT false, -- when true, replaces the logged-pace baseline
   updated_at              timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO mileage_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
