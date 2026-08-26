@@ -79,6 +79,16 @@ John: leasing a Tesla Model 3, 10k miles/year allowance, wants to track actual m
 
 ---
 
+## 2026-08-26 (cont'd 3) — Mileage: "usual trips" detail popup (named routes)
+
+John wanted a way to build the "usual trips" rate from real named routes ("Home from gym, etc.") instead of guessing one aggregate number, with a button opening a detail popup — and mentioned Google Maps for computing each leg's miles.
+
+**Went with the existing free geocode + OSRM lookup instead of Google Maps**, deliberately — CLAUDE.md already rules out a paid map-tile provider for this app (Travel's world map, and the mileage trip journal built two sessions ago on the same principle), and Google Maps' Directions/Distance Matrix APIs require a billing-enabled key. The trip journal's exact lookup mechanism (`lib/route-distance.js`) already does precisely this job — geocode both ends, ask OSRM for the driving distance — so the popup reuses it rather than adding a second, paid way to do the same thing.
+
+**Migration 019** — `mileage_usual_legs` (origin, destination, miles, `times_per_week`, notes). A new "Build from routes" button on the Usual Trips panel opens `UsualLegsPopup`: add a route (auto-looked-up miles, or typed by hand), see each leg's weekly contribution, and a running total (`lib/mileage.js`'s new pure `usualLegsWeeklyTotal`). Legs are a **breakdown, not a second baseline** — "Use this total" is the only thing that writes to `mileage_settings.usual_miles`/`usual_period` (always applied as a weekly figure), same explicit-apply discipline as every other "simulation feeds the real number only on confirm" pattern in this app (PTO's saved scenarios, the AI import previews). `/api/mileage/usual-legs` (POST) and `.../[id]` (DELETE); the main `/api/mileage` GET now also returns `usualLegs`.
+
+**Verified:** `next build` clean, Prettier clean on all touched files, `/mileage` rendered against a dev server with no live Neon in this sandbox — no crash. **Run `npm run migrate`** (migration 019) after merge.
+
 ## 2026-08-26 (cont'd 2) — Mileage: "usual trips" baseline override
 
 John asked for a checkable "usual trips" section (a routine mi/day, mi/week, or mi/month rate via a dropdown) that, when checked, replaces the logged-pace baseline for every checkpoint's forecast — scenarios still add on top either way; unchecked, the checkpoints use the existing logged pace + scenarios exactly as before.

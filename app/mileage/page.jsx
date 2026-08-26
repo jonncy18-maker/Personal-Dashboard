@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useResource } from '../../lib/useResource';
 import { useRefresh } from '../../lib/refresh';
-import { mileageSummary } from '../../lib/mileage';
+import { mileageSummary, usualLegsWeeklyTotal } from '../../lib/mileage';
 import { MileageIcon } from '../../components/icons';
 import styles from './page.module.css';
 
@@ -303,11 +303,160 @@ function AddScenarioForm({ onAdd }) {
   );
 }
 
-function UsualTripsPanel({ settings, summary, onSave }) {
+function AddUsualLegForm({ onAdd }) {
+  const [origin, setOrigin] = useState('Home');
+  const [destination, setDestination] = useState('');
+  const [timesPerWeek, setTimesPerWeek] = useState('5');
+  const [manualMiles, setManualMiles] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!destination.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onAdd({
+        origin: origin.trim() || 'Home',
+        destination: destination.trim(),
+        times_per_week: Number(timesPerWeek) || 1,
+        miles: manualMiles !== '' ? Number(manualMiles) : null,
+      });
+      setDestination('');
+      setManualMiles('');
+    } catch (err) {
+      setError(err.message || 'Could not look up that route.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className={styles.addTripForm} onSubmit={submit}>
+      <input
+        type="text"
+        placeholder="From (Home)"
+        value={origin}
+        onChange={(e) => setOrigin(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="To (e.g. Gym)"
+        value={destination}
+        onChange={(e) => setDestination(e.target.value)}
+      />
+      <input
+        type="number"
+        min="0.1"
+        step="0.1"
+        placeholder="×/week"
+        value={timesPerWeek}
+        onChange={(e) => setTimesPerWeek(e.target.value)}
+        style={{ width: 72 }}
+      />
+      <input
+        type="number"
+        min="0"
+        step="0.1"
+        placeholder="Miles (optional)"
+        value={manualMiles}
+        onChange={(e) => setManualMiles(e.target.value)}
+        style={{ width: 110 }}
+      />
+      <button type="submit" disabled={saving}>
+        {saving ? 'Looking up…' : 'Add route'}
+      </button>
+      {error && <p className={styles.formError}>{error}</p>}
+    </form>
+  );
+}
+
+function UsualLegsPopup({ legs, onAdd, onDelete, onApply, onClose }) {
+  const total = usualLegsWeeklyTotal(legs);
+  const [applying, setApplying] = useState(false);
+
+  async function apply() {
+    setApplying(true);
+    try {
+      await onApply(total);
+      onClose();
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  return (
+    <div className={styles.popupScrim} onClick={onClose}>
+      <div className={styles.popup} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.popupHead}>
+          <h3 className={styles.popupTitle}>Usual trips — routes</h3>
+          <button className={styles.popupClose} onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <p className={styles.popupSub}>
+          Build your routine from real routes — miles are looked up
+          automatically, or enter them by hand.
+        </p>
+
+        <div className={styles.tripList}>
+          {legs.map((leg) => (
+            <div className={styles.tripRow} key={leg.id}>
+              <div className={styles.tripInfo}>
+                <p className={styles.tripRoute}>
+                  {leg.origin} → {leg.destination}
+                </p>
+                <p className={styles.tripDate}>
+                  {fmtNum(leg.miles)} mi × {leg.times_per_week}/wk ={' '}
+                  {fmtNum(leg.miles * leg.times_per_week)} mi/wk
+                </p>
+              </div>
+              <button
+                className={styles.rowDelete}
+                onClick={() => onDelete(leg.id)}
+                aria-label="Delete route"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          {legs.length === 0 && (
+            <p className={styles.detail}>
+              No routes yet — add your commute, gym, errands, etc. below.
+            </p>
+          )}
+        </div>
+
+        <AddUsualLegForm onAdd={onAdd} />
+
+        <div className={styles.usualLegsTotal}>
+          <span>
+            Total: <strong className="tabular">{fmtNum(total)}</strong> mi/week
+            (~{(total / 7).toFixed(1)} mi/day)
+          </span>
+          <button onClick={apply} disabled={applying || legs.length === 0}>
+            {applying ? 'Applying…' : 'Use this total'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UsualTripsPanel({
+  settings,
+  summary,
+  legs,
+  onSave,
+  onAddLeg,
+  onDeleteLeg,
+}) {
   const [miles, setMiles] = useState(settings?.usual_miles ?? '');
   const [period, setPeriod] = useState(settings?.usual_period || 'week');
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
 
   useEffect(() => {
     setMiles(settings?.usual_miles ?? '');
@@ -365,6 +514,13 @@ function UsualTripsPanel({ settings, summary, onSave }) {
         <button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
+        <button
+          type="button"
+          className={styles.buildFromRoutesBtn}
+          onClick={() => setPopupOpen(true)}
+        >
+          Build from routes{legs.length > 0 ? ` (${legs.length})` : ''}
+        </button>
       </form>
       <label className={styles.toggleLabel} style={{ marginTop: 10 }}>
         <input
@@ -382,6 +538,18 @@ function UsualTripsPanel({ settings, summary, onSave }) {
             ? `Baseline: your logged pace (~${summary.pace.toFixed(1)} mi/day)`
             : 'Baseline: no logged pace yet — log a reading below, or check "usual trips" above.'}
       </p>
+
+      {popupOpen && (
+        <UsualLegsPopup
+          legs={legs}
+          onAdd={onAddLeg}
+          onDelete={onDeleteLeg}
+          onApply={(total) =>
+            onSave({ usual_miles: total, usual_period: 'week' })
+          }
+          onClose={() => setPopupOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -400,6 +568,7 @@ export default function MileagePage() {
   const [readings, setReadings] = useState([]);
   const [trips, setTrips] = useState([]);
   const [scenarios, setScenarios] = useState([]);
+  const [usualLegs, setUsualLegs] = useState([]);
   const [editingSettings, setEditingSettings] = useState(false);
   const [draftOdometer, setDraftOdometer] = useState('');
   const [draftDate, setDraftDate] = useState(todayStr());
@@ -410,6 +579,7 @@ export default function MileagePage() {
     setReadings(data.readings || []);
     setTrips(data.trips || []);
     setScenarios(data.scenarios || []);
+    setUsualLegs(data.usualLegs || []);
   }, [data]);
 
   const summary =
@@ -525,6 +695,26 @@ export default function MileagePage() {
     });
     if (!res.ok) setScenarios(prev);
     refresh();
+  }
+
+  async function addUsualLeg(payload) {
+    const res = await fetch('/api/mileage/usual-legs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Could not add route');
+    setUsualLegs((l) => [...l, body.leg]);
+  }
+
+  async function deleteUsualLeg(id) {
+    const prev = usualLegs;
+    setUsualLegs((l) => l.filter((x) => x.id !== id));
+    const res = await fetch(`/api/mileage/usual-legs/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) setUsualLegs(prev);
   }
 
   if (loadError) {
@@ -681,7 +871,10 @@ export default function MileagePage() {
       <UsualTripsPanel
         settings={settings}
         summary={summary}
+        legs={usualLegs}
         onSave={saveSettings}
+        onAddLeg={addUsualLeg}
+        onDeleteLeg={deleteUsualLeg}
       />
 
       <div className={styles.twoCol}>
