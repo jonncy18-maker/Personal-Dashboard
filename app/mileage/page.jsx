@@ -548,6 +548,7 @@ function AddPlaceForm({ onAdd }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const debounceRef = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     // A picked suggestion's coords stop being valid the moment the address
@@ -555,24 +556,35 @@ function AddPlaceForm({ onAdd }) {
     setCoords(null);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (abortRef.current) abortRef.current.abort();
     const q = address.trim();
     if (q.length < 3) {
       setSuggestions([]);
       return;
     }
     debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
         const res = await fetch(
-          `/api/mileage/geocode-suggest?q=${encodeURIComponent(q)}`
+          `/api/mileage/geocode-suggest?q=${encodeURIComponent(q)}`,
+          { signal: controller.signal }
         );
         if (!res.ok) return;
         const data = await res.json();
-        setSuggestions(data.suggestions || []);
-      } catch {
-        setSuggestions([]);
+        // A slower, now-stale request could still resolve after a newer one
+        // — only apply the response if nothing has superseded this request.
+        if (abortRef.current === controller) {
+          setSuggestions(data.suggestions || []);
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') setSuggestions([]);
       }
     }, 350);
-    return () => clearTimeout(debounceRef.current);
+    return () => {
+      clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, [address]);
 
   function pickSuggestion(s) {

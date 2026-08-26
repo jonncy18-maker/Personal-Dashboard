@@ -56,6 +56,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-08-26 (cont'd 7) — Favorite-places autocomplete: fixed a stale-response race, added diagnostic logging
+
+John reported the address autocomplete "couldn't find" real places ("YMCA Oldham county", "20 Quality Pl, Buckner, KY 40010"). Checked production runtime logs (Vercel MCP): typing "YMCA Oldham county" fired **18** `/api/mileage/geocode-suggest` requests in under a minute, all HTTP 200 — but `searchPlaces()` swallowed a non-ok Nominatim response or an empty result into the same bare `[]`, so the logs couldn't distinguish "Nominatim genuinely found nothing" from "got rate-limited/errored." Real, verifiable bug found alongside it: the debounced fetches weren't cancelled, so a slow response to an early partial keystroke (e.g. "YMCA O") could resolve _after_ a later, better query and silently overwrite its results with an empty list.
+
+Fixed both. `lib/geocode.js`'s `searchPlaces()` now logs the Nominatim status code on a non-ok response and logs (not just fails soft) a genuine zero-result match, so the next occurrence is diagnosable from Vercel runtime logs instead of just "didn't work." `AddPlaceForm` in `app/mileage/page.jsx` now uses an `AbortController` to cancel the in-flight request when a newer one starts, plus a request-identity check so even an unaborted stale response can't clobber a newer result.
+
+Could not reproduce the two specific failing queries directly — this sandbox's network proxy blocks both `nominatim.openstreetmap.org` and the live Vercel domain, so I couldn't confirm whether Nominatim itself has no match for "YMCA Oldham county" (plausible — free-text POI+county queries are a known Nominatim weak spot without a city) versus a transient rate-limit from the request burst. Flagged this limitation rather than guessing. **Next step if it recurs:** check Vercel runtime logs for the new `searchPlaces:` log lines — they'll say definitively.
+
+**Verified:** `next build` clean, Prettier clean on all touched files.
+
 ## 2026-08-26 (cont'd 6) — AI Assistant: added the missing Mileage tool catalog
 
 John asked to build his Mileage "usual trips" baseline through the AI Assistant, and it turned out the assistant had **zero** Mileage tools — the whole 7th domain was built across five PRs this session without ever adding a `lib/assistant.js` catalog entry for it, so the assistant could not read or act on Mileage at all despite CLAUDE.md §7's rule that a new route is only actually assistant-usable once cataloged.
