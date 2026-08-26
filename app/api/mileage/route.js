@@ -7,12 +7,14 @@ import { mileageSummary } from '../../../lib/mileage';
 // pace/checkpoint forecast all come back together.
 
 async function loadAll(sql) {
-  const [[settings], readingRows, tripRows, scenarioRows] = await Promise.all([
-    sql`SELECT * FROM mileage_settings WHERE id = 1`,
-    sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
-    sql`SELECT * FROM mileage_trips ORDER BY trip_date DESC NULLS LAST, created_at DESC`,
-    sql`SELECT * FROM mileage_scenarios ORDER BY created_at ASC`,
-  ]);
+  const [[settings], readingRows, tripRows, scenarioRows, usualLegRows] =
+    await Promise.all([
+      sql`SELECT * FROM mileage_settings WHERE id = 1`,
+      sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
+      sql`SELECT * FROM mileage_trips ORDER BY trip_date DESC NULLS LAST, created_at DESC`,
+      sql`SELECT * FROM mileage_scenarios ORDER BY created_at ASC`,
+      sql`SELECT * FROM mileage_usual_legs ORDER BY created_at ASC`,
+    ]);
 
   return {
     settings: settings
@@ -32,12 +34,18 @@ async function loadAll(sql) {
       miles: num(t.miles),
     })),
     scenarios: scenarioRows,
+    usualLegs: usualLegRows.map((l) => ({
+      ...l,
+      miles: num(l.miles),
+      times_per_week: num(l.times_per_week),
+    })),
   };
 }
 
 export const GET = route(async () => {
   const sql = getDb();
-  const { settings, readings, trips, scenarios } = await loadAll(sql);
+  const { settings, readings, trips, scenarios, usualLegs } =
+    await loadAll(sql);
   const summary = mileageSummary({ settings, readings, scenarios });
 
   return Response.json({
@@ -45,6 +53,7 @@ export const GET = route(async () => {
     readings,
     trips,
     scenarios,
+    usualLegs,
     ...summary,
   });
 });

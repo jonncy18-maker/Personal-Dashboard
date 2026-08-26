@@ -16,7 +16,7 @@
 --                      011_language_progress, 012_email_todos,
 --                      013_calendar_hidden, 014_calendar_renames,
 --                      015_trip_country, 016_pto, 017_mileage,
---                      018_mileage_usual_trips
+--                      018_mileage_usual_trips, 019_mileage_usual_legs
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -439,3 +439,17 @@ CREATE TABLE IF NOT EXISTS mileage_scenarios (
 DROP TRIGGER IF EXISTS mileage_scenarios_set_updated_at ON mileage_scenarios;
 CREATE TRIGGER mileage_scenarios_set_updated_at
   BEFORE UPDATE ON mileage_scenarios FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Named routes behind "usual trips" (migration 019) — the detail popup's
+-- breakdown. Each leg's miles come from the same free geocode + OSRM lookup
+-- the trip journal uses, or by hand; "Use this total" applies the computed
+-- weekly sum to mileage_settings.usual_miles/usual_period above.
+CREATE TABLE IF NOT EXISTS mileage_usual_legs (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  origin          text NOT NULL,
+  destination     text NOT NULL,
+  miles           numeric NOT NULL,
+  times_per_week  numeric NOT NULL DEFAULT 1,
+  notes           text,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
