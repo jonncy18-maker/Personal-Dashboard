@@ -600,11 +600,20 @@ function AddPlaceForm({ onAdd }) {
     setSaving(true);
     setError(null);
     try {
-      await onAdd({
+      const saved = await onAdd({
         label: label.trim(),
         address: address.trim(),
         ...(coords || {}),
       });
+      if (saved && saved.lat == null) {
+        // It's saved either way (an obscure/new address may genuinely have
+        // no Nominatim match yet), but leave the fields in place — clearing
+        // them would hide the exact typo that caused the failure.
+        setError(
+          "Saved, but couldn't verify that address — check for a typo (e.g. a missing space or comma before the city) or pick a suggestion from the dropdown, then delete and re-add."
+        );
+        return;
+      }
       setLabel('');
       setAddress('');
       setCoords(null);
@@ -685,7 +694,9 @@ function PlacesPopup({ places, onAdd, onDelete, onClose }) {
                 <p className={styles.tripRoute}>{p.label}</p>
                 <p className={styles.tripDate}>
                   {p.address}
-                  {p.lat == null ? ' · could not geocode yet' : ''}
+                  {p.lat == null
+                    ? ' · address not verified — check for typos'
+                    : ''}
                 </p>
               </div>
               <button
@@ -995,6 +1006,7 @@ export default function MileagePage() {
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || 'Could not save that place');
     setPlaces((p) => [...p, body.place]);
+    return body.place;
   }
 
   async function deletePlace(id) {
