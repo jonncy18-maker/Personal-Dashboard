@@ -1,6 +1,9 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { fetchDrivingDistanceMiles } from '../../../../lib/route-distance';
+import {
+  fetchDrivingDistanceMiles,
+  loadPlacesByLabel,
+} from '../../../../lib/route-distance';
 
 // Point-to-point trip journal. Looks up real driving distance via OSRM
 // (fail-soft — a lookup failure just means `miles` must be supplied by hand,
@@ -18,12 +21,19 @@ export const POST = route(async (request) => {
     );
   }
 
+  const sql = getDb();
+
   let miles = body.miles != null ? Number(body.miles) : null;
   let originCoords = null;
   let destinationCoords = null;
 
   if (miles == null) {
-    const result = await fetchDrivingDistanceMiles(origin, destination);
+    const placesByLabel = await loadPlacesByLabel(sql);
+    const result = await fetchDrivingDistanceMiles(
+      origin,
+      destination,
+      placesByLabel
+    );
     if (result.status === 'ok') {
       miles = result.miles;
       originCoords = result.origin;
@@ -44,7 +54,6 @@ export const POST = route(async (request) => {
       : null;
   const notes = body.notes || null;
 
-  const sql = getDb();
   const [row] = await sql`
     INSERT INTO mileage_trips (
       trip_date, origin, destination,

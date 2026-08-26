@@ -1,6 +1,9 @@
 import { getDb, num } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { fetchDrivingDistanceMiles } from '../../../../lib/route-distance';
+import {
+  fetchDrivingDistanceMiles,
+  loadPlacesByLabel,
+} from '../../../../lib/route-distance';
 
 // Named routes behind the "usual trips" detail popup (Home → Gym, Home →
 // Work, ...). Same fail-soft lookup as the trip journal: geocode + OSRM by
@@ -25,9 +28,16 @@ export const POST = route(async (request) => {
     );
   }
 
+  const sql = getDb();
+
   let miles = body.miles != null ? Number(body.miles) : null;
   if (miles == null) {
-    const result = await fetchDrivingDistanceMiles(origin, destination);
+    const placesByLabel = await loadPlacesByLabel(sql);
+    const result = await fetchDrivingDistanceMiles(
+      origin,
+      destination,
+      placesByLabel
+    );
     if (result.status === 'ok') {
       miles = result.miles;
     }
@@ -41,7 +51,6 @@ export const POST = route(async (request) => {
 
   const notes = body.notes || null;
 
-  const sql = getDb();
   const [row] = await sql`
     INSERT INTO mileage_usual_legs (origin, destination, miles, times_per_week, notes)
     VALUES (${origin}, ${destination}, ${miles}, ${timesPerWeek}, ${notes})

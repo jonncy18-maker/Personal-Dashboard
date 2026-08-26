@@ -16,7 +16,8 @@
 --                      011_language_progress, 012_email_todos,
 --                      013_calendar_hidden, 014_calendar_renames,
 --                      015_trip_country, 016_pto, 017_mileage,
---                      018_mileage_usual_trips, 019_mileage_usual_legs
+--                      018_mileage_usual_trips, 019_mileage_usual_legs,
+--                      020_mileage_places, 021_mileage_scenario_legs
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -453,3 +454,27 @@ CREATE TABLE IF NOT EXISTS mileage_usual_legs (
   notes           text,
   created_at      timestamptz NOT NULL DEFAULT now()
 );
+
+-- Named favorite places (migration 020) — Home, Gym, Work, etc. A trip/leg
+-- typed with a matching label (case-insensitive) resolves against the
+-- cached lat/lng here instead of geocoding the bare label, which fixes
+-- "Home" (not a real geocodable place) silently falling back to manual
+-- mile entry on every lookup.
+CREATE TABLE IF NOT EXISTS mileage_places (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  label       text NOT NULL UNIQUE,
+  address     text NOT NULL,
+  lat         numeric,
+  lng         numeric,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- Lets a scenario reference a usual-trip leg + a new times/week instead of
+-- a manually typed mile guess (migration 021) — "what if the cafe trip
+-- became 3x/week instead of 2x?". impact_1yr/2yr/3yr above are still what
+-- projectCheckpoint() reads; these are computed server-side at save/edit
+-- time from the leg + the new frequency, same linear-from-lease-start
+-- model the pace baseline itself uses.
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS leg_id uuid
+  REFERENCES mileage_usual_legs (id) ON DELETE SET NULL;
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS new_times_per_week numeric;

@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useResource } from '../../lib/useResource';
 import { useRefresh } from '../../lib/refresh';
-import { mileageSummary, usualLegsWeeklyTotal } from '../../lib/mileage';
+import {
+  mileageSummary,
+  usualLegsWeeklyTotal,
+  legFrequencyScenarioImpacts,
+} from '../../lib/mileage';
 import { MileageIcon } from '../../components/icons';
 import styles from './page.module.css';
 
@@ -182,12 +186,14 @@ function AddTripForm({ onAdd }) {
       <input
         type="text"
         placeholder="From (Home)"
+        list="mileage-places"
         value={origin}
         onChange={(e) => setOrigin(e.target.value)}
       />
       <input
         type="text"
         placeholder="To"
+        list="mileage-places"
         value={destination}
         onChange={(e) => setDestination(e.target.value)}
       />
@@ -210,13 +216,16 @@ function AddTripForm({ onAdd }) {
   );
 }
 
-function AddScenarioForm({ onAdd }) {
+function AddScenarioForm({ onAdd, legs, leaseStart }) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState('manual'); // 'manual' | 'leg'
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [impact1, setImpact1] = useState('');
   const [impact2, setImpact2] = useState('');
   const [impact3, setImpact3] = useState('');
+  const [legId, setLegId] = useState('');
+  const [newTimesPerWeek, setNewTimesPerWeek] = useState('');
   const [saving, setSaving] = useState(false);
 
   if (!open) {
@@ -230,24 +239,46 @@ function AddScenarioForm({ onAdd }) {
     );
   }
 
+  const selectedLeg = legs?.find((l) => l.id === legId) || null;
+  const preview =
+    mode === 'leg' && selectedLeg && leaseStart && newTimesPerWeek !== ''
+      ? legFrequencyScenarioImpacts({
+          leaseStart,
+          leg: selectedLeg,
+          newTimesPerWeek: Number(newTimesPerWeek) || 0,
+        })
+      : null;
+
   async function submit(e) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onAdd({
-        name: name.trim(),
-        note: note.trim() || null,
-        impact_1yr: Number(impact1) || 0,
-        impact_2yr: Number(impact2) || 0,
-        impact_3yr: Number(impact3) || 0,
-      });
+      if (mode === 'leg') {
+        if (!selectedLeg || newTimesPerWeek === '') return;
+        await onAdd({
+          name: name.trim(),
+          note: note.trim() || null,
+          leg_id: selectedLeg.id,
+          new_times_per_week: Number(newTimesPerWeek) || 0,
+        });
+      } else {
+        await onAdd({
+          name: name.trim(),
+          note: note.trim() || null,
+          impact_1yr: Number(impact1) || 0,
+          impact_2yr: Number(impact2) || 0,
+          impact_3yr: Number(impact3) || 0,
+        });
+      }
       setOpen(false);
       setName('');
       setNote('');
       setImpact1('');
       setImpact2('');
       setImpact3('');
+      setLegId('');
+      setNewTimesPerWeek('');
     } finally {
       setSaving(false);
     }
@@ -255,6 +286,23 @@ function AddScenarioForm({ onAdd }) {
 
   return (
     <form className={styles.newScenarioForm} onSubmit={submit}>
+      <div className={styles.scenarioModeRow}>
+        <button
+          type="button"
+          className={mode === 'manual' ? styles.scenarioModeActive : ''}
+          onClick={() => setMode('manual')}
+        >
+          Manual
+        </button>
+        <button
+          type="button"
+          className={mode === 'leg' ? styles.scenarioModeActive : ''}
+          onClick={() => setMode('leg')}
+          disabled={!legs || legs.length === 0}
+        >
+          From a route
+        </button>
+      </div>
       <input
         type="text"
         placeholder="Scenario name"
@@ -267,28 +315,73 @@ function AddScenarioForm({ onAdd }) {
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />
-      <div className={styles.impactRow}>
-        <input
-          type="number"
-          placeholder="+mi by 1yr"
-          value={impact1}
-          onChange={(e) => setImpact1(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="+mi by 2yr"
-          value={impact2}
-          onChange={(e) => setImpact2(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="+mi by 3yr"
-          value={impact3}
-          onChange={(e) => setImpact3(e.target.value)}
-        />
-      </div>
+
+      {mode === 'leg' ? (
+        <>
+          <select value={legId} onChange={(e) => setLegId(e.target.value)}>
+            <option value="">Pick a saved route…</option>
+            {(legs || []).map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.origin} → {l.destination} ({l.times_per_week}×/wk)
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="New ×/week"
+            value={newTimesPerWeek}
+            onChange={(e) => setNewTimesPerWeek(e.target.value)}
+          />
+          {selectedLeg && !leaseStart && (
+            <p className={styles.formError}>
+              Set your lease start date first (Edit lease info) to preview this.
+            </p>
+          )}
+          {preview && (
+            <p className={styles.scenarioImpact}>
+              {preview.extraMilesPerWeek >= 0 ? '+' : ''}
+              {preview.extraMilesPerWeek.toFixed(1)} mi/wk &rarr;{' '}
+              <strong>
+                {preview.impact_3yr >= 0 ? '+' : ''}
+                {fmtNum(preview.impact_3yr)}
+              </strong>{' '}
+              mi by the 3-year mark
+            </p>
+          )}
+        </>
+      ) : (
+        <div className={styles.impactRow}>
+          <input
+            type="number"
+            placeholder="+mi by 1yr"
+            value={impact1}
+            onChange={(e) => setImpact1(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="+mi by 2yr"
+            value={impact2}
+            onChange={(e) => setImpact2(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="+mi by 3yr"
+            value={impact3}
+            onChange={(e) => setImpact3(e.target.value)}
+          />
+        </div>
+      )}
+
       <div className={styles.settingsActions}>
-        <button type="submit" disabled={saving}>
+        <button
+          type="submit"
+          disabled={
+            saving ||
+            (mode === 'leg' && (!selectedLeg || newTimesPerWeek === ''))
+          }
+        >
           {saving ? 'Saving…' : 'Save scenario'}
         </button>
         <button
@@ -337,12 +430,14 @@ function AddUsualLegForm({ onAdd }) {
       <input
         type="text"
         placeholder="From (Home)"
+        list="mileage-places"
         value={origin}
         onChange={(e) => setOrigin(e.target.value)}
       />
       <input
         type="text"
         placeholder="To (e.g. Gym)"
+        list="mileage-places"
         value={destination}
         onChange={(e) => setDestination(e.target.value)}
       />
@@ -439,6 +534,98 @@ function UsualLegsPopup({ legs, onAdd, onDelete, onApply, onClose }) {
             {applying ? 'Applying…' : 'Use this total'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AddPlaceForm({ onAdd }) {
+  const [label, setLabel] = useState('');
+  const [address, setAddress] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!label.trim() || !address.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onAdd({ label: label.trim(), address: address.trim() });
+      setLabel('');
+      setAddress('');
+    } catch (err) {
+      setError(err.message || 'Could not save that place.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className={styles.addTripForm} onSubmit={submit}>
+      <input
+        type="text"
+        placeholder="Label (e.g. Gym)"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Real address"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+      />
+      <button type="submit" disabled={saving}>
+        {saving ? 'Saving…' : 'Save place'}
+      </button>
+      {error && <p className={styles.formError}>{error}</p>}
+    </form>
+  );
+}
+
+function PlacesPopup({ places, onAdd, onDelete, onClose }) {
+  return (
+    <div className={styles.popupScrim} onClick={onClose}>
+      <div className={styles.popup} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.popupHead}>
+          <h3 className={styles.popupTitle}>Favorite places</h3>
+          <button className={styles.popupClose} onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <p className={styles.popupSub}>
+          Save a real address for labels like "Home" or "Gym" — words like those
+          can't be looked up on their own, so trips and routes using them fail
+          to auto-lookup until a real address is saved here.
+        </p>
+
+        <div className={styles.tripList}>
+          {places.map((p) => (
+            <div className={styles.tripRow} key={p.id}>
+              <div className={styles.tripInfo}>
+                <p className={styles.tripRoute}>{p.label}</p>
+                <p className={styles.tripDate}>
+                  {p.address}
+                  {p.lat == null ? ' · could not geocode yet' : ''}
+                </p>
+              </div>
+              <button
+                className={styles.rowDelete}
+                onClick={() => onDelete(p.id)}
+                aria-label="Delete place"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          {places.length === 0 && (
+            <p className={styles.detail}>
+              No places saved yet — start with Home.
+            </p>
+          )}
+        </div>
+
+        <AddPlaceForm onAdd={onAdd} />
       </div>
     </div>
   );
@@ -569,7 +756,9 @@ export default function MileagePage() {
   const [trips, setTrips] = useState([]);
   const [scenarios, setScenarios] = useState([]);
   const [usualLegs, setUsualLegs] = useState([]);
+  const [places, setPlaces] = useState([]);
   const [editingSettings, setEditingSettings] = useState(false);
+  const [placesOpen, setPlacesOpen] = useState(false);
   const [draftOdometer, setDraftOdometer] = useState('');
   const [draftDate, setDraftDate] = useState(todayStr());
 
@@ -580,6 +769,7 @@ export default function MileagePage() {
     setTrips(data.trips || []);
     setScenarios(data.scenarios || []);
     setUsualLegs(data.usualLegs || []);
+    setPlaces(data.places || []);
   }, [data]);
 
   const summary =
@@ -717,6 +907,26 @@ export default function MileagePage() {
     if (!res.ok) setUsualLegs(prev);
   }
 
+  async function addPlace(payload) {
+    const res = await fetch('/api/mileage/places', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Could not save that place');
+    setPlaces((p) => [...p, body.place]);
+  }
+
+  async function deletePlace(id) {
+    const prev = places;
+    setPlaces((p) => p.filter((x) => x.id !== id));
+    const res = await fetch(`/api/mileage/places/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) setPlaces(prev);
+  }
+
   if (loadError) {
     return (
       <div className={styles.page}>
@@ -763,6 +973,19 @@ export default function MileagePage() {
 
   return (
     <div className={styles.page}>
+      <datalist id="mileage-places">
+        {places.map((p) => (
+          <option value={p.label} key={p.id} />
+        ))}
+      </datalist>
+      {placesOpen && (
+        <PlacesPopup
+          places={places}
+          onAdd={addPlace}
+          onDelete={deletePlace}
+          onClose={() => setPlacesOpen(false)}
+        />
+      )}
       <div className={styles.headRow}>
         <div className={styles.headLeft}>
           <div className={styles.headIcon}>
@@ -798,6 +1021,12 @@ export default function MileagePage() {
             onClick={() => setEditingSettings((v) => !v)}
           >
             Edit lease info
+          </button>
+          <button
+            className={styles.editSettingsBtn}
+            onClick={() => setPlacesOpen(true)}
+          >
+            Favorite places{places.length > 0 ? ` (${places.length})` : ''}
           </button>
         </div>
       </div>
@@ -981,8 +1210,13 @@ export default function MileagePage() {
                   </div>
                 </div>
                 <p className={styles.scenarioImpact}>
-                  Adds <strong>+{fmtNum(s.impact_3yr)}</strong> mi by the 3-year
-                  mark
+                  {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
+                  {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
+                  <strong>
+                    {s.impact_3yr >= 0 ? '+' : ''}
+                    {fmtNum(s.impact_3yr)}
+                  </strong>{' '}
+                  mi by the 3-year mark
                 </p>
               </div>
             ))}
@@ -990,7 +1224,11 @@ export default function MileagePage() {
               <p className={styles.detail}>No saved scenarios yet.</p>
             )}
           </div>
-          <AddScenarioForm onAdd={addScenario} />
+          <AddScenarioForm
+            onAdd={addScenario}
+            legs={usualLegs}
+            leaseStart={settings?.lease_start_date}
+          />
           <p className={styles.scenarioLegendNote}>
             Only checked scenarios are added to the forecast above &mdash;
             unchecked ones stay saved but excluded. Every other future period
