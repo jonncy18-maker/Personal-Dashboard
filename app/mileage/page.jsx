@@ -303,6 +303,89 @@ function AddScenarioForm({ onAdd }) {
   );
 }
 
+function UsualTripsPanel({ settings, summary, onSave }) {
+  const [miles, setMiles] = useState(settings?.usual_miles ?? '');
+  const [period, setPeriod] = useState(settings?.usual_period || 'week');
+  const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  useEffect(() => {
+    setMiles(settings?.usual_miles ?? '');
+    setPeriod(settings?.usual_period || 'week');
+  }, [settings?.usual_miles, settings?.usual_period]);
+
+  async function toggleActive(e) {
+    const checked = e.target.checked;
+    setToggling(true);
+    try {
+      await onSave({ usual_active: checked });
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const value = Number(miles);
+    if (!value || value <= 0) return;
+    setSaving(true);
+    try {
+      await onSave({ usual_miles: value, usual_period: period });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const active = !!settings?.usual_active;
+
+  return (
+    <div className={styles.panel}>
+      <div className={styles.panelHead}>
+        <span className={styles.panelDot} />
+        <span className={styles.panelTitle}>Usual trips</span>
+      </div>
+      <p className={styles.detail}>
+        Set a routine mileage rate to use as the forecast baseline instead of
+        your logged pace.
+      </p>
+      <form className={styles.usualTripsForm} onSubmit={submit}>
+        <input
+          type="number"
+          min="0"
+          placeholder="Miles"
+          value={miles}
+          onChange={(e) => setMiles(e.target.value)}
+        />
+        <span className={styles.usualTripsPer}>per</span>
+        <select value={period} onChange={(e) => setPeriod(e.target.value)}>
+          <option value="day">Day</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+        </select>
+        <button type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </form>
+      <label className={styles.toggleLabel} style={{ marginTop: 10 }}>
+        <input
+          type="checkbox"
+          checked={active}
+          disabled={toggling}
+          onChange={toggleActive}
+        />
+        Use as baseline forecast instead of logged pace
+      </label>
+      <p className={styles.scenarioLegendNote}>
+        {summary.baselineSource === 'usual'
+          ? `Baseline: usual trips — ${fmtNum(settings.usual_miles)} mi/${settings.usual_period} (~${summary.usualPace?.toFixed(1)} mi/day)`
+          : summary.pace != null
+            ? `Baseline: your logged pace (~${summary.pace.toFixed(1)} mi/day)`
+            : 'Baseline: no logged pace yet — log a reading below, or check "usual trips" above.'}
+      </p>
+    </div>
+  );
+}
+
 export default function MileagePage() {
   const { refresh } = useRefresh();
   const {
@@ -594,6 +677,12 @@ export default function MileagePage() {
           );
         })}
       </div>
+
+      <UsualTripsPanel
+        settings={settings}
+        summary={summary}
+        onSave={saveSettings}
+      />
 
       <div className={styles.twoCol}>
         <div className={styles.panel}>
