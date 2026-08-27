@@ -82,6 +82,18 @@ Could not reproduce the two specific failing queries directly — this sandbox's
 
 **Verified:** `next build` clean, Prettier clean on all touched files.
 
+## 2026-08-26 (cont'd 12) — Travel Day Exclusions: a new Mileage section, not a scenario
+
+The Google Timeline detour (checking whether 3 years of location history could estimate unmodeled weekend driving) hit a real wall — the account's Timeline backups are end-to-end encrypted, so not even Takeout/the phone's own export can hand back the processed trip segments, only raw GPS/WiFi pings covering a few weeks. Dropped that path. John's actual insight while discussing it: "generally scenarios are reserved for trips, and when trips happen, that means the normal daily drives do not happen" — a real trip should _subtract_ baseline driving from the forecast, not just add an unmodeled gap. He also asked for this to be a distinct section from Forecast Scenarios (a real fact, not a hypothetical), auto-detected from Travel but never auto-applied, and reviewed the same way Travel's own Gmail trip-suggestion queue works.
+
+**Migration 022** adds `mileage_travel_exclusions` (trip_id nullable so a manual entry fits the same shape as a Travel-linked one; `status` accepted/dismissed; `source` travel/manual; `daily_rate_used`/`miles_excluded` snapshotted at accept time). `lib/mileage.js` gained `tripDayCount()` and `travelExclusionMiles()`, and `projectCheckpoint()` now takes an `exclusions` array — unlike a scenario's linearly time-scaled impact (a recurring habit grows with elapsed time), an exclusion is a flat one-time subtraction applied in full once its trip's end date has passed a given checkpoint, never partially.
+
+`GET /api/mileage` now also returns `travelExclusions`, `pendingTravelTrips` (real dated trips never reviewed — what auto-pops the popup once per page load) and `reviewableTravelTrips` (undecided or previously dismissed — what the panel's "Scan travel" button re-surfaces; dismiss is a snooze, not a permanent skip). New `app/api/mileage/travel-exclusions/route.js` (POST — accept a trip_id, dismiss a trip_id, or add a manual label+date-range entry, computing `miles_excluded` server-side from whichever baseline pace is currently active) and `[id]/route.js` (DELETE — undo). New UI: a `ReviewTravelPopup` (accept/dismiss per trip, with a live "would exclude ~X mi" preview) and a `TravelExclusionsPanel` (accepted list + manual-entry form + the Scan travel button), both new components in `app/mileage/page.jsx`.
+
+Cataloged for the AI Assistant in the same PR (learned that lesson the hard way this session): `accept_mileage_travel_exclusion`, `dismiss_mileage_travel_exclusion`, `add_manual_mileage_travel_exclusion`, `delete_mileage_travel_exclusion`, plus `get_mileage`'s description updated to name the new fields. System prompt: never accept/dismiss an exclusion without John asking for that specific trip, same opt-in posture as `usual_active` and a scenario's `active` flag.
+
+**Verified:** `next build` clean, Prettier clean on all touched files, dev server smoke-tested (`/` and `/mileage` both 200, no crash). **Run `npm run migrate`** (migration 022) after merge.
+
 ## 2026-08-26 (cont'd 11) — Switched geocoding from Nominatim to the Google Geocoding API
 
 Follow-up to the Mileage geocoding investigation earlier today: John's take after seeing Nominatim genuinely had no data for a real Buckner, KY address — "It's free to a certain point I believe and I don't think I'll get to that point, so we should just configure it out." A deliberate reversal of the app's standing "free/keyless-only" geocoding rule, made explicitly by John after seeing the real failure mode, not a rule quietly relaxed.

@@ -14,6 +14,8 @@ async function loadAll(sql) {
     scenarioRows,
     usualLegRows,
     placeRows,
+    exclusionRows,
+    eligibleTravelTripRows,
   ] = await Promise.all([
     sql`SELECT * FROM mileage_settings WHERE id = 1`,
     sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
@@ -21,7 +23,31 @@ async function loadAll(sql) {
     sql`SELECT * FROM mileage_scenarios ORDER BY created_at ASC`,
     sql`SELECT * FROM mileage_usual_legs ORDER BY created_at ASC`,
     sql`SELECT * FROM mileage_places ORDER BY label ASC`,
+    sql`SELECT * FROM mileage_travel_exclusions ORDER BY created_at DESC`,
+    // Travel Day Exclusions only makes sense for a real, dated trip — a
+    // wishlist trip or one missing dates has nothing to review.
+    sql`SELECT id, destination, start_date, end_date FROM trips
+        WHERE status IN ('upcoming', 'past')
+          AND start_date IS NOT NULL AND end_date IS NOT NULL
+        ORDER BY start_date ASC`,
   ]);
+
+  const exclusions = exclusionRows.map((e) => ({
+    ...e,
+    start_date: dateOnly(e.start_date),
+    end_date: dateOnly(e.end_date),
+    daily_rate_used: num(e.daily_rate_used),
+    miles_excluded: num(e.miles_excluded),
+  }));
+  const eligibleTravelTrips = eligibleTravelTripRows.map((t) => ({
+    ...t,
+    start_date: dateOnly(t.start_date),
+    end_date: dateOnly(t.end_date),
+  }));
+  const acceptedTripIds = new Set(
+    exclusions.filter((e) => e.status === 'accepted').map((e) => e.trip_id)
+  );
+  const decidedTripIds = new Set(exclusions.map((e) => e.trip_id));
 
   return {
     settings: settings
@@ -51,14 +77,37 @@ async function loadAll(sql) {
       lat: num(p.lat),
       lng: num(p.lng),
     })),
+    travelExclusions: exclusions,
+    // Never decided at all — what the auto-popup shows on page load.
+    pendingTravelTrips: eligibleTravelTrips.filter(
+      (t) => !decidedTripIds.has(t.id)
+    ),
+    // Undecided OR previously dismissed — what "Scan travel" re-surfaces.
+    reviewableTravelTrips: eligibleTravelTrips.filter(
+      (t) => !acceptedTripIds.has(t.id)
+    ),
   };
 }
 
 export const GET = route(async () => {
   const sql = getDb();
-  const { settings, readings, trips, scenarios, usualLegs, places } =
-    await loadAll(sql);
-  const summary = mileageSummary({ settings, readings, scenarios });
+  const {
+    settings,
+    readings,
+    trips,
+    scenarios,
+    usualLegs,
+    places,
+    travelExclusions,
+    pendingTravelTrips,
+    reviewableTravelTrips,
+  } = await loadAll(sql);
+  const summary = mileageSummary({
+    settings,
+    readings,
+    scenarios,
+    exclusions: travelExclusions,
+  });
 
   return Response.json({
     settings,
@@ -67,6 +116,9 @@ export const GET = route(async () => {
     scenarios,
     usualLegs,
     places,
+    travelExclusions,
+    pendingTravelTrips,
+    reviewableTravelTrips,
     ...summary,
   });
 });
