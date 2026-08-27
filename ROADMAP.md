@@ -82,6 +82,34 @@ Could not reproduce the two specific failing queries directly — this sandbox's
 
 **Verified:** `next build` clean, Prettier clean on all touched files.
 
+## 2026-08-26 (cont'd 11) — Switched geocoding from Nominatim to the Google Geocoding API
+
+Follow-up to the Mileage geocoding investigation earlier today: John's take after seeing Nominatim genuinely had no data for a real Buckner, KY address — "It's free to a certain point I believe and I don't think I'll get to that point, so we should just configure it out." A deliberate reversal of the app's standing "free/keyless-only" geocoding rule, made explicitly by John after seeing the real failure mode, not a rule quietly relaxed.
+
+`lib/geocode.js` — the single module every geocode/reverse-geocode call in the app goes through — now calls the Google Geocoding API instead of Nominatim, keeping every exported function's signature and `'ok'/'none'/'error'` status contract identical, so no caller (Travel's trip map + country stats, Mileage's places/trip-journal/usual-legs, `lib/route-distance.js`) needed a code change. Requires a new `GOOGLE_MAPS_API_KEY` (server-only); a missing/invalid key fails soft to `'error'`, same as any other transient failure. Scope is geocoding only — OSRM driving-distance routing, the static world-map SVG, and the "no paid map-tile provider" rule are untouched and still free/keyless; this was never about routing or maps rendering, just point lookups.
+
+Updated every comment/doc that asserted the old Nominatim-specific facts (rate limits, "deliberately not Google Maps" language) across `lib/geocode.js`, `lib/route-distance.js`, `lib/itinerary.js`, `app/api/travel-stats/route.js`, `app/api/mileage/geocode-suggest/route.js`, `app/mileage/page.jsx`'s manual-coordinates hint text, `ARCHITECTURE.md`, and `CLAUDE.md` §2/§4/§7 — left ROADMAP's own past entries and the immutable migration files untouched, since those are historical record of what was true when written, not living reference.
+
+**Not yet live**: this ships the code path, but needs `GOOGLE_MAPS_API_KEY` actually created (Google Cloud Console → enable the Geocoding API on a billing-enabled project → create an API key) and added to Vercel (Production + Preview) before it does anything — until then every geocode call fails soft to `'error'`, same as a missing key always has for every other integration in this app.
+
+**Verified:** `next build` clean, Prettier clean on all touched files.
+
+## 2026-08-26 (cont'd 10) — AI Assistant: paste/drag-drop/attach images and files
+
+John's follow-up after the Mileage catalog fix: "we really did not do a good job of building it out" — the assistant could read/act on dashboard data but had no way to see anything John shared visually (a screenshot of a to-do list, a receipt, a PDF). Asked for it to ingest "anything Claude can ingest."
+
+`components/AssistantPanel.jsx` gained paste (`onPaste` on the input), drag-and-drop (over the whole messages pane, with a "Drop to attach" overlay), and an explicit paperclip/file-picker button. Three attachment shapes, handled differently by design rather than uniformly base64-encoding everything:
+
+- **Images** (png/jpeg/gif/webp) → Anthropic `image` content blocks. Large ones (phone photos, full-page screenshots) are downscaled via canvas to a 1600px max dimension and re-encoded as JPEG q0.85 before sending — this isn't a Claude limitation (it downscales oversized images internally anyway), it's Vercel's serverless request body-size ceiling, which base64 inflation eats into fast.
+- **PDFs** → base64 `document` blocks, the API's real mechanism for PDFs.
+- **Text-like files** (`.txt`/`.csv`/`.md`) → read client-side as text and inlined as a plain `text` block, deliberately _not_ forced through the document-block base64 path — that source type is for PDFs; a bare text file is unambiguous and more robust sent as text.
+
+`app/api/assistant/route.js` validates every attachment server-side regardless of what the client claims (allowed media-type allowlist, per-attachment and total size caps) — the same "never trust the client alone" posture as every other route. Its history-trimming boundary check (`isSafeTrimBoundary`) was also broken by this change in a way worth calling out: it previously only recognized a plain-string user turn as safe to start the resent window at; once a user turn could be a multimodal content array, the search would silently walk off the end of the array and return an **empty** trimmed history. Fixed to recognize an array turn as safe too (as long as every block is text/image/document, never a stray tool_result), with a fallback to the untrouched full history if no safe boundary exists at all rather than ever slicing to nothing.
+
+System prompt updated: John can now share images/PDFs/text directly, and the assistant should read them like any other input — an attachment is context, not itself a write; turning "here's a screenshot" into real dashboard data still goes through the matching tool call.
+
+**Verified:** `next build` clean, Prettier clean on all touched files, dev server smoke-tested (`/` and `/mileage` both 200, no crash — AssistantPanel mounts app-wide via AppShell).
+
 ## 2026-08-26 (cont'd 6) — AI Assistant: added the missing Mileage tool catalog
 
 John asked to build his Mileage "usual trips" baseline through the AI Assistant, and it turned out the assistant had **zero** Mileage tools — the whole 7th domain was built across five PRs this session without ever adding a `lib/assistant.js` catalog entry for it, so the assistant could not read or act on Mileage at all despite CLAUDE.md §7's rule that a new route is only actually assistant-usable once cataloged.

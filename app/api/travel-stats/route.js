@@ -4,14 +4,14 @@ import { computeTravelStats } from '../../../lib/travel-stats';
 
 // GET the Travel Stats bar numbers (trips / nights / countries / cruise nights),
 // all derived from real trip rows. External-source shape (CLAUDE.md §7): this
-// touches Nominatim for the country backfill, so it fails soft — any error
-// returns zeroed stats, never a broken page.
+// touches the Google Geocoding API for the country backfill, so it fails soft
+// — any error returns zeroed stats, never a broken page.
 //
 // Country backfill is lazy and one-shot per trip, the same discipline as the
 // trip-map coord backfill: a real trip that has coords but no resolved country
 // yet gets reverse-geocoded here and the result cached on the row, stamped so an
 // unresolvable trip (mid-ocean coords) isn't retried on every load. Capped per
-// pass to stay well under Nominatim's ≤1 req/s policy.
+// pass to bound the work (and cost) of one request.
 
 const BACKFILL_CAP = 6;
 
@@ -25,8 +25,8 @@ export async function GET() {
     `;
 
     // Backfill country for real (non-wishlist) trips that have coords but have
-    // never had a country attempt. Sequential + capped: polite to Nominatim and
-    // bounded work per request.
+    // never had a country attempt. Sequential + capped: bounded work (and
+    // API cost) per request.
     const pending = rows.filter(
       (r) =>
         (r.status === 'upcoming' || r.status === 'past') &&

@@ -40,6 +40,26 @@ const TOOL_LABELS = {
   update_language_note: 'Updated a language note',
 };
 
+// Images are re-encoded through canvas when they're larger than this, both
+// to keep the request well under Vercel's serverless body-size ceiling and
+// because Claude downscales oversized images internally anyway.
+const IMAGE_MAX_DIMENSION = 1600;
+const IMAGE_RECOMPRESS_THRESHOLD_BYTES = 1_500_000;
+const MAX_ATTACHMENT_BYTES = 15_000_000; // raw file size, pre-base64
+const ALLOWED_IMAGE_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+];
+// PDFs go to Claude as a base64 "document" block. Plain-text-ish files are
+// read as text and inlined as a text block instead of a document block —
+// the Messages API's base64 document source is for PDFs; a bare text file
+// is unambiguous and more robust just sent as text.
+const PDF_TYPE = 'application/pdf';
+const TEXT_LIKE_TYPES = ['text/plain', 'text/csv', 'text/markdown'];
+const MAX_TEXT_FILE_CHARS = 200_000;
+
 function SparkIcon(props) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" {...props}>
@@ -57,6 +77,131 @@ function SparkIcon(props) {
   );
 }
 
+function PaperclipIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" {...props}>
+      <path
+        d="M17.5 7.5l-7.1 7.1a2.5 2.5 0 003.5 3.5l7.1-7.1a4.5 4.5 0 00-6.4-6.4L7.5 11.6a6.5 6.5 0 009.2 9.2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Downscale/recompress a large image via canvas so pasted phone photos and
+// full-page screenshots don't blow past the request's body-size ceiling.
+// Small images pass through untouched to avoid needless quality loss.
+async function prepareImage(file) {
+  if (file.size <= IMAGE_RECOMPRESS_THRESHOLD_BYTES) {
+    const dataUrl = await readFileAsDataUrl(file);
+    const [, base64] = dataUrl.split(',');
+    return { mediaType: file.type, base64 };
+  }
+  const dataUrl = await readFileAsDataUrl(file);
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('could not decode image'));
+    el.src = dataUrl;
+  });
+  const scale = Math.min(
+    1,
+    IMAGE_MAX_DIMENSION / Math.max(img.width, img.height)
+  );
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  const [, base64] = jpegDataUrl.split(',');
+  return { mediaType: 'image/jpeg', base64 };
+}
+
+async function toAttachment(file) {
+  const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+  const isPdf = file.type === PDF_TYPE;
+  const isTextLike = TEXT_LIKE_TYPES.includes(file.type);
+  if (!isImage && !isPdf && !isTextLike) {
+    throw new Error(
+      `${file.name}: unsupported file type (${file.type || 'unknown'})`
+    );
+  }
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    throw new Error(
+      `${file.name}: too large (${Math.round(file.size / 1_000_000)}MB, max 15MB)`
+    );
+  }
+  if (isImage) {
+    const { mediaType, base64 } = await prepareImage(file);
+    return {
+      id: crypto.randomUUID(),
+      kind: 'image',
+      name: file.name,
+      mediaType,
+      base64,
+    };
+  }
+  if (isPdf) {
+    const dataUrl = await readFileAsDataUrl(file);
+    const [, base64] = dataUrl.split(',');
+    return {
+      id: crypto.randomUUID(),
+      kind: 'document',
+      name: file.name,
+      mediaType: file.type,
+      base64,
+    };
+  }
+  let text = await file.text();
+  let truncated = false;
+  if (text.length > MAX_TEXT_FILE_CHARS) {
+    text = text.slice(0, MAX_TEXT_FILE_CHARS);
+    truncated = true;
+  }
+  return {
+    id: crypto.randomUUID(),
+    kind: 'text',
+    name: file.name,
+    text,
+    truncated,
+  };
+}
+
+function attachmentsToBlocks(attachments) {
+  return attachments.map((a) => {
+    if (a.kind === 'image') {
+      return {
+        type: 'image',
+        source: { type: 'base64', media_type: a.mediaType, data: a.base64 },
+      };
+    }
+    if (a.kind === 'document') {
+      return {
+        type: 'document',
+        source: { type: 'base64', media_type: a.mediaType, data: a.base64 },
+        title: a.name,
+      };
+    }
+    return {
+      type: 'text',
+      text: `--- ${a.name}${a.truncated ? ' (truncated)' : ''} ---\n${a.text}\n--- end ${a.name} ---`,
+    };
+  });
+}
+
 export default function AssistantPanel() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -64,9 +209,13 @@ export default function AssistantPanel() {
   const [error, setError] = useState(null);
   const [apiMessages, setApiMessages] = useState([]);
   const [chat, setChat] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [attachError, setAttachError] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
   const { refresh } = useRefresh();
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -77,15 +226,63 @@ export default function AssistantPanel() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [chat, busy, open]);
 
+  async function addFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
+    setAttachError(null);
+    const next = [];
+    for (const file of files) {
+      try {
+        next.push(await toAttachment(file));
+      } catch (err) {
+        setAttachError(err.message);
+      }
+    }
+    if (next.length) setAttachments((a) => [...a, ...next]);
+  }
+
+  function removeAttachment(id) {
+    setAttachments((a) => a.filter((x) => x.id !== id));
+  }
+
+  function onPaste(e) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length > 0) {
+      e.preventDefault();
+      addFiles(files);
+    }
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    addFiles(e.dataTransfer?.files);
+  }
+
   async function send(e) {
     e?.preventDefault();
     const text = input.trim();
-    if (!text || busy) return;
+    if ((!text && attachments.length === 0) || busy) return;
 
-    const nextApi = [...apiMessages, { role: 'user', content: text }];
+    const content = attachments.length
+      ? [
+          ...attachmentsToBlocks(attachments),
+          { type: 'text', text: text || '(see attached)' },
+        ]
+      : text;
+    const nextApi = [...apiMessages, { role: 'user', content }];
     setApiMessages(nextApi);
-    setChat((c) => [...c, { role: 'user', text }]);
+    setChat((c) => [
+      ...c,
+      {
+        role: 'user',
+        text,
+        attachments: attachments.map((a) => ({ name: a.name, kind: a.kind })),
+      },
+    ]);
+    const sentAttachments = attachments;
     setInput('');
+    setAttachments([]);
     setBusy(true);
     setError(null);
 
@@ -115,9 +312,12 @@ export default function AssistantPanel() {
       if (writes.some((a) => a.ok)) refresh();
     } catch (err) {
       setError(err.message);
-      // Roll the failed user turn back out of the API history so a retry
-      // doesn't send a dangling turn.
+      // Roll the failed user turn back out of both histories so a retry
+      // doesn't send a dangling turn or lose the attachments.
       setApiMessages(apiMessages);
+      setChat((c) => c.slice(0, -1));
+      setInput(text);
+      setAttachments(sentAttachments);
     } finally {
       setBusy(false);
     }
@@ -157,11 +357,21 @@ export default function AssistantPanel() {
             </button>
           </header>
 
-          <div className={styles.messages} ref={scrollRef}>
+          <div
+            className={styles.messages}
+            ref={scrollRef}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+          >
             {chat.length === 0 && (
               <div className={styles.empty}>
                 Ask about anything here — trips, PTO, tasks, ideas, projects,
-                email, calendar — or tell me to add or change something.
+                email, calendar — or tell me to add or change something. You can
+                also paste, drag in, or attach a screenshot or PDF.
               </div>
             )}
             {chat.map((m, i) => (
@@ -184,26 +394,83 @@ export default function AssistantPanel() {
                     ))}
                   </div>
                 )}
-                <div className={styles.msgText}>{m.text}</div>
+                {m.attachments?.length > 0 && (
+                  <div className={styles.attachChips}>
+                    {m.attachments.map((a, j) => (
+                      <span key={j} className={styles.attachChip}>
+                        📎 {a.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {m.text && <div className={styles.msgText}>{m.text}</div>}
               </div>
             ))}
             {busy && <div className={styles.thinking}>Working…</div>}
             {error && <div className={styles.error}>{error}</div>}
+            {dragOver && (
+              <div className={styles.dropOverlay}>Drop to attach</div>
+            )}
           </div>
 
+          {attachments.length > 0 && (
+            <div className={styles.pendingAttachments}>
+              {attachments.map((a) => (
+                <span key={a.id} className={styles.attachChip}>
+                  📎 {a.name}
+                  <button
+                    type="button"
+                    className={styles.attachRemove}
+                    onClick={() => removeAttachment(a.id)}
+                    aria-label={`Remove ${a.name}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {attachError && <div className={styles.error}>{attachError}</div>}
+
           <form className={styles.inputRow} onSubmit={send}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={[
+                ...ALLOWED_IMAGE_TYPES,
+                PDF_TYPE,
+                ...TEXT_LIKE_TYPES,
+              ].join(',')}
+              className={styles.fileInput}
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              className={styles.attachBtn}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={busy}
+              aria-label="Attach a file"
+              title="Attach a screenshot, image, or PDF"
+            >
+              <PaperclipIcon />
+            </button>
             <input
               ref={inputRef}
               className={styles.input}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask or instruct…"
+              onPaste={onPaste}
+              placeholder="Ask or instruct… (paste or drop a screenshot)"
               disabled={busy}
             />
             <button
               type="submit"
               className={styles.send}
-              disabled={busy || !input.trim()}
+              disabled={busy || (!input.trim() && attachments.length === 0)}
             >
               Send
             </button>
