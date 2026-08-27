@@ -17,7 +17,8 @@
 --                      013_calendar_hidden, 014_calendar_renames,
 --                      015_trip_country, 016_pto, 017_mileage,
 --                      018_mileage_usual_trips, 019_mileage_usual_legs,
---                      020_mileage_places, 021_mileage_scenario_legs
+--                      020_mileage_places, 021_mileage_scenario_legs,
+--                      022_mileage_travel_exclusions
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -478,3 +479,28 @@ CREATE TABLE IF NOT EXISTS mileage_places (
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS leg_id uuid
   REFERENCES mileage_usual_legs (id) ON DELETE SET NULL;
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS new_times_per_week numeric;
+
+-- Travel Day Exclusions (migration 022) — a distinct section from Forecast
+-- Scenarios: a real, one-time fact ("I wasn't home driving these days"),
+-- not a hypothetical recurring routine change. Reviewed like Travel's Gmail
+-- trip-suggestion queue: a real trip with no row here yet surfaces for
+-- accept/dismiss; accepting snapshots the current baseline daily rate x day
+-- count as miles_excluded so it never silently drifts if the pace later
+-- changes. trip_id is nullable so a manual entry (a trip Travel doesn't
+-- track) fits the same shape.
+CREATE TABLE IF NOT EXISTS mileage_travel_exclusions (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id          uuid REFERENCES trips (id) ON DELETE SET NULL,
+  label            text,
+  start_date       date NOT NULL,
+  end_date         date NOT NULL,
+  days             integer NOT NULL,
+  daily_rate_used  numeric,
+  miles_excluded   numeric,
+  status           text NOT NULL DEFAULT 'accepted'
+                   CHECK (status IN ('accepted', 'dismissed')),
+  source           text NOT NULL CHECK (source IN ('travel', 'manual')),
+  created_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mileage_travel_exclusions_trip_id_idx
+  ON mileage_travel_exclusions (trip_id);

@@ -7,6 +7,7 @@ import {
   mileageSummary,
   usualLegsWeeklyTotal,
   legFrequencyScenarioImpacts,
+  tripDayCount,
 } from '../../lib/mileage';
 import { MileageIcon } from '../../components/icons';
 import styles from './page.module.css';
@@ -782,6 +783,199 @@ function PlacesPopup({ places, onAdd, onDelete, onClose }) {
   );
 }
 
+function ReviewTravelPopup({
+  trips,
+  baselinePace,
+  onAccept,
+  onDismiss,
+  onClose,
+}) {
+  const [busyId, setBusyId] = useState(null);
+
+  async function handle(tripId, action) {
+    setBusyId(tripId);
+    try {
+      await action(tripId);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className={styles.popupScrim} onClick={onClose}>
+      <div className={styles.popup} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.popupHead}>
+          <h3 className={styles.popupTitle}>Travel not yet in your forecast</h3>
+          <button className={styles.popupClose} onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <p className={styles.popupSub}>
+          Your usual daily driving doesn't happen while you're traveling. Accept
+          a trip to subtract its days from the forecast, or dismiss it if it
+          shouldn't count — dismissing only hides it here; hit "Scan travel" any
+          time to bring it back for review.
+        </p>
+        <div className={styles.tripList}>
+          {trips.map((t) => {
+            const days = tripDayCount(t.start_date, t.end_date);
+            const preview =
+              baselinePace != null ? Math.round(baselinePace * days) : null;
+            return (
+              <div className={styles.tripRow} key={t.id}>
+                <div className={styles.tripInfo}>
+                  <p className={styles.tripRoute}>{t.destination}</p>
+                  <p className={styles.tripDate}>
+                    {fmtDate(t.start_date)} – {fmtDate(t.end_date)} &middot;{' '}
+                    {days} day{days === 1 ? '' : 's'}
+                    {preview != null && (
+                      <> &middot; would exclude ~{fmtNum(preview)} mi</>
+                    )}
+                  </p>
+                </div>
+                <div className={styles.scenarioActions}>
+                  <button
+                    type="button"
+                    className={styles.editSettingsBtn}
+                    disabled={busyId === t.id}
+                    onClick={() => handle(t.id, onDismiss)}
+                  >
+                    Dismiss
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.addScenarioToggle}
+                    disabled={busyId === t.id}
+                    onClick={() => handle(t.id, onAccept)}
+                  >
+                    Accept
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {trips.length === 0 && (
+            <p className={styles.detail}>Nothing left to review.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddManualExclusionForm({ onAdd }) {
+  const [label, setLabel] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!label.trim() || !startDate || !endDate) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onAdd({
+        label: label.trim(),
+        start_date: startDate,
+        end_date: endDate,
+      });
+      setLabel('');
+      setStartDate('');
+      setEndDate('');
+    } catch (err) {
+      setError(err.message || 'Could not add that exclusion.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className={styles.addTripForm} onSubmit={submit}>
+      <input
+        type="text"
+        placeholder="Label (e.g. Work conference)"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+      />
+      <input
+        type="date"
+        value={startDate}
+        onChange={(e) => setStartDate(e.target.value)}
+      />
+      <input
+        type="date"
+        value={endDate}
+        onChange={(e) => setEndDate(e.target.value)}
+      />
+      <button type="submit" disabled={saving}>
+        {saving ? 'Saving…' : 'Add exclusion'}
+      </button>
+      {error && <p className={styles.formError}>{error}</p>}
+    </form>
+  );
+}
+
+function TravelExclusionsPanel({
+  exclusions,
+  reviewCount,
+  onScan,
+  onAddManual,
+  onDelete,
+}) {
+  const accepted = exclusions.filter((e) => e.status === 'accepted');
+  return (
+    <div className={styles.panel}>
+      <div className={styles.panelHead}>
+        <span className={styles.panelDot} />
+        <span className={styles.panelTitle}>Travel day exclusions</span>
+        <button
+          type="button"
+          className={styles.editSettingsBtn}
+          onClick={onScan}
+          style={{ marginLeft: 'auto' }}
+        >
+          Scan travel{reviewCount > 0 ? ` (${reviewCount})` : ''}
+        </button>
+      </div>
+      <p className={styles.detail}>
+        Real trips excluded from the forecast, since your usual daily driving
+        doesn't happen while you're away. Separate from Forecast scenarios —
+        this is a fact, not a hypothetical.
+      </p>
+      <div className={styles.tripList}>
+        {accepted.map((e) => (
+          <div className={styles.tripRow} key={e.id}>
+            <div className={styles.tripInfo}>
+              <p className={styles.tripRoute}>{e.label || 'Trip'}</p>
+              <p className={styles.tripDate}>
+                {fmtDate(e.start_date)} – {fmtDate(e.end_date)} &middot;{' '}
+                {e.days} day{e.days === 1 ? '' : 's'} &middot;{' '}
+                {e.source === 'manual' ? 'Manual' : 'Travel'}
+              </p>
+            </div>
+            <span className={`${styles.tripMiles} tabular`}>
+              −{fmtNum(e.miles_excluded)} mi
+            </span>
+            <button
+              className={styles.rowDelete}
+              onClick={() => onDelete(e.id)}
+              aria-label="Remove exclusion"
+            >
+              &times;
+            </button>
+          </div>
+        ))}
+        {accepted.length === 0 && (
+          <p className={styles.detail}>No travel exclusions accepted yet.</p>
+        )}
+      </div>
+      <AddManualExclusionForm onAdd={onAddManual} />
+    </div>
+  );
+}
+
 function UsualTripsPanel({
   settings,
   summary,
@@ -908,10 +1102,16 @@ export default function MileagePage() {
   const [scenarios, setScenarios] = useState([]);
   const [usualLegs, setUsualLegs] = useState([]);
   const [places, setPlaces] = useState([]);
+  const [travelExclusions, setTravelExclusions] = useState([]);
+  const [pendingTravelTrips, setPendingTravelTrips] = useState([]);
+  const [reviewableTravelTrips, setReviewableTravelTrips] = useState([]);
   const [editingSettings, setEditingSettings] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewMode, setReviewMode] = useState('pending'); // 'pending' | 'reviewable'
   const [draftOdometer, setDraftOdometer] = useState('');
   const [draftDate, setDraftDate] = useState(todayStr());
+  const autoShownRef = useRef(false);
 
   useEffect(() => {
     if (!data) return;
@@ -921,11 +1121,23 @@ export default function MileagePage() {
     setScenarios(data.scenarios || []);
     setUsualLegs(data.usualLegs || []);
     setPlaces(data.places || []);
+    setTravelExclusions(data.travelExclusions || []);
+    setPendingTravelTrips(data.pendingTravelTrips || []);
+    setReviewableTravelTrips(data.reviewableTravelTrips || []);
+    if (!autoShownRef.current && (data.pendingTravelTrips || []).length > 0) {
+      autoShownRef.current = true;
+      setReviewOpen(true);
+    }
   }, [data]);
 
   const summary =
     settings != null
-      ? mileageSummary({ settings, readings, scenarios })
+      ? mileageSummary({
+          settings,
+          readings,
+          scenarios,
+          exclusions: travelExclusions,
+        })
       : { configured: false, pace: null, checkpoints: [] };
 
   async function saveSettings(patch) {
@@ -1079,6 +1291,50 @@ export default function MileagePage() {
     if (!res.ok) setPlaces(prev);
   }
 
+  async function acceptTravelExclusion(tripId) {
+    const res = await fetch('/api/mileage/travel-exclusions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip_id: tripId }),
+    });
+    if (res.ok) {
+      reload();
+      refresh();
+    }
+  }
+
+  async function dismissTravelExclusion(tripId) {
+    const res = await fetch('/api/mileage/travel-exclusions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip_id: tripId, status: 'dismissed' }),
+    });
+    if (res.ok) reload();
+  }
+
+  async function addManualExclusion(payload) {
+    const res = await fetch('/api/mileage/travel-exclusions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Could not add that exclusion');
+    reload();
+    refresh();
+  }
+
+  async function deleteTravelExclusion(id) {
+    const prev = travelExclusions;
+    setTravelExclusions((e) => e.filter((x) => x.id !== id));
+    const res = await fetch(`/api/mileage/travel-exclusions/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) setTravelExclusions(prev);
+    reload();
+    refresh();
+  }
+
   if (loadError) {
     return (
       <div className={styles.page}>
@@ -1136,6 +1392,19 @@ export default function MileagePage() {
           onAdd={addPlace}
           onDelete={deletePlace}
           onClose={() => setPlacesOpen(false)}
+        />
+      )}
+      {reviewOpen && (
+        <ReviewTravelPopup
+          trips={
+            reviewMode === 'pending'
+              ? pendingTravelTrips
+              : reviewableTravelTrips
+          }
+          baselinePace={summary.baselinePace}
+          onAccept={acceptTravelExclusion}
+          onDismiss={dismissTravelExclusion}
+          onClose={() => setReviewOpen(false)}
         />
       )}
       <div className={styles.headRow}>
@@ -1248,6 +1517,17 @@ export default function MileagePage() {
           );
         })}
       </div>
+      {travelExclusions.some((e) => e.status === 'accepted') && (
+        <p className={styles.detail}>
+          Includes −
+          {fmtNum(
+            travelExclusions
+              .filter((e) => e.status === 'accepted')
+              .reduce((sum, e) => sum + Number(e.miles_excluded || 0), 0)
+          )}{' '}
+          mi from accepted travel day exclusions below.
+        </p>
+      )}
 
       <UsualTripsPanel
         settings={settings}
@@ -1256,6 +1536,17 @@ export default function MileagePage() {
         onSave={saveSettings}
         onAddLeg={addUsualLeg}
         onDeleteLeg={deleteUsualLeg}
+      />
+
+      <TravelExclusionsPanel
+        exclusions={travelExclusions}
+        reviewCount={reviewableTravelTrips.length}
+        onScan={() => {
+          setReviewMode('reviewable');
+          setReviewOpen(true);
+        }}
+        onAddManual={addManualExclusion}
+        onDelete={deleteTravelExclusion}
       />
 
       <div className={styles.twoCol}>
