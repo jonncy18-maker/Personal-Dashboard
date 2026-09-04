@@ -56,6 +56,20 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-04 — Built out the Past travels section (year grouping, search/sort/filter, per-trip recap)
+
+John asked to build out the existing "Past travels" section on `/travel`, which until now was just a collapsible grid of `PastCard`s with no way to browse or search once it grows. Asked which direction to take it (multiple reasonable options) — John picked all three: richer per-trip recap, filter/search/sort on the gallery, and grouping by year. No schema change; front-end only.
+
+**Shared logic moved to `lib/format.js`** rather than duplicated: `isTripPastByDate(trip)` (the existing date-vs-today check that used to live only in `app/travel/page.jsx` as a local `isPast()`) and `isPastTrip(trip)` (the full "belongs in the Past bucket" rule — explicit `status: 'past'`, or `status: 'upcoming'` with elapsed dates; wishlist trips are never past regardless of dates). Both the Travel list and the trip detail page now import the same helper, so they can't disagree about which bucket a trip falls into — a real risk once the detail page also branches on it.
+
+**`app/travel/page.jsx` — `PastTravelSection`.** Replaces the flat grid inside the "Past travels" disclosure with: a search box (destination or country, case-insensitive substring), a country filter (built from the real `trips.country` values already reverse-geocoded onto past trips — only shown when there's more than one), and a sort select (Newest/Oldest/Longest/Highest budget). Year headers group the results **only** for the two date-based sorts — grouping by year while sorted by length or budget would put trips out of that order under a misleading heading, so those two fall back to one flat grid instead. `PastCard` now also shows the trip's country next to its destination when known.
+
+**`app/travel/[id]/page.jsx` — read-only recap view for past trips.** Previously every trip, past or not, opened straight into the same always-editable form. A trip where `isPastTrip(trip)` is true now opens into a new `TripRecap` view instead: trip stats (length, country, budget, stops logged) and notes as plain read text, and the itinerary as a read-only day list (grouped by leg the same way the editor groups it) rather than a wall of input fields. An "Edit trip" button switches into the pre-existing editable form (unchanged otherwise) with a "← Back to recap" action to return without losing the distinction; saving a trip that's now past (e.g. flipping its Status to Past) drops back into the recap automatically. Upcoming and wishlist trips are unaffected — they still open straight into the editable form as before, since there's nothing to "recap" yet.
+
+**Verified:** `next build` (Turbopack) compiles clean, all existing routes still register including `/travel/[id]`; `prettier --check` passes on every file touched (two pre-existing unrelated warnings elsewhere in the repo, not from this change). Not exercised against live Neon/the deployed UI in this sandbox — same standing limitation as prior Travel-page sessions; the recap/edit toggle and the search/sort/filter logic were traced by hand against the real `isPastTrip` rule and the sort comparators, not run in a browser.
+
+---
+
 ## 2026-08-26 (cont'd 9) — Favorite places: manual coordinate override for addresses Nominatim can't find
 
 Root cause confirmed on retry, via the new (cont'd 7) diagnostic logging: production logs showed `searchPlaces: Nominatim found no matches for '20 Quality Pl, Buckner, KY 40010'`. Not a bug — Nominatim/OpenStreetMap's address coverage is community-maintained and genuinely sparse for some rural residential streets (unlike indexed POIs like Kroger/Starbucks, which resolved fine). Confirmed with John this is the real cause, not app-side.

@@ -556,6 +556,47 @@
 }
 
 /* ─── past gallery ────────────────────────────────────────── */
+.pastControls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 2px 16px;
+}
+.pastSearch {
+  flex: 1 1 220px;
+  min-width: 160px;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+.pastSelect {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+.yearHead {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 20px 2px 12px;
+}
+.yearTitle {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink-muted);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -629,6 +670,11 @@
   margin: 0;
   font-size: 15.5px;
   font-weight: 800;
+}
+.cardCountry {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
 }
 .cardDates {
   margin: 3px 0 0;

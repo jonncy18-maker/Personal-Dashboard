@@ -7,7 +7,7 @@ import TripPhoto from '../../components/TripPhoto';
 import WorldMap from '../../components/WorldMap';
 import ChecklistTemplates from '../../components/ChecklistTemplates';
 import PtoPanel from '../../components/PtoPanel';
-import { parseDateInput, daysUntil } from '../../lib/format';
+import { parseDateInput, daysUntil, isPastTrip } from '../../lib/format';
 import styles from './page.module.css';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -44,18 +44,6 @@ function countdown(trip) {
   const days = daysUntil(trip.start_date);
   return { days, soon: days <= 30 };
 }
-// A trip's `status` is a manually-set field (see neon/schema.sql) — it never
-// auto-transitions when a trip's dates pass, so an 'upcoming' trip can go
-// stale. Derive "has this already happened" from the actual dates instead of
-// trusting the stored status, so a finished trip never lingers as the hero.
-function isPast(trip) {
-  const ref = trip.end_date || trip.start_date;
-  if (!ref) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return parseDateInput(ref) < today;
-}
-
 function gapLabel(prevStart, nextStart) {
   if (!prevStart || !nextStart) return null;
   const days = Math.round(
@@ -351,7 +339,12 @@ function PastCard({ trip }) {
         <span className={styles.cardStatus}>Past</span>
       </div>
       <div className={styles.cardBody}>
-        <p className={styles.cardName}>{trip.destination}</p>
+        <p className={styles.cardName}>
+          {trip.destination}
+          {trip.country && (
+            <span className={styles.cardCountry}> · {trip.country}</span>
+          )}
+        </p>
         <p className={`${styles.cardDates} tabular`}>{dateRange(trip)}</p>
         <div className={`${styles.cardMeta} tabular`}>
           {len != null && (
@@ -367,6 +360,132 @@ function PastCard({ trip }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+// A year-grouped, filterable view of past trips — search by destination or
+// country, sort by date/length/budget, filter by country. Year headers only
+// make sense for a chronological sort, so a non-date sort (length/budget)
+// falls back to one flat grid instead of grouping trips out of that order.
+function PastTravelSection({ trips }) {
+  const [search, setSearch] = useState('');
+  const [country, setCountry] = useState('all');
+  const [sort, setSort] = useState('date-desc');
+
+  const countries = Array.from(
+    new Set(trips.filter((t) => t.country).map((t) => t.country))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const q = search.trim().toLowerCase();
+  const filtered = trips.filter((t) => {
+    if (country !== 'all' && t.country !== country) return false;
+    if (!q) return true;
+    return (
+      t.destination.toLowerCase().includes(q) ||
+      (t.country || '').toLowerCase().includes(q)
+    );
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sort === 'date-asc') {
+      if (!a.start_date) return 1;
+      if (!b.start_date) return -1;
+      return a.start_date.localeCompare(b.start_date);
+    }
+    if (sort === 'length-desc') {
+      const la = lengthDays(a);
+      const lb = lengthDays(b);
+      if (la == null) return 1;
+      if (lb == null) return -1;
+      return lb - la;
+    }
+    if (sort === 'budget-desc') {
+      const ba = a.budget != null ? Number(a.budget) : null;
+      const bb = b.budget != null ? Number(b.budget) : null;
+      if (ba == null) return 1;
+      if (bb == null) return -1;
+      return bb - ba;
+    }
+    // date-desc (default)
+    if (!a.start_date) return 1;
+    if (!b.start_date) return -1;
+    return b.start_date.localeCompare(a.start_date);
+  });
+
+  const chronological = sort === 'date-desc' || sort === 'date-asc';
+  const groups = [];
+  if (chronological) {
+    const byYear = new Map();
+    for (const trip of sorted) {
+      const year = trip.start_date
+        ? parseDateInput(trip.start_date).getFullYear()
+        : 'Undated';
+      if (!byYear.has(year)) byYear.set(year, []);
+      byYear.get(year).push(trip);
+    }
+    for (const [year, yearTrips] of byYear) groups.push({ year, yearTrips });
+  } else {
+    groups.push({ year: null, yearTrips: sorted });
+  }
+
+  return (
+    <>
+      <div className={styles.pastControls}>
+        <input
+          type="text"
+          className={styles.pastSearch}
+          placeholder="Search destination or country…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {countries.length > 1 && (
+          <select
+            className={styles.pastSelect}
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+          >
+            <option value="all">All countries</option>
+            {countries.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          className={styles.pastSelect}
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+        >
+          <option value="date-desc">Newest first</option>
+          <option value="date-asc">Oldest first</option>
+          <option value="length-desc">Longest first</option>
+          <option value="budget-desc">Highest budget</option>
+        </select>
+      </div>
+
+      {sorted.length === 0 && (
+        <p className={styles.emptySub}>No past trips match that search.</p>
+      )}
+
+      {groups.map(({ year, yearTrips }) => (
+        <div key={year ?? 'flat'}>
+          {chronological && (
+            <div className={styles.yearHead}>
+              <span className={styles.yearTitle}>{year}</span>
+              <span className={`${styles.sectionCount} tabular`}>
+                {yearTrips.length}
+              </span>
+            </div>
+          )}
+          <div className={styles.grid}>
+            {yearTrips.map((trip) => (
+              <PastCard key={trip.id} trip={trip} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -661,16 +780,14 @@ export default function TravelPage() {
   }
 
   const upcoming = (trips || [])
-    .filter((t) => t.status === 'upcoming' && !isPast(t))
+    .filter((t) => t.status === 'upcoming' && !isPastTrip(t))
     .sort((a, b) => {
       if (!a.start_date) return 1;
       if (!b.start_date) return -1;
       return a.start_date.localeCompare(b.start_date);
     });
   const past = (trips || [])
-    .filter(
-      (t) => t.status === 'past' || (t.status === 'upcoming' && isPast(t))
-    )
+    .filter((t) => isPastTrip(t))
     .sort((a, b) => {
       if (!a.start_date) return 1;
       if (!b.start_date) return -1;
@@ -782,13 +899,7 @@ export default function TravelPage() {
                   className={`${styles.chevron} ${pastOpen ? styles.chevronOpen : ''}`}
                 />
               </button>
-              {pastOpen && (
-                <div className={styles.grid}>
-                  {past.map((trip) => (
-                    <PastCard key={trip.id} trip={trip} />
-                  ))}
-                </div>
-              )}
+              {pastOpen && <PastTravelSection trips={past} />}
             </>
           )}
 

@@ -5,11 +5,111 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import TripPhoto from '../../../components/TripPhoto';
 import TripChecklists from '../../../components/TripChecklists';
-import { absoluteDate } from '../../../lib/format';
+import { absoluteDate, isPastTrip, parseDateInput } from '../../../lib/format';
 import styles from './page.module.css';
 
 function emptyDay() {
   return { date: '', title: '', location: '', leg: '', notes: '' };
+}
+
+function money(value) {
+  if (value == null || value === '') return null;
+  return `$${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+}
+
+function lengthDays(trip) {
+  if (!trip.start_date || !trip.end_date) return null;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const s = parseDateInput(trip.start_date);
+  const e = parseDateInput(trip.end_date);
+  return Math.round((e - s) / DAY_MS) + 1;
+}
+
+// Read-only journal view for a trip that's already happened — the itinerary
+// and trip facts as a recap rather than an editable form. Grouped by leg the
+// same way the editor is, so a multi-part journey still reads as segments.
+function TripRecap({ trip, itinerary, onEdit }) {
+  const len = lengthDays(trip);
+  const budget = money(trip.budget);
+  return (
+    <>
+      <div className={styles.section}>
+        <div className={styles.recapHead}>
+          <h2 className={styles.sectionTitle}>Trip recap</h2>
+          <button type="button" className={styles.editButton} onClick={onEdit}>
+            Edit trip
+          </button>
+        </div>
+        <div className={styles.recapStats}>
+          {len != null && (
+            <div className={styles.recapStat}>
+              <span className={styles.recapStatTop}>{len}</span>
+              <span className={styles.recapStatLabel}>
+                {len === 1 ? 'day' : 'days'}
+              </span>
+            </div>
+          )}
+          {trip.country && (
+            <div className={styles.recapStat}>
+              <span className={styles.recapStatTop}>{trip.country}</span>
+              <span className={styles.recapStatLabel}>Country</span>
+            </div>
+          )}
+          {budget && (
+            <div className={styles.recapStat}>
+              <span className={styles.recapStatTop}>{budget}</span>
+              <span className={styles.recapStatLabel}>Budget</span>
+            </div>
+          )}
+          <div className={styles.recapStat}>
+            <span className={styles.recapStatTop}>
+              {itinerary.length > 0 ? itinerary.length : 'None'}
+            </span>
+            <span className={styles.recapStatLabel}>
+              {itinerary.length === 1 ? 'stop logged' : 'stops logged'}
+            </span>
+          </div>
+        </div>
+        {trip.notes && <p className={styles.recapNotes}>{trip.notes}</p>}
+      </div>
+
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Itinerary</h2>
+        {itinerary.length === 0 && (
+          <p className={styles.itineraryEmpty}>No stops were logged.</p>
+        )}
+        {itinerary.map((day, i) => {
+          const leg = (day.leg || '').trim();
+          const prevLeg = i > 0 ? (itinerary[i - 1].leg || '').trim() : '';
+          const showLegHeader = leg && leg !== prevLeg;
+          return (
+            <div key={i} className={styles.recapDayWrap}>
+              {showLegHeader && <p className={styles.legHeader}>{leg}</p>}
+              <div className={styles.recapDay}>
+                <span className={styles.recapDayDate}>
+                  {day.date ? absoluteDate(day.date) : '—'}
+                </span>
+                <span className={styles.recapDayBody}>
+                  <span className={styles.recapDayTitle}>
+                    {day.title || '(untitled)'}
+                    {day.location && (
+                      <span className={styles.previewPin}>
+                        {' '}
+                        · {day.location}
+                      </span>
+                    )}
+                  </span>
+                  {day.notes && (
+                    <span className={styles.recapDayNotes}>{day.notes}</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
 }
 
 function ImportModal({ tripId, onClose, onAddDays }) {
@@ -219,6 +319,7 @@ export default function TripDetailPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
 
   useEffect(() => {
     fetch(`/api/trips/${id}`)
@@ -228,6 +329,7 @@ export default function TripDetailPage() {
       })
       .then((data) => {
         setTrip(data.trip);
+        setEditing(!isPastTrip(data.trip));
         setForm({
           destination: data.trip.destination || '',
           start_date: data.trip.start_date || '',
@@ -296,6 +398,7 @@ export default function TripDetailPage() {
       }
       setTrip(data.trip);
       setSaved(true);
+      if (isPastTrip(data.trip)) setEditing(false);
     } finally {
       setSaving(false);
     }
@@ -356,183 +459,213 @@ export default function TripDetailPage() {
         )}
       </div>
 
-      <form className={styles.section} onSubmit={handleSave}>
-        <h2 className={styles.sectionTitle}>Trip details</h2>
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>Destination</span>
-            <input
-              type="text"
-              required
-              value={form.destination}
-              onChange={(e) => updateField('destination', e.target.value)}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>Status</span>
-            <select
-              value={form.status}
-              onChange={(e) => updateField('status', e.target.value)}
-            >
-              <option value="upcoming">Upcoming</option>
-              <option value="past">Past</option>
-              <option value="wishlist">Wishlist</option>
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span>Start date</span>
-            <input
-              type="date"
-              value={form.start_date}
-              onChange={(e) => updateField('start_date', e.target.value)}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>End date</span>
-            <input
-              type="date"
-              value={form.end_date}
-              onChange={(e) => updateField('end_date', e.target.value)}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>Budget</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.budget}
-              onChange={(e) => updateField('budget', e.target.value)}
-            />
-          </label>
-        </div>
-        <label className={styles.field} style={{ marginBottom: 12 }}>
-          <span>Notes</span>
-          <textarea
-            value={form.notes}
-            onChange={(e) => updateField('notes', e.target.value)}
-          />
-        </label>
-        <label className={styles.field} style={{ marginBottom: 12 }}>
-          <span>Photo URL (optional)</span>
-          <input
-            type="url"
-            placeholder="Paste an image URL to override the auto photo"
-            value={form.image_url}
-            onChange={(e) => updateField('image_url', e.target.value)}
-          />
-          <span className={styles.fieldHint}>
-            Leave blank to auto-fetch a photo of the destination.
-          </span>
-        </label>
+      {!editing ? (
+        <TripRecap
+          trip={trip}
+          itinerary={itinerary}
+          onEdit={() => setEditing(true)}
+        />
+      ) : (
+        <>
+          <form className={styles.section} onSubmit={handleSave}>
+            <h2 className={styles.sectionTitle}>Trip details</h2>
+            <div className={styles.fieldGrid}>
+              <label className={styles.field}>
+                <span>Destination</span>
+                <input
+                  type="text"
+                  required
+                  value={form.destination}
+                  onChange={(e) => updateField('destination', e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>Status</span>
+                <select
+                  value={form.status}
+                  onChange={(e) => updateField('status', e.target.value)}
+                >
+                  <option value="upcoming">Upcoming</option>
+                  <option value="past">Past</option>
+                  <option value="wishlist">Wishlist</option>
+                </select>
+              </label>
+              <label className={styles.field}>
+                <span>Start date</span>
+                <input
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => updateField('start_date', e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>End date</span>
+                <input
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => updateField('end_date', e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>Budget</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.budget}
+                  onChange={(e) => updateField('budget', e.target.value)}
+                />
+              </label>
+            </div>
+            <label className={styles.field} style={{ marginBottom: 12 }}>
+              <span>Notes</span>
+              <textarea
+                value={form.notes}
+                onChange={(e) => updateField('notes', e.target.value)}
+              />
+            </label>
+            <label className={styles.field} style={{ marginBottom: 12 }}>
+              <span>Photo URL (optional)</span>
+              <input
+                type="url"
+                placeholder="Paste an image URL to override the auto photo"
+                value={form.image_url}
+                onChange={(e) => updateField('image_url', e.target.value)}
+              />
+              <span className={styles.fieldHint}>
+                Leave blank to auto-fetch a photo of the destination.
+              </span>
+            </label>
 
-        {error && <p className={styles.formError}>{error}</p>}
+            {error && <p className={styles.formError}>{error}</p>}
 
-        <div className={styles.actions}>
-          <button type="submit" disabled={saving} className={styles.saveButton}>
-            {saving ? 'Saving…' : 'Save changes'}
-          </button>
-          {saved && <span className={styles.savedNote}>Saved</span>}
-          <button
-            type="button"
-            className={styles.deleteButton}
-            onClick={handleDelete}
-          >
-            Delete trip
-          </button>
-        </div>
-      </form>
-
-      <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Itinerary</h2>
-        {itinerary.length === 0 && (
-          <p className={styles.itineraryEmpty}>No stops added yet.</p>
-        )}
-        {itinerary.map((day, i) => {
-          // A leg header is shown whenever a new non-empty leg group begins, so
-          // a multi-part journey (Philippines → Taiwan → Japan cruise) reads as
-          // grouped segments in the editor.
-          const leg = (day.leg || '').trim();
-          const prevLeg = i > 0 ? (itinerary[i - 1].leg || '').trim() : '';
-          const showLegHeader = leg && leg !== prevLeg;
-          return (
-            <div key={i} className={styles.stopBlock}>
-              {showLegHeader && <p className={styles.legHeader}>{leg}</p>}
-              <div className={styles.dayRow}>
-                <label className={styles.field}>
-                  <span>Date</span>
-                  <input
-                    type="date"
-                    value={day.date}
-                    onChange={(e) => updateDay(i, 'date', e.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Title</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Juneau — whale watching"
-                    value={day.title}
-                    onChange={(e) => updateDay(i, 'title', e.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Location (maps this stop)</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Cartagena, Colombia"
-                    value={day.location || ''}
-                    onChange={(e) => updateDay(i, 'location', e.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Leg (optional group)</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Japan cruise"
-                    value={day.leg || ''}
-                    onChange={(e) => updateDay(i, 'leg', e.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Notes</span>
-                  <input
-                    type="text"
-                    value={day.notes}
-                    onChange={(e) => updateDay(i, 'notes', e.target.value)}
-                  />
-                </label>
+            <div className={styles.actions}>
+              <button
+                type="submit"
+                disabled={saving}
+                className={styles.saveButton}
+              >
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+              {saved && <span className={styles.savedNote}>Saved</span>}
+              {isPastTrip(trip) && (
                 <button
                   type="button"
-                  className={styles.removeDayButton}
-                  onClick={() => removeDay(i)}
+                  className={styles.modalGhost}
+                  onClick={() => setEditing(false)}
                 >
-                  Remove
+                  ← Back to recap
                 </button>
-              </div>
+              )}
+              <button
+                type="button"
+                className={styles.deleteButton}
+                onClick={handleDelete}
+              >
+                Delete trip
+              </button>
             </div>
-          );
-        })}
-        <button type="button" className={styles.addDayButton} onClick={addDay}>
-          + Add stop
-        </button>
-        <p className={styles.importNote} style={{ marginTop: 14 }}>
-          Give a stop a <strong>Location</strong> to place it on the world map —
-          a cruise's ports each map as their own dot. Use <strong>Leg</strong>{' '}
-          to group a multi-part journey. Or pull the itinerary from a booking or
-          confirmation email — pick the email, review the parsed stops, then add
-          them here. Nothing saves until you click “Save changes”.
-        </p>
-        <div className={styles.actions} style={{ marginTop: 10 }}>
-          <button
-            type="button"
-            className={styles.saveButton}
-            onClick={() => setImportOpen(true)}
-          >
-            Import from Gmail
-          </button>
-        </div>
-      </div>
+          </form>
+
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Itinerary</h2>
+            {itinerary.length === 0 && (
+              <p className={styles.itineraryEmpty}>No stops added yet.</p>
+            )}
+            {itinerary.map((day, i) => {
+              // A leg header is shown whenever a new non-empty leg group begins, so
+              // a multi-part journey (Philippines → Taiwan → Japan cruise) reads as
+              // grouped segments in the editor.
+              const leg = (day.leg || '').trim();
+              const prevLeg = i > 0 ? (itinerary[i - 1].leg || '').trim() : '';
+              const showLegHeader = leg && leg !== prevLeg;
+              return (
+                <div key={i} className={styles.stopBlock}>
+                  {showLegHeader && <p className={styles.legHeader}>{leg}</p>}
+                  <div className={styles.dayRow}>
+                    <label className={styles.field}>
+                      <span>Date</span>
+                      <input
+                        type="date"
+                        value={day.date}
+                        onChange={(e) => updateDay(i, 'date', e.target.value)}
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span>Title</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Juneau — whale watching"
+                        value={day.title}
+                        onChange={(e) => updateDay(i, 'title', e.target.value)}
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span>Location (maps this stop)</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Cartagena, Colombia"
+                        value={day.location || ''}
+                        onChange={(e) =>
+                          updateDay(i, 'location', e.target.value)
+                        }
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span>Leg (optional group)</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Japan cruise"
+                        value={day.leg || ''}
+                        onChange={(e) => updateDay(i, 'leg', e.target.value)}
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span>Notes</span>
+                      <input
+                        type="text"
+                        value={day.notes}
+                        onChange={(e) => updateDay(i, 'notes', e.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={styles.removeDayButton}
+                      onClick={() => removeDay(i)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              className={styles.addDayButton}
+              onClick={addDay}
+            >
+              + Add stop
+            </button>
+            <p className={styles.importNote} style={{ marginTop: 14 }}>
+              Give a stop a <strong>Location</strong> to place it on the world
+              map — a cruise's ports each map as their own dot. Use{' '}
+              <strong>Leg</strong> to group a multi-part journey. Or pull the
+              itinerary from a booking or confirmation email — pick the email,
+              review the parsed stops, then add them here. Nothing saves until
+              you click “Save changes”.
+            </p>
+            <div className={styles.actions} style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                className={styles.saveButton}
+                onClick={() => setImportOpen(true)}
+              >
+                Import from Gmail
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Prep checklist</h2>
