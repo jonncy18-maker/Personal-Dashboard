@@ -56,6 +56,19 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-07 — Travel page, round two: notification bell, minimal Overview strip, collapsible map, AI Brief retired
+
+Follow-up to the Overview + tabs restructure below. John walked through the shipped result step by step and asked for three more changes, each explored on a design canvas first (three pages: notification treatment, three Overview-strip options, two Trip Map placements) before building:
+
+1. **The trip-suggestions banner is now a notification bell.** John's "that Trips thing... should be more like a notification button" was the Gmail-detected trip-suggestions banner (potential trips the app found), not the page title — confirmed by "numbers based on the number of potential trips identified." `SuggestionsBanner` (an always-open box under the header) became `SuggestionsBell`: a bell icon + count badge in `.headerActions`, matching the pattern `TopBar.jsx` already uses app-wide, with a popover on click holding the same Approve/Skip rows the banner had. Nothing about the approve/dismiss flow changed, just where it lives.
+2. **AI Travel Brief eliminated — not just hidden.** John called it "kind of useless." Since nothing else in the app called `/api/travel-brief` or `lib/travel-brief.js`, both were deleted outright rather than left as dead code behind a removed UI call. The `travel_brief` table stays in `schema.sql` unused, per the immutable/additive migration convention (CLAUDE.md §6) — no down-migration exists in this repo's pattern, and an empty unused table costs nothing. `CLAUDE.md`/`ARCHITECTURE.md` updated to record the retirement.
+3. **Overview is now a single "minimal glance strip"** (the option John picked over a hero-forward or stat-forward layout): one row — a small thumbnail, the next trip's name/dates, its countdown, and inline Trips/Countries/Nights/Cruise-nights stats — replacing the old Stats-bar-plus-Brief-plus-Hero stack. The full-fidelity `HeroTrip` photo card didn't disappear — it moved into the **Upcoming tab** as the featured item (above `UpcomingTimeline`'s "then coming up" list), since Overview is now facts-at-a-glance and the rich card is actionable content, same split already used for Past/Wishlist.
+4. **Trip Map is collapsed by default, inside Overview** (the option John picked over giving it a dedicated tab). A one-line toggle (`MapToggle` — a pin icon, "N destinations mapped", "Show map"/"Hide map") expands the existing `WorldMap` panel in place; collapsed, it costs nothing. Still gated on `pins.some(p => p.latitude != null)` — no pins, no toggle row.
+
+**Verified:** `next build` (Turbopack) compiles clean (56 routes now — `/api/travel-brief` is gone); `prettier --check` passes on both touched files; `next dev` serves `/travel` with 200 and no server errors. Same standing limitation as every prior Travel-page session — no live Neon/browser click-through in this sandbox, so the bell popover, strip layout, and map toggle are unverified end-to-end; worth a manual pass on Preview.
+
+---
+
 ## 2026-09-04 (cont'd) — Travel page restructured: Overview + tabbed sections
 
 Follow-up to the Past travels build above. John felt `/travel` had gotten cluttered — every section (Stats, Brief, Hero, Map, Upcoming, Past, Wishlist, PTO, Checklists) just stacked vertically, with only Past collapsible. Explored three directions on a design canvas (full accordion, segmented tabs, a sticky quick-jump nav) and John picked a combination: tabs for the browsable sections, with an explicitly labeled "Overview" area on top holding the always-visible glance content.

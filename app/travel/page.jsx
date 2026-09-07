@@ -7,6 +7,7 @@ import TripPhoto from '../../components/TripPhoto';
 import WorldMap from '../../components/WorldMap';
 import ChecklistTemplates from '../../components/ChecklistTemplates';
 import PtoPanel from '../../components/PtoPanel';
+import { BellIcon } from '../../components/icons';
 import { parseDateInput, daysUntil, isPastTrip } from '../../lib/format';
 import styles from './page.module.css';
 
@@ -85,10 +86,11 @@ function ArrowIcon() {
     </svg>
   );
 }
-function SparkIcon() {
+function PinIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+      <path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z" />
+      <circle cx="12" cy="11" r="2.2" />
     </svg>
   );
 }
@@ -109,45 +111,96 @@ function PlannedMeta({ trip }) {
   );
 }
 
-// ─── Travel Stats bar ──────────────────────────────────────────────────────
-// Every tile is real trip data (CLAUDE.md's no-fabricated-metrics rule):
-// counts/nights come straight from the rows, Countries from reverse-geocoded
-// coords. No points/miles tile — that needs a loyalty integration with no
-// source today, so it's left out rather than invented.
-function StatsBar({ stats }) {
-  if (!stats) return null;
-  const tiles = [
-    { label: 'Trips', value: stats.trips },
-    { label: 'Nights', value: stats.nights },
-    { label: 'Countries', value: stats.countries },
-    { label: 'Cruise nights', value: stats.cruiseNights },
-  ];
+// ─── Overview strip — one compact row, not a stack of panels ───────────────
+// Every number here is real trip data (CLAUDE.md's no-fabricated-metrics
+// rule): counts/nights come straight from the rows, Countries from
+// reverse-geocoded coords. No points/miles tile — that needs a loyalty
+// integration with no source today, so it's left out rather than invented.
+function OverviewStrip({ hero, stats }) {
+  const cd = hero ? countdown(hero) : null;
+  const tiles = stats
+    ? [
+        { label: 'Trips', value: stats.trips },
+        { label: 'Countries', value: stats.countries },
+        { label: 'Nights', value: stats.nights },
+        { label: 'Cruise nights', value: stats.cruiseNights },
+      ]
+    : [];
   return (
-    <div className={styles.statsBar}>
-      {tiles.map((t) => (
-        <div key={t.label} className={styles.statTile}>
-          <span className={`${styles.statValue} tabular`}>{t.value}</span>
-          <span className={styles.statLabel}>{t.label}</span>
+    <div className={styles.overviewStrip}>
+      <div className={styles.stripThumb}>
+        {hero ? (
+          <TripPhoto
+            src={hero.image_url}
+            className={styles.stripThumbPhoto}
+            fallback={<div className={styles.stripThumbFallback} />}
+          />
+        ) : (
+          <div className={styles.stripThumbFallback} />
+        )}
+      </div>
+      <div className={styles.stripMain}>
+        {hero ? (
+          <>
+            <p className={styles.stripName}>{hero.destination}</p>
+            <p className={`${styles.stripMeta} tabular`}>{dateRange(hero)}</p>
+          </>
+        ) : (
+          <p className={styles.stripName}>No upcoming trips</p>
+        )}
+      </div>
+      {cd && (
+        <div className={`${styles.stripCountdown} tabular`}>
+          <span className={styles.stripCountdownNum}>{cd.days}</span>
+          <span className={styles.stripCountdownLabel}>days to go</span>
         </div>
-      ))}
+      )}
+      {tiles.length > 0 && (
+        <>
+          <div className={styles.stripDivider} aria-hidden="true" />
+          <div className={styles.inlineStats}>
+            {tiles.map((t) => (
+              <div key={t.label} className={styles.inlineStat}>
+                <span className={`${styles.inlineStatTop} tabular`}>
+                  {t.value}
+                </span>
+                <span className={styles.inlineStatLabel}>{t.label}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-// ─── AI Travel Brief ───────────────────────────────────────────────────────
-function TravelBrief({ brief }) {
-  if (!brief) return null;
+// ─── Trip Map — collapsed by default, expands in place ─────────────────────
+// A visual "where I've been" nice-to-have, not something that needs to cost
+// permanent vertical space on every visit — a one-line toggle instead of an
+// always-open panel.
+function MapToggle({ pins, open, onToggle }) {
+  const mapped = pins.filter((p) => p.latitude != null).length;
   return (
-    <div className={`${styles.panel} ${styles.brief}`}>
-      <div className={styles.panelHead}>
-        <span className={styles.panelDot} aria-hidden="true" />
-        <span className={styles.panelTitle}>AI Travel Brief</span>
-      </div>
-      <p className={styles.briefBody}>{brief}</p>
-      <span className={styles.briefMeta}>
-        <SparkIcon />
-        Generated from your trips · updates when they change
-      </span>
+    <div className={styles.mapToggleWrap}>
+      <button
+        type="button"
+        className={styles.mapToggleRow}
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <span className={styles.mapToggleLabel}>
+          <PinIcon /> {mapped} {mapped === 1 ? 'destination' : 'destinations'}{' '}
+          mapped
+        </span>
+        <span className={styles.mapToggleAction}>
+          {open ? 'Hide map' : 'Show map'}
+        </span>
+      </button>
+      {open && (
+        <div className={`${styles.panel} ${styles.mapPanel}`}>
+          <WorldMap pins={pins} />
+        </div>
+      )}
     </div>
   );
 }
@@ -661,8 +714,19 @@ function AddTripForm({ onAdded }) {
   );
 }
 
-// ─── suggested-trips banner (behavior unchanged) ───────────────────────────
-function SuggestionsBanner({ suggestions, onApprove, onDismiss }) {
+// ─── suggested-trips notification bell ─────────────────────────────────────
+// Was a big always-open banner at the top of the page — the same content
+// (approve/dismiss per suggestion) now lives behind a bell + count badge,
+// matching the notification pattern TopBar already uses app-wide, so
+// "potential trips found in your inbox" isn't front-and-center by default.
+function SuggestionsBell({
+  suggestions,
+  open,
+  onToggle,
+  onClose,
+  onApprove,
+  onDismiss,
+}) {
   const [busy, setBusy] = useState(null);
 
   async function act(id, fn) {
@@ -675,42 +739,71 @@ function SuggestionsBanner({ suggestions, onApprove, onDismiss }) {
   }
 
   return (
-    <div className={styles.suggestBanner}>
-      <p className={styles.suggestHead}>
-        <span className={styles.suggestDot} aria-hidden="true" />
-        {suggestions.length} suggested{' '}
-        {suggestions.length === 1 ? 'trip' : 'trips'} found in your inbox —
-        review before adding.
-      </p>
-      <div className={styles.suggestList}>
-        {suggestions.map((s) => (
-          <div className={styles.suggestRow} key={s.id}>
-            <div className={styles.suggestInfo}>
-              <p className={styles.suggestName}>{s.destination}</p>
-              <p className={styles.suggestMeta}>{dateRange(s)}</p>
-              {s.source_subject && (
-                <p className={styles.suggestSource}>From: {s.source_subject}</p>
-              )}
-            </div>
-            <div className={styles.suggestActions}>
-              <button
-                className={styles.suggestApprove}
-                disabled={busy === s.id}
-                onClick={() => act(s.id, onApprove)}
-              >
-                {busy === s.id ? 'Adding…' : 'Add trip'}
-              </button>
-              <button
-                className={styles.suggestDismiss}
-                disabled={busy === s.id}
-                onClick={() => act(s.id, onDismiss)}
-              >
-                Dismiss
-              </button>
-            </div>
+    <div className={styles.bellWrap}>
+      <button
+        type="button"
+        className={styles.iconBtn}
+        aria-label="Suggested trips"
+        onClick={onToggle}
+      >
+        <BellIcon />
+        {suggestions.length > 0 && (
+          <span className={`${styles.badge} tabular`}>
+            {suggestions.length}
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <button
+            type="button"
+            className={styles.bellBackdrop}
+            aria-label="Close suggested trips"
+            onClick={onClose}
+          />
+          <div className={styles.bellMenu} role="dialog">
+            <p className={styles.bellTitle}>
+              {suggestions.length > 0
+                ? `${suggestions.length} suggested ${suggestions.length === 1 ? 'trip' : 'trips'} found in your inbox`
+                : 'Suggested trips'}
+            </p>
+            {suggestions.length === 0 && (
+              <p className={styles.bellEmpty}>Nothing new to review.</p>
+            )}
+            {suggestions.map((s) => (
+              <div className={styles.suggestRow} key={s.id}>
+                <div className={styles.suggestInfo}>
+                  <p className={styles.suggestName}>{s.destination}</p>
+                  <p className={styles.suggestMeta}>{dateRange(s)}</p>
+                  {s.source_subject && (
+                    <p className={styles.suggestSource}>
+                      From: {s.source_subject}
+                    </p>
+                  )}
+                </div>
+                <div className={styles.suggestActions}>
+                  <button
+                    type="button"
+                    className={styles.suggestApprove}
+                    disabled={busy === s.id}
+                    onClick={() => act(s.id, onApprove)}
+                  >
+                    {busy === s.id ? 'Adding…' : 'Add'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.suggestDismiss}
+                    disabled={busy === s.id}
+                    onClick={() => act(s.id, onDismiss)}
+                  >
+                    Skip
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -724,7 +817,6 @@ export default function TravelPage() {
   const { data: tripsData, error: loadError } = useResource('/api/trips', {
     errorMessage: 'Could not load trips.',
   });
-  const { data: briefData } = useResource('/api/travel-brief');
   const { data: mapData } = useResource('/api/trip-map');
   const { data: statsData } = useResource('/api/travel-stats');
   const suggestionsRes = useResource('/api/trip-suggestions');
@@ -735,7 +827,8 @@ export default function TravelPage() {
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming');
-  const brief = briefData?.brief || null;
+  const [bellOpen, setBellOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const pins = mapData?.pins || [];
 
   useEffect(() => {
@@ -824,6 +917,14 @@ export default function TravelPage() {
           </h1>
         </div>
         <div className={styles.headerActions}>
+          <SuggestionsBell
+            suggestions={suggestions}
+            open={bellOpen}
+            onToggle={() => setBellOpen((v) => !v)}
+            onClose={() => setBellOpen(false)}
+            onApprove={approveSuggestion}
+            onDismiss={dismissSuggestion}
+          />
           <button
             className={styles.scanButton}
             onClick={handleScan}
@@ -838,14 +939,6 @@ export default function TravelPage() {
       </div>
 
       {scanNote && <p className={styles.scanNote}>{scanNote}</p>}
-
-      {suggestions.length > 0 && (
-        <SuggestionsBanner
-          suggestions={suggestions}
-          onApprove={approveSuggestion}
-          onDismiss={dismissSuggestion}
-        />
-      )}
 
       {loadError && <p className={styles.formError}>{loadError}</p>}
       {trips === null && !loadError && <p className={styles.empty}>Loading…</p>}
@@ -865,35 +958,14 @@ export default function TravelPage() {
             <span className={styles.panelDot} aria-hidden="true" />
             <span className={styles.panelTitle}>Overview</span>
           </div>
-          <StatsBar stats={statsData?.stats} />
-          <div className={styles.topRow}>
-            <TravelBrief brief={brief} />
-            {hero ? (
-              <HeroTrip trip={hero} />
-            ) : (
-              <div className={`${styles.panel}`}>
-                <div className={styles.panelHead}>
-                  <span className={styles.panelDot} aria-hidden="true" />
-                  <span className={styles.panelTitle}>Next journey</span>
-                </div>
-                <p className={styles.emptySub}>
-                  No upcoming trips. Add one to see it featured here.
-                </p>
-              </div>
-            )}
-          </div>
+          <OverviewStrip hero={hero} stats={statsData?.stats} />
 
           {pins.some((p) => p.latitude != null) && (
-            <div className={`${styles.panel} ${styles.mapPanel}`}>
-              <div className={styles.panelHead}>
-                <span className={styles.panelDot} aria-hidden="true" />
-                <span className={styles.panelTitle}>Trip Map</span>
-                <span className={`${styles.panelLink} tabular`}>
-                  {pins.filter((p) => p.latitude != null).length} mapped
-                </span>
-              </div>
-              <WorldMap pins={pins} />
-            </div>
+            <MapToggle
+              pins={pins}
+              open={mapOpen}
+              onToggle={() => setMapOpen((v) => !v)}
+            />
           )}
 
           <TabBar
@@ -908,13 +980,14 @@ export default function TravelPage() {
           />
 
           {activeTab === 'upcoming' &&
-            (rest.length > 0 ? (
-              <UpcomingTimeline trips={rest} />
+            (upcoming.length > 0 ? (
+              <>
+                <HeroTrip trip={hero} />
+                <UpcomingTimeline trips={rest} />
+              </>
             ) : (
               <p className={styles.emptySub}>
-                {upcoming.length > 0
-                  ? 'Nothing else upcoming right now.'
-                  : 'No upcoming trips. Add one above.'}
+                No upcoming trips. Add one above.
               </p>
             ))}
 
