@@ -26,7 +26,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Run `npm run migrate` after the To-do's + Calendar PR merges** — migration 012 (`email_todos`). Confirmed applied to the live Neon DB (2026-07-21; `schema_migrations` records 012).
 - [x] **Run `npm run migrate` after the Calendar-hide PR merges** — migration 013 (`calendar_hidden`). Confirmed applied to the live Neon DB (2026-07-21; `schema_migrations` records 013). _(Migration 014 `calendar_renames` likewise confirmed applied.)_
 - [x] **Run `npm run migrate` after the Travel Stats bar PR merges** — 2026-07-25, applied via the Neon MCP right after #61 merged. Migration 015 (`trip_country`) added `country`/`country_code`/`country_geocoded_at` to `trips`; confirmed all three exist and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, so the `schema_migrations` row was inserted explicitly — the net state is identical to a `npm run migrate` run.)_
-- [ ] **Run `npm run migrate` after the trip-merging PR merges** — migration 023 (`trip_merge`) adds `trips.merged_into_id`. Nothing reads/writes it until applied — same class of gap the migration runner exists to close (CLAUDE.md §6).
+- [x] **Run `npm run migrate` after the trip-merging PR merges** — 2026-09-07, applied via the Neon MCP right after #93 merged. Migration 023 (`trip_merge`) added `trips.merged_into_id`; confirmed the column exists and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, same as prior entries — the net state is identical to a `npm run migrate` run.)_
 
 ---
 
