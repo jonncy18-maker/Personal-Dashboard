@@ -127,6 +127,17 @@ export function RefreshIcon(props) {
   );
 }
 
+export function AppUpdateIcon(props) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="3" width="16" height="18" rx="2.5" />
+      <path d="M9.3 12a2.7 2.7 0 0 1 4.6-1.9" />
+      <path d="M14.7 12a2.7 2.7 0 0 1-4.6 1.9" />
+      <path d="M14 9.1V7.3h-1.8M10 14.9v1.8h1.8" />
+    </Svg>
+  );
+}
+
 export function ChevronRightIcon(props) {
   return (
     <Svg {...props}>

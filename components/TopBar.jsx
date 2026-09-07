@@ -8,6 +8,7 @@ import {
   SearchIcon,
   BellIcon,
   RefreshIcon,
+  AppUpdateIcon,
   CheckCircleIcon,
   EmailIcon,
   SchedulesIcon,
@@ -25,6 +26,7 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
   const [greeting, setGreeting] = useState('Hello');
   const [suggestions, setSuggestions] = useState([]);
   const [bellOpen, setBellOpen] = useState(false);
+  const [appUpdating, setAppUpdating] = useState(false);
   // On Home the greeting + stats live in the time-of-day hero, so the top bar
   // slims down to just navigation + actions (no duplicate greeting).
   const isHome = usePathname() === '/';
@@ -76,6 +78,39 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
   function handleMenuClick() {
     onToggleSidebar();
     onOpenDrawer();
+  }
+
+  // Reloads the app shell to pick up a new Vercel deploy — distinct from the
+  // data refresh button, which only re-fetches API data. Forces the service
+  // worker to check for a new sw.js/build before reloading so an installed
+  // PWA session doesn't have to be closed and reopened to see new code.
+  async function handleAppUpdate() {
+    setAppUpdating(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await new Promise((resolve) => {
+            let done = false;
+            const finish = () => {
+              if (done) return;
+              done = true;
+              resolve();
+            };
+            navigator.serviceWorker.addEventListener('controllerchange', finish, {
+              once: true,
+            });
+            reg.update().catch(finish);
+            // A registration already on the latest sw.js never fires
+            // controllerchange — don't block the reload on it forever.
+            setTimeout(finish, 1500);
+          });
+        }
+      }
+    } catch (e) {
+      /* ignore — reload happens regardless */
+    }
+    window.location.reload();
   }
 
   return (
@@ -139,8 +174,19 @@ export default function TopBar({ onToggleSidebar, onOpenDrawer }) {
           disabled={refreshing}
           aria-label="Refresh data"
           aria-busy={refreshing}
+          title="Refresh data"
         >
           <RefreshIcon className={refreshing ? styles.spin : undefined} />
+        </button>
+        <button
+          className={styles.iconBtn}
+          onClick={handleAppUpdate}
+          disabled={appUpdating}
+          aria-label="Reload app"
+          aria-busy={appUpdating}
+          title="Reload the app to pick up the latest deploy"
+        >
+          <AppUpdateIcon className={appUpdating ? styles.spin : undefined} />
         </button>
         <button className={styles.iconBtn} aria-label="Search">
           <SearchIcon />
