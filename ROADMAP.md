@@ -56,6 +56,18 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-04 (cont'd) — Travel page restructured: Overview + tabbed sections
+
+Follow-up to the Past travels build above. John felt `/travel` had gotten cluttered — every section (Stats, Brief, Hero, Map, Upcoming, Past, Wishlist, PTO, Checklists) just stacked vertically, with only Past collapsible. Explored three directions on a design canvas (full accordion, segmented tabs, a sticky quick-jump nav) and John picked a combination: tabs for the browsable sections, with an explicitly labeled "Overview" area on top holding the always-visible glance content.
+
+**New structure.** An **Overview** block (Stats bar, AI Travel Brief, Next Journey hero, Trip Map) stays visible above a **tab bar** — Upcoming / Past / Wishlist / Planning — that swaps the content below. Only one tab's content renders at a time (`activeTab` state, default `'upcoming'`), each with its own real-data count (`upcoming.length`, `past.length`, `wishlist.length`; Planning has no single count worth showing). Upcoming's soonest trip stays in Overview as the Hero card, so the Upcoming tab shows only the rest (`UpcomingTimeline`) — showing it twice would be redundant. Past travels dropped its own inner collapsible toggle (migration from the prior session's build): the tab click is now the disclosure, so `PastTravelSection` (search/filter/sort/year-groups, unchanged internally) just renders when the Past tab is active. Wishlist lost its redundant inline "Wishlist" heading — the tab label already says that. PTO Planner moved into the new Planning tab; **Checklist Templates deliberately stayed put** outside the tabs, at the very bottom of the page regardless of trips/tab state — it manages templates independent of any trip existing, and gating it behind a tab would regress the zero-trips case.
+
+Removed the now-unused `sectionHeadButton`/`chevron`/`chevronOpen` CSS (Past's old collapsible-header pattern) rather than leaving orphaned rules. No schema change; front-end only.
+
+**Verified:** `next build` (Turbopack) compiles clean; `prettier --check` passes on both touched files; `next dev` serves `/travel` with 200 and no server-side errors. The tab-click interaction itself and the real Neon-backed data path are unverified in this sandbox — same standing limitation as every prior Travel-page session (no live `DATABASE_URL` here) — worth a manual click-through on Preview to confirm tab switching feels right and nothing regressed for a zero-trips or zero-upcoming account state.
+
+---
+
 ## 2026-09-04 — Built out the Past travels section (year grouping, search/sort/filter, per-trip recap)
 
 John asked to build out the existing "Past travels" section on `/travel`, which until now was just a collapsible grid of `PastCard`s with no way to browse or search once it grows. Asked which direction to take it (multiple reasonable options) — John picked all three: richer per-trip recap, filter/search/sort on the gallery, and grouping by year. No schema change; front-end only.

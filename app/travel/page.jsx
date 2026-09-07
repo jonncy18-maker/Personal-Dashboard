@@ -85,19 +85,6 @@ function ArrowIcon() {
     </svg>
   );
 }
-function ChevronIcon({ className }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
 function SparkIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -521,6 +508,31 @@ function WishlistCard({ trip }) {
   );
 }
 
+// ─── section tabs — Upcoming / Past / Wishlist / Planning ──────────────────
+// The Overview block above (stats, brief, next journey, map) is always
+// visible; these tabs hold everything else so the page doesn't just stack
+// every section at once. Counts are omitted where there's nothing countable
+// (Planning has no single number worth showing).
+function TabBar({ tabs, active, onChange }) {
+  return (
+    <div className={styles.tabs}>
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          className={`${styles.tab} ${active === t.key ? styles.tabActive : ''}`}
+          onClick={() => onChange(t.key)}
+        >
+          {t.label}
+          {t.count != null && (
+            <span className={`${styles.tabCount} tabular`}>{t.count}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── add-trip form (behavior unchanged) ────────────────────────────────────
 function AddTripForm({ onAdded }) {
   const [open, setOpen] = useState(false);
@@ -722,7 +734,7 @@ export default function TravelPage() {
   const [suggestions, setSuggestions] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState(null);
-  const [pastOpen, setPastOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('upcoming');
   const brief = briefData?.brief || null;
   const pins = mapData?.pins || [];
 
@@ -849,8 +861,11 @@ export default function TravelPage() {
 
       {trips && trips.length > 0 && (
         <>
+          <div className={styles.overviewLabel}>
+            <span className={styles.panelDot} aria-hidden="true" />
+            <span className={styles.panelTitle}>Overview</span>
+          </div>
           <StatsBar stats={statsData?.stats} />
-          <PtoPanel />
           <div className={styles.topRow}>
             <TravelBrief brief={brief} />
             {hero ? (
@@ -881,43 +896,47 @@ export default function TravelPage() {
             </div>
           )}
 
-          <UpcomingTimeline trips={rest} />
+          <TabBar
+            active={activeTab}
+            onChange={setActiveTab}
+            tabs={[
+              { key: 'upcoming', label: 'Upcoming', count: upcoming.length },
+              { key: 'past', label: 'Past', count: past.length },
+              { key: 'wishlist', label: 'Wishlist', count: wishlist.length },
+              { key: 'planning', label: 'Planning', count: null },
+            ]}
+          />
 
-          {past.length > 0 && (
-            <>
-              <button
-                type="button"
-                className={styles.sectionHeadButton}
-                onClick={() => setPastOpen((v) => !v)}
-                aria-expanded={pastOpen}
-              >
-                <span className={styles.sectionTitle}>Past travels</span>
-                <span className={`${styles.sectionCount} tabular`}>
-                  {past.length}
-                </span>
-                <ChevronIcon
-                  className={`${styles.chevron} ${pastOpen ? styles.chevronOpen : ''}`}
-                />
-              </button>
-              {pastOpen && <PastTravelSection trips={past} />}
-            </>
-          )}
+          {activeTab === 'upcoming' &&
+            (rest.length > 0 ? (
+              <UpcomingTimeline trips={rest} />
+            ) : (
+              <p className={styles.emptySub}>
+                {upcoming.length > 0
+                  ? 'Nothing else upcoming right now.'
+                  : 'No upcoming trips. Add one above.'}
+              </p>
+            ))}
 
-          {wishlist.length > 0 && (
-            <>
-              <div className={styles.sectionHead}>
-                <span className={styles.sectionTitle}>Wishlist</span>
-                <span className={`${styles.sectionCount} tabular`}>
-                  {wishlist.length}
-                </span>
-              </div>
+          {activeTab === 'past' &&
+            (past.length > 0 ? (
+              <PastTravelSection trips={past} />
+            ) : (
+              <p className={styles.emptySub}>No past trips yet.</p>
+            ))}
+
+          {activeTab === 'wishlist' &&
+            (wishlist.length > 0 ? (
               <div className={styles.grid}>
                 {wishlist.map((trip) => (
                   <WishlistCard key={trip.id} trip={trip} />
                 ))}
               </div>
-            </>
-          )}
+            ) : (
+              <p className={styles.emptySub}>Nothing on the wishlist yet.</p>
+            ))}
+
+          {activeTab === 'planning' && <PtoPanel />}
         </>
       )}
 
