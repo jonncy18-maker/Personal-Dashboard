@@ -135,7 +135,10 @@ function TripRow({ trip, onSave }) {
     return (
       <div className={styles.tripRowEditing}>
         <div className={styles.tripInfo}>
-          <span className={styles.tripName}>{trip.destination}</span>
+          <span className={styles.tripName}>
+            {trip.destination}
+            {trip.isMerged && ` (+${trip.legs.length})`}
+          </span>
           <span className={styles.tripDates}>{dates}</span>
         </div>
         <div className={styles.tripRowEdit}>
@@ -173,7 +176,10 @@ function TripRow({ trip, onSave }) {
       className={styles.tripRow}
       onClick={() => setEditing(true)}
     >
-      <span className={styles.tripName}>{trip.destination}</span>
+      <span className={styles.tripName}>
+        {trip.destination}
+        {trip.isMerged && ` (+${trip.legs.length})`}
+      </span>
       <span className={`${styles.tripDates} tabular`}>{dates}</span>
       <span className={styles.tripFill} aria-hidden="true" />
       <span

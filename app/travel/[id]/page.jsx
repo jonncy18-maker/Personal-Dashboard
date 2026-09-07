@@ -307,6 +307,176 @@ function ImportModal({ tripId, onClose, onAddDays }) {
   );
 }
 
+// Merge management — a leg keeps its own row/itinerary/notes untouched;
+// merging only sets merged_into_id so PTO, Travel Stats, and the Home trip
+// count fold it into the parent's range instead of double-counting it (see
+// lib/trip-merge.js). Available right on the trip page, alongside the
+// suggestion-review bell's own "looks like part of…" prompt.
+function MergePanel({
+  trip,
+  legs,
+  otherTrips,
+  onMergeIn,
+  onUnmergeLeg,
+  onUnmergeSelf,
+}) {
+  const [pickId, setPickId] = useState('');
+  const [busy, setBusy] = useState(null);
+  const [err, setErr] = useState(null);
+
+  const isLeg = Boolean(trip.merged_into_id);
+  const legIds = new Set(legs.map((l) => l.id));
+  const candidates = (otherTrips || []).filter(
+    (t) =>
+      t.id !== trip.id &&
+      !t.merged_into_id &&
+      !legIds.has(t.id) &&
+      t.status !== 'wishlist'
+  );
+
+  async function addLeg() {
+    if (!pickId) return;
+    setBusy('add');
+    setErr(null);
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leg_ids: [pickId] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErr(data.error || 'Could not merge that trip in.');
+        return;
+      }
+      onMergeIn(data.legs);
+      setPickId('');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeLeg(legId) {
+    setBusy(legId);
+    try {
+      await fetch(`/api/trips/${legId}/unmerge`, { method: 'POST' });
+      onUnmergeLeg(legId);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function unmergeSelf() {
+    setBusy('self');
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/unmerge`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok) onUnmergeSelf(data.trip);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className={styles.section}>
+      <h2 className={styles.sectionTitle}>Merged trip</h2>
+
+      {isLeg && trip.parent && (
+        <p className={styles.fieldHint} style={{ marginBottom: 12 }}>
+          This trip is merged into{' '}
+          <Link href={`/travel/${trip.parent.id}`}>
+            {trip.parent.destination}
+          </Link>{' '}
+          — its own dates and PTO days aren't counted separately.{' '}
+          <button
+            type="button"
+            className={styles.editButton}
+            disabled={busy === 'self'}
+            onClick={unmergeSelf}
+          >
+            {busy === 'self' ? 'Unmerging…' : 'Unmerge'}
+          </button>
+        </p>
+      )}
+
+      {!isLeg && legs.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <p className={styles.fieldHint} style={{ marginBottom: 8 }}>
+            {legs.length} {legs.length === 1 ? 'leg is' : 'legs are'} folded
+            into this trip — this trip's dates were widened to cover all of
+            them, and none of them count PTO days on their own.
+          </p>
+          {legs.map((leg) => (
+            <div
+              key={leg.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                padding: '8px 0',
+                borderTop: '1px solid var(--border)',
+              }}
+            >
+              <span style={{ fontSize: 13 }}>
+                <Link href={`/travel/${leg.id}`}>{leg.destination}</Link>
+                {leg.start_date && (
+                  <span className={styles.fieldHint}>
+                    {' '}
+                    · {leg.start_date}
+                    {leg.end_date ? ` – ${leg.end_date}` : ''}
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                className={styles.editButton}
+                disabled={busy === leg.id}
+                onClick={() => removeLeg(leg.id)}
+              >
+                {busy === leg.id ? 'Unmerging…' : 'Unmerge'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isLeg && (
+        <div className={styles.actions}>
+          <select
+            value={pickId}
+            onChange={(e) => setPickId(e.target.value)}
+            disabled={candidates.length === 0}
+          >
+            <option value="">
+              {candidates.length === 0
+                ? 'No other trips to merge'
+                : 'Merge another trip in as a leg…'}
+            </option>
+            {candidates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.destination}
+                {t.start_date ? ` (${t.start_date})` : ''}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className={styles.saveButton}
+            disabled={!pickId || busy === 'add'}
+            onClick={addLeg}
+          >
+            {busy === 'add' ? 'Merging…' : 'Merge in'}
+          </button>
+        </div>
+      )}
+      {err && <p className={styles.formError}>{err}</p>}
+    </div>
+  );
+}
+
 export default function TripDetailPage() {
   const router = useRouter();
   const { id } = useParams();
@@ -320,6 +490,8 @@ export default function TripDetailPage() {
   const [error, setError] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [legs, setLegs] = useState([]);
+  const [otherTrips, setOtherTrips] = useState([]);
 
   useEffect(() => {
     fetch(`/api/trips/${id}`)
@@ -329,6 +501,7 @@ export default function TripDetailPage() {
       })
       .then((data) => {
         setTrip(data.trip);
+        setLegs(data.trip.legs || []);
         setEditing(!isPastTrip(data.trip));
         setForm({
           destination: data.trip.destination || '',
@@ -344,6 +517,10 @@ export default function TripDetailPage() {
         );
       })
       .catch(() => setLoadError('Could not load this trip.'));
+    fetch('/api/trips')
+      .then((res) => res.json())
+      .then((data) => setOtherTrips(data.trips || []))
+      .catch(() => {});
   }, [id]);
 
   function updateField(key, value) {
@@ -666,6 +843,19 @@ export default function TripDetailPage() {
           </div>
         </>
       )}
+
+      <MergePanel
+        trip={trip}
+        legs={legs}
+        otherTrips={otherTrips}
+        onMergeIn={(newLegs) => setLegs(newLegs)}
+        onUnmergeLeg={(legId) =>
+          setLegs((prev) => prev.filter((l) => l.id !== legId))
+        }
+        onUnmergeSelf={(updatedTrip) =>
+          setTrip((prev) => ({ ...prev, ...updatedTrip, parent: null }))
+        }
+      />
 
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Prep checklist</h2>

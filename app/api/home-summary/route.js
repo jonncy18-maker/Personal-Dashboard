@@ -4,6 +4,7 @@ import { findNextTutorCall } from '../../../lib/tutor-call';
 import { fetchCalendarEvents } from '../../../lib/calendar-events';
 import { yearOf, ptoSummary } from '../../../lib/pto';
 import { mileageSummary } from '../../../lib/mileage';
+import { collapseMergedTrips } from '../../../lib/trip-merge';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -44,6 +45,7 @@ export const GET = route(async () => {
                image_attribution, image_source
         FROM trips
         WHERE status = 'upcoming'
+          AND merged_into_id IS NULL
           AND (
             COALESCE(end_date, start_date) IS NULL
             OR COALESCE(end_date, start_date) >= CURRENT_DATE
@@ -94,7 +96,7 @@ export const GET = route(async () => {
     sql`SELECT entry_date, kind FROM pto_entries`,
     sql`
         SELECT id, destination, start_date, end_date, status,
-               pto_days_override, pto_exempt
+               pto_days_override, pto_exempt, merged_into_id
         FROM trips
       `,
     // Mileage calculator's Home line — DB-local only, same discipline as PTO
@@ -123,12 +125,18 @@ export const GET = route(async () => {
     .sort((a, b) => b.count - a.count);
 
   const today = new Date().toISOString().slice(0, 10);
-  const pto = ptoSummary({
-    trips: ptoTripRows.map((t) => ({
+  // Collapse merged trip legs into their parent's date range before costing
+  // PTO — otherwise a Singapore/Cebu/Taiwan journey scanned as three rows
+  // would count its weekdays three times over (CLAUDE.md's merge feature).
+  const ptoTrips = collapseMergedTrips(
+    ptoTripRows.map((t) => ({
       ...t,
       start_date: dateOnly(t.start_date),
       end_date: dateOnly(t.end_date),
-    })),
+    }))
+  );
+  const pto = ptoSummary({
+    trips: ptoTrips,
     entries: ptoEntryRows.map((e) => ({
       ...e,
       entry_date: dateOnly(e.entry_date),

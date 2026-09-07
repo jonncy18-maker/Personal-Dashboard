@@ -9,6 +9,7 @@ import ChecklistTemplates from '../../components/ChecklistTemplates';
 import PtoPanel from '../../components/PtoPanel';
 import { BellIcon } from '../../components/icons';
 import { parseDateInput, daysUntil, isPastTrip } from '../../lib/format';
+import { collapseMergedTrips } from '../../lib/trip-merge';
 import styles from './page.module.css';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -225,7 +226,14 @@ function TimelineCard({ trip }) {
           />
         </div>
         <div className={styles.tlContent}>
-          <p className={styles.tlName}>{trip.destination}</p>
+          <p className={styles.tlName}>
+            {trip.destination}
+            {trip.is_merged && (
+              <span className={styles.mergedBadge}>
+                +{trip.legs.length} {trip.legs.length === 1 ? 'leg' : 'legs'}
+              </span>
+            )}
+          </p>
           <p className={`${styles.tlDates} tabular`}>{dateRange(trip)}</p>
           <div className={`${styles.tlMeta} tabular`}>
             {len != null && (
@@ -287,6 +295,11 @@ function PastCard({ trip }) {
           {trip.destination}
           {trip.country && (
             <span className={styles.cardCountry}> · {trip.country}</span>
+          )}
+          {trip.is_merged && (
+            <span className={styles.mergedBadge}>
+              +{trip.legs.length} {trip.legs.length === 1 ? 'leg' : 'legs'}
+            </span>
           )}
         </p>
         <p className={`${styles.cardDates} tabular`}>{dateRange(trip)}</p>
@@ -632,6 +645,9 @@ function SuggestionsBell({
   onDismiss,
 }) {
   const [busy, setBusy] = useState(null);
+  // Which existing trip (by id) is selected in each suggestion's "merge into"
+  // dropdown — keyed by suggestion id so multiple rows don't interfere.
+  const [mergeChoice, setMergeChoice] = useState({});
 
   async function act(id, fn) {
     setBusy(id);
@@ -684,13 +700,47 @@ function SuggestionsBell({
                       From: {s.source_subject}
                     </p>
                   )}
+                  {s.merge_candidates && s.merge_candidates.length > 0 && (
+                    <div className={styles.suggestMergeHint}>
+                      <span>Looks like part of:</span>
+                      <select
+                        className={styles.suggestMergeSelect}
+                        value={mergeChoice[s.id] || ''}
+                        onChange={(e) =>
+                          setMergeChoice((prev) => ({
+                            ...prev,
+                            [s.id]: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Add as a new trip</option>
+                        {s.merge_candidates.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.destination} ({dateRange(c)})
+                          </option>
+                        ))}
+                      </select>
+                      {mergeChoice[s.id] && (
+                        <button
+                          type="button"
+                          className={styles.suggestMergeBtn}
+                          disabled={busy === s.id}
+                          onClick={() =>
+                            act(s.id, () => onApprove(s.id, mergeChoice[s.id]))
+                          }
+                        >
+                          {busy === s.id ? 'Merging…' : 'Merge in'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.suggestActions}>
                   <button
                     type="button"
                     className={styles.suggestApprove}
                     disabled={busy === s.id}
-                    onClick={() => act(s.id, onApprove)}
+                    onClick={() => act(s.id, () => onApprove(s.id))}
                   >
                     {busy === s.id ? 'Adding…' : 'Add'}
                   </button>
@@ -774,8 +824,12 @@ export default function TravelPage() {
     }
   }
 
-  async function approveSuggestion(id) {
-    const res = await fetch(`/api/trip-suggestions/${id}`, { method: 'POST' });
+  async function approveSuggestion(id, mergeIntoId) {
+    const res = await fetch(`/api/trip-suggestions/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ merge_into_id: mergeIntoId || null }),
+    });
     const data = await res.json();
     if (res.ok && data.trip) {
       setTrips((prev) => [data.trip, ...(prev || [])]);
@@ -788,21 +842,26 @@ export default function TravelPage() {
     await fetch(`/api/trip-suggestions/${id}`, { method: 'DELETE' });
   }
 
-  const upcoming = (trips || [])
+  // Collapse merged legs into their parent trip before any list/tab/stat
+  // reads the array — a leg never appears as its own card once merged (see
+  // lib/trip-merge.js); its dates/notes are folded into its parent instead.
+  const displayTrips = collapseMergedTrips(trips || []);
+
+  const upcoming = displayTrips
     .filter((t) => t.status === 'upcoming' && !isPastTrip(t))
     .sort((a, b) => {
       if (!a.start_date) return 1;
       if (!b.start_date) return -1;
       return a.start_date.localeCompare(b.start_date);
     });
-  const past = (trips || [])
+  const past = displayTrips
     .filter((t) => isPastTrip(t))
     .sort((a, b) => {
       if (!a.start_date) return 1;
       if (!b.start_date) return -1;
       return b.start_date.localeCompare(a.start_date);
     });
-  const wishlist = (trips || []).filter((t) => t.status === 'wishlist');
+  const wishlist = displayTrips.filter((t) => t.status === 'wishlist');
   const hero = upcoming[0] || null;
 
   return (

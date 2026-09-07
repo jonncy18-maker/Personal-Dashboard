@@ -9,6 +9,7 @@ function serialize(row) {
     budget: num(row.budget),
     start_date: dateOnly(row.start_date),
     end_date: dateOnly(row.end_date),
+    merged_into_id: row.merged_into_id ?? null,
   };
 }
 
@@ -21,6 +22,18 @@ export async function POST(request, { params }) {
   const { id } = await params;
   const sql = getDb();
 
+  // Optional: John picked one of the review popup's merge_candidates instead
+  // of "Add as new trip" — the suggestion still becomes its own trip row
+  // (own itinerary, own import), it's just immediately folded into the
+  // existing trip via merged_into_id, same as a manual merge would do.
+  let mergeIntoId = null;
+  try {
+    const body = await request.json();
+    mergeIntoId = body?.merge_into_id || null;
+  } catch {
+    // no JSON body sent — plain approve, unchanged from before
+  }
+
   const [sugg] = await sql`
     SELECT id, destination, start_date, end_date, source_gmail_id, status
     FROM trip_suggestions WHERE id = ${id}
@@ -30,6 +43,24 @@ export async function POST(request, { params }) {
   }
   if (sugg.status !== 'pending') {
     return Response.json({ error: 'already handled' }, { status: 409 });
+  }
+
+  if (mergeIntoId) {
+    const [target] = await sql`
+      SELECT id, merged_into_id FROM trips WHERE id = ${mergeIntoId}
+    `;
+    if (!target) {
+      return Response.json(
+        { error: 'merge target not found' },
+        { status: 404 }
+      );
+    }
+    if (target.merged_into_id) {
+      return Response.json(
+        { error: 'merge target is itself a merged leg' },
+        { status: 400 }
+      );
+    }
   }
 
   // Auto photo for the new trip (same path as manual trip create).
@@ -55,16 +86,16 @@ export async function POST(request, { params }) {
   const [trip] = await sql`
     INSERT INTO trips (
       destination, start_date, end_date, status, itinerary,
-      image_url, image_attribution, image_source
+      image_url, image_attribution, image_source, merged_into_id
     )
     VALUES (
       ${sugg.destination}, ${sugg.start_date}, ${sugg.end_date}, 'upcoming',
       ${itinerary}, ${photo?.image_url || null},
-      ${photo?.image_attribution || null}, 'auto'
+      ${photo?.image_attribution || null}, 'auto', ${mergeIntoId}
     )
     RETURNING id, destination, start_date, end_date, status, notes, budget,
               itinerary, image_url, image_attribution, image_source,
-              created_at, updated_at
+              merged_into_id, created_at, updated_at
   `;
 
   await sql`
