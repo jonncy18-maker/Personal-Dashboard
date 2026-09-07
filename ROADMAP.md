@@ -56,6 +56,26 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-07 (cont'd 2) — Planning tab redesign: PTO Planner sub-tabs, Checklists read/edit split
+
+John felt the newly-folded Planning tab was still cluttered, specifically `PtoPanel` (883 lines, five always-stacked sections: headline, budget/banked chips, the full trip list, manual entries, then three simulation tools) and `ChecklistTemplates`'s expanded template view (a live grid of section+item text inputs even when John just wanted to glance at a list). Explored redesigns on a design canvas first — a compact glance strip + internal Trips/Log/Simulate sub-tabs for PTO (mirroring the outer page's own tab pattern), and a read-then-edit split for Checklists (mirroring the past-trip recap/edit split) — before building.
+
+**`PtoPanel.jsx`/`.module.css`:**
+
+- The old always-stacked headline block + budget/banked chip row collapsed into one **glance strip**: the `left` figure, `taken`/`planned` detail, and the budget/banked chips all in a single row.
+- Everything below it now lives behind **Trips / Log / Simulate** sub-tabs instead of five stacked sections. Trips = the existing per-trip auto/override list; Log = the existing manual-entry form + list (dropped its own "Manual entries" header and banked-count tag, since the sub-tab label and the glance strip's banked chip already say both); Simulate = the existing wishlist what-ifs, sandbox calculator, and saved scenarios, unchanged in capability, just grouped under a `simNote` ("Never counted above — planning only") instead of a dashed-border box.
+- **`TripRow` is read-only by default.** The override number input + No-PTO checkbox used to sit exposed on every row; now a row shows a plain summary ("8 days · auto") with an edit affordance (`EditIcon`, reused from `components/icons.jsx`), and clicking it reveals the same override/No-PTO controls as before, with a "Done" to collapse back. No behavior removed — `commitOverride`/`toggleExempt` and their optimistic-patch logic are untouched.
+- **Dropped the whole-panel collapse** (the old `open`/`toggleOpen`/`localStorage` chevron toggle, `PANEL_OPEN_KEY`) as a redundant second disclosure — the outer Planning tab is already the show/hide layer now that Checklists lives there too, so a panel-level collapse inside it just duplicated that. This is a real feature removal, made deliberately (John approved the mockup, which didn't have it) rather than an oversight.
+- The Holidays popup (`HolidaysPopup`) is untouched — already appropriately hidden behind its own explicit "banked" chip, same trigger as before.
+
+**`ChecklistTemplates.jsx`/`.module.css`:** opening a template now shows a new **`TemplateRead`** component — a plain checklist grouped by section (same grouping rule as Travel's itinerary leg headers: a section label renders whenever it changes from the previous item), not the raw editable grid. An explicit **"Edit"** link switches to the existing `TemplateEditor` (unchanged internally, plus a new **Cancel** button to return to read mode without saving). Saving now also flips the card back to read mode automatically. `TemplateCard` also resets to read mode whenever the card is collapsed and reopened, so it never reopens mid-edit unexpectedly. Shortened the header hint paragraph to one line, keeping only the non-obvious fact (editing a template never touches a trip that already copied it) and dropping the more self-evident "apply it from a trip's detail page" clause.
+
+No schema or API change — both components still talk to the same routes with the same payloads; this is purely a client-side reorganization.
+
+**Verified:** `next build` (Turbopack) compiles clean; `prettier --check` passes on all four touched files; `next dev` serves `/travel` with 200 and no server errors. Not exercised against live Neon/a real browser in this sandbox — same standing limitation as every prior Travel-page session; the sub-tab switching, trip-row edit toggle, and template read/edit split are unverified end-to-end, worth a manual click-through on Preview.
+
+---
+
 ## 2026-09-07 (cont'd) — Travel page, round three: drop the duplicate hero, fold Checklists into Planning
 
 John reviewed the round-two result live and flagged two more things: the Upcoming tab's big `HeroTrip` photo card just repeated the same soonest trip the Overview strip already names (glance vs. actionable was supposed to be the split, but showing the identical trip twice on the same screen isn't that), and Planning felt thin with only PTO in it while Checklist Templates sat in its own always-visible section outside the tab system entirely — inconsistent given both are trip-prep tools.

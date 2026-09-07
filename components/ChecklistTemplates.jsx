@@ -8,7 +8,53 @@ import styles from './ChecklistTemplates.module.css';
 // lists applied per trip on a trip's detail page. Items are [{text, section}];
 // `section` groups items under a header, edited inline here.
 
-function TemplateEditor({ template, onSaved, onDeleted }) {
+function ItemIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+    </svg>
+  );
+}
+
+// Read-only view of a template's items, grouped by section — a plain
+// checklist rather than a live grid of section+item text inputs. "Edit"
+// switches to TemplateEditor; nothing here is ever editable directly.
+function TemplateRead({ template, onEdit }) {
+  const items = template.items || [];
+  const groups = [];
+  for (const it of items) {
+    const label = it.section || '';
+    const last = groups[groups.length - 1];
+    if (!last || last.label !== label) {
+      groups.push({ label, items: [it] });
+    } else {
+      last.items.push(it);
+    }
+  }
+  return (
+    <div className={styles.readBody}>
+      {items.length === 0 && <p className={styles.readEmpty}>No items yet.</p>}
+      {groups.map((g, i) => (
+        <div className={styles.section} key={i}>
+          {g.label && <p className={styles.sectionLabel}>{g.label}</p>}
+          {g.items.map((it, j) => (
+            <div className={styles.item} key={j}>
+              <ItemIcon />
+              {it.text || '(untitled)'}
+            </div>
+          ))}
+        </div>
+      ))}
+      <div className={styles.readFoot}>
+        <button type="button" className={styles.editLink} onClick={onEdit}>
+          Edit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TemplateEditor({ template, onSaved, onDeleted, onCancel }) {
   const [name, setName] = useState(template.name);
   const [items, setItems] = useState(
     (template.items || []).map((it) => ({
@@ -116,6 +162,9 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
         >
           {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
         </button>
+        <button className={styles.cancelEdit} onClick={onCancel}>
+          Cancel
+        </button>
         <button className={styles.deleteTemplate} onClick={del}>
           Delete
         </button>
@@ -126,21 +175,37 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
 
 function TemplateCard({ template, onSaved, onDeleted }) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState('view');
   const count = (template.items || []).length;
+
+  function toggle() {
+    setOpen((v) => !v);
+    setMode('view');
+  }
+
+  function handleSaved(updated) {
+    onSaved(updated);
+    setMode('view');
+  }
+
   return (
     <div className={styles.card}>
-      <button className={styles.cardHead} onClick={() => setOpen((v) => !v)}>
+      <button className={styles.cardHead} onClick={toggle}>
         <span className={styles.caret}>{open ? '▾' : '▸'}</span>
         <span className={styles.cardName}>{template.name}</span>
         <span className={`${styles.cardCount} tabular`}>
           {count} {count === 1 ? 'item' : 'items'}
         </span>
       </button>
-      {open && (
+      {open && mode === 'view' && (
+        <TemplateRead template={template} onEdit={() => setMode('edit')} />
+      )}
+      {open && mode === 'edit' && (
         <TemplateEditor
           template={template}
-          onSaved={onSaved}
+          onSaved={handleSaved}
           onDeleted={onDeleted}
+          onCancel={() => setMode('view')}
         />
       )}
     </div>
@@ -193,9 +258,8 @@ export default function ChecklistTemplates() {
         </button>
       </div>
       <p className={styles.hint}>
-        Reusable packing/prep lists. Apply one to any trip from its detail page
-        — applying copies the items, so editing a template here never changes a
-        trip you've already checked off.
+        Reusable packing/prep lists — editing here never changes a trip that
+        already copied one.
       </p>
 
       {templates === null && <p className={styles.empty}>Loading…</p>}
