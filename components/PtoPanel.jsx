@@ -15,6 +15,10 @@ function fmtDate(value) {
   });
 }
 
+function daysWord(n) {
+  return Math.abs(n) === 1 ? 'day' : 'days';
+}
+
 // A "YYYY-MM-DD" string that falls on a Saturday/Sunday almost certainly
 // means someone typed the unobserved date by mistake (holidays are always
 // stored as their observed weekday date — PTO_BUILD_PLAN.md §2). Warn, don't
@@ -125,8 +129,8 @@ function TripRow({ trip, onSave }) {
   const summary = exempt
     ? 'not counted · No PTO'
     : trip.override != null
-      ? `${trip.counted} days · override (auto ${trip.autoDays})`
-      : `${trip.autoDays} days · auto`;
+      ? `${trip.counted} ${daysWord(trip.counted)} · override (auto ${trip.autoDays})`
+      : `${trip.autoDays} ${daysWord(trip.autoDays)} · auto`;
 
   return (
     <div className={`${styles.tripRow} ${exempt ? styles.tripRowExempt : ''}`}>
@@ -358,8 +362,8 @@ function WishlistWhatIfs({ wishlist, left }) {
             <span className={styles.whatIfName}>{t.destination}</span>
             {t.simDays != null ? (
               <span className={styles.whatIfCost}>
-                would cost <strong>{t.simDays}</strong> days → would leave{' '}
-                <strong>{wouldLeave(left, t.simDays)}</strong>
+                would cost <strong>{t.simDays}</strong> {daysWord(t.simDays)} →
+                would leave <strong>{wouldLeave(left, t.simDays)}</strong>
               </span>
             ) : (
               <span className={styles.whatIfCost}>add dates to simulate</span>
@@ -403,7 +407,7 @@ function SandboxCalculator({ year, holidaySet, left }) {
       </div>
       {cost != null && (
         <p className={styles.sandboxResult}>
-          would cost <strong>{cost}</strong> days → would leave{' '}
+          would cost <strong>{cost}</strong> {daysWord(cost)} → would leave{' '}
           <strong>{wouldLeave(left, cost)}</strong>
         </p>
       )}
@@ -543,7 +547,9 @@ function ScenarioCard({
                 : c.item.label || 'Range'}
             </span>
             <span>
-              {c.simulable ? `${c.days} days` : `not simulable (${c.reason})`}
+              {c.simulable
+                ? `${c.days} ${daysWord(c.days)}`
+                : `not simulable (${c.reason})`}
             </span>
             <button
               className={styles.scenarioItemRemove}
@@ -558,8 +564,8 @@ function ScenarioCard({
       <ScenarioItemForm wishlist={wishlist} onAdd={onAddItem} />
 
       <p className={styles.scenarioTotal}>
-        Total <strong>{costed.total}</strong> days → would leave{' '}
-        <strong>{wouldLeave(left, costed.total)}</strong>
+        Total <strong>{costed.total}</strong> {daysWord(costed.total)} → would
+        leave <strong>{wouldLeave(left, costed.total)}</strong>
         {!costed.allSimulable && ' (some items not simulable — excluded above)'}
       </p>
     </div>
@@ -759,7 +765,11 @@ export default function PtoPanel() {
       </div>
 
       <div className={styles.glance}>
-        <span className={`${styles.glanceFigure} tabular`}>{data.left}</span>
+        <span
+          className={`${styles.glanceFigure} ${data.left < 0 ? styles.glanceFigureNegative : ''} tabular`}
+        >
+          {data.left}
+        </span>
         <span className={`${styles.glanceDetail} tabular`}>
           left · {data.taken} taken · {data.planned} planned
         </span>
