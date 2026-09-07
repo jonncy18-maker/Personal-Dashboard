@@ -18,7 +18,7 @@
 --                      015_trip_country, 016_pto, 017_mileage,
 --                      018_mileage_usual_trips, 019_mileage_usual_legs,
 --                      020_mileage_places, 021_mileage_scenario_legs,
---                      022_mileage_travel_exclusions
+--                      022_mileage_travel_exclusions, 023_trip_merge
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -84,9 +84,11 @@ CREATE TABLE IF NOT EXISTS trips (
   country_geocoded_at  timestamptz, -- when country was last resolved (null = not yet tried)
   pto_days_override  integer,       -- PTO Planner: sticks once set, auto math never overwrites
   pto_exempt         boolean NOT NULL DEFAULT false, -- PTO Planner: trip contributes 0 PTO days
+  merged_into_id  uuid REFERENCES trips (id) ON DELETE SET NULL, -- trip merging (migration 023): set when this row is a leg folded into another trip
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS trips_merged_into_idx ON trips (merged_into_id);
 DROP TRIGGER IF EXISTS trips_set_updated_at ON trips;
 CREATE TRIGGER trips_set_updated_at
   BEFORE UPDATE ON trips FOR EACH ROW EXECUTE FUNCTION set_updated_at();

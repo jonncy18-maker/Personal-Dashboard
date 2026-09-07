@@ -26,6 +26,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Run `npm run migrate` after the To-do's + Calendar PR merges** — migration 012 (`email_todos`). Confirmed applied to the live Neon DB (2026-07-21; `schema_migrations` records 012).
 - [x] **Run `npm run migrate` after the Calendar-hide PR merges** — migration 013 (`calendar_hidden`). Confirmed applied to the live Neon DB (2026-07-21; `schema_migrations` records 013). _(Migration 014 `calendar_renames` likewise confirmed applied.)_
 - [x] **Run `npm run migrate` after the Travel Stats bar PR merges** — 2026-07-25, applied via the Neon MCP right after #61 merged. Migration 015 (`trip_country`) added `country`/`country_code`/`country_geocoded_at` to `trips`; confirmed all three exist and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, so the `schema_migrations` row was inserted explicitly — the net state is identical to a `npm run migrate` run.)_
+- [ ] **Run `npm run migrate` after the trip-merging PR merges** — migration 023 (`trip_merge`) adds `trips.merged_into_id`. Nothing reads/writes it until applied — same class of gap the migration runner exists to close (CLAUDE.md §6).
 
 ---
 
@@ -1110,6 +1111,25 @@ Fixed both: added `text.normalize('NFKC')` before the existing NFD-diacritics-st
 **Verified:** confirmed directly in Node against the real event pulled from John's calendar, plus re-ran all three prior real patterns (Bruno/organizer-email, Nicolas "CLASE", Nicolas "Español") and a control non-matching event — all five behave correctly.
 
 **Note for future sessions:** Calendar-based matching is inherently fragile against however each tutor happens to title their invites — this is now the fourth fix to the same keyword list in one day, each time triggered by a real event this session hadn't seen. If a fifth tutor or naming pattern turns up, consider whether keyword whack-a-mole is still the right approach versus something more structural (e.g. an explicit allow-list of known tutor emails, editable from the UI, instead of guessing from event text).
+
+---
+
+## 2026-09-07 — Trip merging: fold booking legs into one real trip
+
+John noticed a real duplication problem: a single journey (departing 12/31/26 through Singapore, then Cebu, then Taiwan, plus a not-yet-booked JFK leg) was landing in `trips` as several separate rows — one per booking confirmation the weekly Gmail scan or a manual add picked up. Left alone, each row counted its own PTO weekdays, its own "upcoming trip," its own Travel Stats nights — silently multiplying one real trip's cost by however many legs it happened to arrive as.
+
+**Design:** row-level merging, deliberately not a rewrite of the itinerary editor's existing per-day "Leg" grouping field (that's a label on days *within* one trip's own itinerary — unrelated). `trips.merged_into_id` (migration 023, self-referencing FK, `ON DELETE SET NULL`) marks a row as a leg folded into another trip; a leg keeps its own id, itinerary, notes, and budget untouched — merging/unmerging never rewrites a leg's data, it only points/unpoints `merged_into_id`. One level deep by design: a leg can't itself have legs, and can't itself be a merge target — validated in `app/api/trips/[id]/merge`.
+
+**Built:**
+
+- `lib/trip-merge.js` — pure, DB-free module (mirrors `lib/pto.js`/`lib/mileage.js`'s shape): `collapseMergedTrips()` folds every leg into its parent and widens the parent's `start_date`/`end_date` to the merged range (skipping undated legs, so the unbooked JFK leg doesn't break anything until it has real dates), so every existing consumer of a flat trip list keeps working unmodified and just never sees the double-counted legs. `findMergeCandidates()` is the heuristic behind the notification-side prompt below — existing trips within a tight date gap (default 5 days) of an incoming one.
+- `app/api/trips/[id]/merge` (POST, `{leg_ids}`) and `app/api/trips/[id]/unmerge` (POST) — the merge/unmerge endpoints, with the one-level-deep validation above. `GET /api/trips/[id]` now also returns `legs` and `parent`.
+- **PTO, Travel Stats, and the Home trip count all now collapse before counting** — `app/api/pto/route.js`, `app/api/home-summary/route.js`, and `app/api/travel-stats/route.js` call `collapseMergedTrips()` on their trip rows before doing any date/PTO/stat math, closing the exact duplication John flagged. `lib/travel-stats.js`'s `computeTravelStats()` still credits every distinct country actually visited (pulls each leg's own resolved country in alongside the root's), so merging doesn't erase "visited 3 countries" just to fix the trip-count/PTO duplication.
+- **Notification-side merge, per John's ask ("available right away in the notification part of newly scanned trips")** — `GET /api/trip-suggestions` now enriches each pending suggestion with `merge_candidates`; the Travel page's suggestion-review bell shows "Looks like part of: [dropdown of nearby existing trips] → Merge in" alongside the existing Add/Skip. Approving with a merge choice (`POST /api/trip-suggestions/[id]` now accepts an optional `merge_into_id`) still creates the trip normally (own itinerary import runs as usual) and immediately folds it in — same as a manual merge.
+- **Trip-detail-side merge, per John's ask ("within each trip")** — `app/travel/[id]/page.jsx` has a new "Merged trip" section: if this trip is a leg, a banner links to its parent with an Unmerge button; if it has its own legs, each is listed with its own Unmerge button; either way, a picker to merge another existing trip in as a leg. The Travel list (timeline + past grid) shows a "+N legs" badge on a merged trip's card, and the PTO panel's trip rows show the same `(+N)` next to a merged trip's destination.
+- `lib/assistant.js` catalog — added `merge_trips`/`unmerge_trip` tool entries (CLAUDE.md §7's "ship the route, don't forget the catalog half" rule) and updated `list_trips`/`get_trip`'s descriptions so the assistant knows a `merged_into_id` row isn't a separate trip for counting purposes.
+
+**Verified:** `next build` succeeds (all new routes compiled: `/api/trips/[id]/merge`, `/api/trips/[id]/unmerge`). Not verified end-to-end against a live scan/merge/PTO-recount cycle in this sandbox — no Gmail/Neon network path here; `npm run migrate` still needs to run against the live DB before any of this is reachable (tracked above).
 
 ---
 

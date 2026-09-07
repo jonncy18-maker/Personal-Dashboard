@@ -11,13 +11,29 @@ export const GET = route(async (request, { params }) => {
   const [row] = await sql`
     SELECT id, destination, start_date, end_date, status, notes, budget,
            itinerary, image_url, image_attribution, image_source,
-           latitude, longitude, created_at, updated_at
+           latitude, longitude, merged_into_id, created_at, updated_at
     FROM trips WHERE id = ${id}
   `;
   if (!row) {
     return Response.json({ error: 'not found' }, { status: 404 });
   }
-  return Response.json({ trip: serializeTrip(row) });
+  const legs = await sql`
+    SELECT id, destination, start_date, end_date, status, notes, budget,
+           image_url, image_source
+    FROM trips WHERE merged_into_id = ${id}
+    ORDER BY start_date IS NULL, start_date ASC
+  `;
+  let parent = null;
+  if (row.merged_into_id) {
+    const [p] = await sql`
+      SELECT id, destination, start_date, end_date FROM trips
+      WHERE id = ${row.merged_into_id}
+    `;
+    parent = p || null;
+  }
+  return Response.json({
+    trip: { ...serializeTrip(row), legs: legs.map(serializeTrip), parent },
+  });
 });
 
 export const PATCH = route(async (request, { params }) => {
@@ -158,7 +174,7 @@ export const PATCH = route(async (request, { params }) => {
     RETURNING id, destination, start_date, end_date, status, notes, budget,
               itinerary, image_url, image_attribution, image_source,
               latitude, longitude, pto_days_override, pto_exempt,
-              created_at, updated_at
+              merged_into_id, created_at, updated_at
   `;
   return Response.json({ trip: serializeTrip(row) });
 });

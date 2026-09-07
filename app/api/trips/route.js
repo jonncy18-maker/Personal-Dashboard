@@ -9,7 +9,7 @@ export const GET = route(async () => {
   const rows = await sql`
     SELECT id, destination, start_date, end_date, status, notes, budget,
            itinerary, image_url, image_attribution, image_source,
-           latitude, longitude, created_at, updated_at
+           latitude, longitude, merged_into_id, created_at, updated_at
     FROM trips
     ORDER BY start_date IS NULL, start_date ASC, created_at DESC
   `;

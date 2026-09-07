@@ -8,6 +8,7 @@ import {
   clampToYear,
   weekdaysExcludingHolidays,
 } from '../../../lib/pto';
+import { collapseMergedTrips } from '../../../lib/trip-merge';
 
 // PTO Planner's one-round-trip read (CLAUDE.md §7 — user-input CRUD shape,
 // route()-wrapped). Everything the panel needs — real ledger, banked ledger,
@@ -28,7 +29,7 @@ async function loadAll(sql) {
       sql`SELECT id, entry_date, kind, note FROM pto_entries ORDER BY entry_date ASC`,
       sql`
         SELECT id, destination, start_date, end_date, status,
-               pto_days_override, pto_exempt
+               pto_days_override, pto_exempt, merged_into_id
         FROM trips
         ORDER BY start_date IS NULL, start_date ASC
       `,
@@ -67,7 +68,16 @@ export const GET = route(async (request) => {
   }
 
   const sql = getDb();
-  const { budget, holidays, entries, trips, scenarios } = await loadAll(sql);
+  const {
+    budget,
+    holidays,
+    entries,
+    trips: rawTrips,
+    scenarios,
+  } = await loadAll(sql);
+  // Collapse merged legs into their parent's date range first — a merged
+  // journey is costed once against the real range, never once per leg row.
+  const trips = collapseMergedTrips(rawTrips);
 
   const summary = ptoSummary({
     trips,

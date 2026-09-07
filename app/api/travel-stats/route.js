@@ -1,6 +1,7 @@
 import { getDb } from '../../../lib/db';
 import { reverseGeocodeCountry } from '../../../lib/geocode';
 import { computeTravelStats } from '../../../lib/travel-stats';
+import { collapseMergedTrips } from '../../../lib/trip-merge';
 
 // GET the Travel Stats bar numbers (trips / nights / countries / cruise nights),
 // all derived from real trip rows. External-source shape (CLAUDE.md §7): this
@@ -20,7 +21,7 @@ export async function GET() {
     const sql = getDb();
     let rows = await sql`
       SELECT id, destination, notes, start_date, end_date, status,
-             latitude, longitude, country, country_geocoded_at
+             latitude, longitude, country, country_geocoded_at, merged_into_id
       FROM trips
     `;
 
@@ -61,7 +62,9 @@ export async function GET() {
       );
     }
 
-    return Response.json({ stats: computeTravelStats(rows) });
+    return Response.json({
+      stats: computeTravelStats(collapseMergedTrips(rows)),
+    });
   } catch {
     return Response.json({
       stats: { trips: 0, nights: 0, countries: 0, cruiseNights: 0 },
