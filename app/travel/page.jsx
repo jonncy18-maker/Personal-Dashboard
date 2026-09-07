@@ -79,13 +79,6 @@ function RouteIcon() {
     </svg>
   );
 }
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  );
-}
 function PinIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -205,87 +198,6 @@ function MapToggle({ pins, open, onToggle }) {
   );
 }
 
-// ─── Next Journey hero ─────────────────────────────────────────────────────
-function HeroTrip({ trip }) {
-  const cd = countdown(trip);
-  const len = lengthDays(trip);
-  const planned = plannedDays(trip);
-  const budget = money(trip.budget);
-  return (
-    <Link href={`/travel/${trip.id}`} className={styles.hero}>
-      <TripPhoto
-        src={trip.image_url}
-        className={styles.heroPhoto}
-        fallback={<div className={styles.heroFallback} />}
-      />
-      <div className={styles.heroScrim} />
-      <div className={styles.heroBody}>
-        <div className={styles.heroTop}>
-          <span className={styles.liveDot} aria-hidden="true" />
-          <span className={styles.heroEyebrow}>Next journey</span>
-        </div>
-        <div>
-          <h2 className={styles.heroName}>{trip.destination}</h2>
-          <div className={`${styles.heroCount} tabular`}>
-            <CalIcon />
-            {cd ? (
-              <>
-                <span className={styles.heroCountNum}>
-                  {cd.days === 0
-                    ? 'Today'
-                    : `${cd.days} ${cd.days === 1 ? 'day' : 'days'}`}
-                </span>
-                <span className={styles.heroCountLabel}>
-                  {cd.days === 0 ? '' : 'to go · '}
-                  {dateRange(trip)}
-                </span>
-              </>
-            ) : (
-              <span className={styles.heroCountLabel}>Dates not set</span>
-            )}
-          </div>
-          <div className={styles.heroFoot}>
-            <div className={styles.heroChips}>
-              {len != null && (
-                <div className={styles.heroStat}>
-                  <span className={`${styles.heroStatTop} tabular`}>
-                    {len} {len === 1 ? 'day' : 'days'}
-                  </span>
-                  <span className={styles.heroStatLabel}>Length</span>
-                </div>
-              )}
-              {budget && (
-                <div className={styles.heroStat}>
-                  <span className={`${styles.heroStatTop} tabular`}>
-                    {budget}
-                  </span>
-                  <span className={styles.heroStatLabel}>Budget</span>
-                </div>
-              )}
-              <div className={styles.heroStat}>
-                <span
-                  className={`${styles.heroStatTop} ${planned > 0 ? styles.planned : ''}`}
-                >
-                  {planned > 0
-                    ? len != null
-                      ? `${Math.min(planned, len)} of ${len}`
-                      : planned
-                    : 'Not yet'}
-                </span>
-                <span className={styles.heroStatLabel}>Days planned</span>
-              </div>
-            </div>
-            <span className={styles.heroView}>
-              View trip
-              <ArrowIcon />
-            </span>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 // ─── upcoming timeline ─────────────────────────────────────────────────────
 function TimelineCard({ trip }) {
   const cd = countdown(trip);
@@ -337,30 +249,22 @@ function TimelineCard({ trip }) {
 function UpcomingTimeline({ trips }) {
   if (trips.length === 0) return null;
   return (
-    <>
-      <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>Then coming up</span>
-        <span className={`${styles.sectionCount} tabular`}>
-          {trips.length} more
-        </span>
-      </div>
-      <div className={styles.timeline}>
-        {trips.map((trip, i) => {
-          const gap =
-            i > 0 ? gapLabel(trips[i - 1].start_date, trip.start_date) : null;
-          return (
-            <div key={trip.id}>
-              {gap && (
-                <div className={styles.tlGap}>
-                  <span>{gap}</span>
-                </div>
-              )}
-              <TimelineCard trip={trip} />
-            </div>
-          );
-        })}
-      </div>
-    </>
+    <div className={styles.timeline}>
+      {trips.map((trip, i) => {
+        const gap =
+          i > 0 ? gapLabel(trips[i - 1].start_date, trip.start_date) : null;
+        return (
+          <div key={trip.id}>
+            {gap && (
+              <div className={styles.tlGap}>
+                <span>{gap}</span>
+              </div>
+            )}
+            <TimelineCard trip={trip} />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -900,7 +804,6 @@ export default function TravelPage() {
     });
   const wishlist = (trips || []).filter((t) => t.status === 'wishlist');
   const hero = upcoming[0] || null;
-  const rest = upcoming.slice(1);
 
   return (
     <div className={styles.wrap}>
@@ -981,10 +884,7 @@ export default function TravelPage() {
 
           {activeTab === 'upcoming' &&
             (upcoming.length > 0 ? (
-              <>
-                <HeroTrip trip={hero} />
-                <UpcomingTimeline trips={rest} />
-              </>
+              <UpcomingTimeline trips={upcoming} />
             ) : (
               <p className={styles.emptySub}>
                 No upcoming trips. Add one above.
@@ -1009,13 +909,14 @@ export default function TravelPage() {
               <p className={styles.emptySub}>Nothing on the wishlist yet.</p>
             ))}
 
-          {activeTab === 'planning' && <PtoPanel />}
+          {activeTab === 'planning' && (
+            <>
+              <PtoPanel />
+              <ChecklistTemplates />
+            </>
+          )}
         </>
       )}
-
-      <div className={styles.templatesSection}>
-        <ChecklistTemplates />
-      </div>
     </div>
   );
 }
