@@ -56,6 +56,20 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-07 (cont'd) — Travel page, round three: drop the duplicate hero, fold Checklists into Planning
+
+John reviewed the round-two result live and flagged two more things: the Upcoming tab's big `HeroTrip` photo card just repeated the same soonest trip the Overview strip already names (glance vs. actionable was supposed to be the split, but showing the identical trip twice on the same screen isn't that), and Planning felt thin with only PTO in it while Checklist Templates sat in its own always-visible section outside the tab system entirely — inconsistent given both are trip-prep tools.
+
+**`UpcomingTimeline` now renders every upcoming trip, including the soonest** — `HeroTrip` (and its now-unused `ArrowIcon`) is deleted outright, not just unused; `TimelineCard` already surfaces dates/length/budget/itinerary-planned, so nothing factual is lost, just the oversized photo treatment. Dropped the timeline's own "Then coming up — N more" header too, since the tab label already says "Upcoming" and the count is already on the tab pill — one less redundant label.
+
+**Checklist Templates moved inside the Planning tab**, alongside `PtoPanel`, instead of living in its own `.templatesSection` below the tab system. This is a real behavior change worth flagging: previously `ChecklistTemplates` rendered unconditionally, even before trips loaded or with zero trips; now it only shows once trips exist and Planning is the active tab. John's call, made explicitly ("fold the checklists within planning") — accepted as consistent with putting all trip-prep tools behind one tab rather than a special case for an empty-trips account.
+
+Both are UI reshuffles inside `app/travel/page.jsx`/`page.module.css` — no data model change. Cleaned up now-orphaned CSS alongside the JSX changes: `.hero`/`.heroPhoto`/`.heroScrim`/`.heroBody`/`.heroTop`/`.liveDot`/`.heroEyebrow`/`.heroName`/`.heroCount*`/`.heroFoot`/`.heroChips`/`.heroStat*`/`.heroView*` (all `HeroTrip`-only), `.templatesSection`, and `.sectionHead`/`.sectionTitle` (both now unused after the timeline header was dropped — `.sectionCount` alone is still used by `PastTravelSection`'s year headers).
+
+**Verified:** `next build` (Turbopack) compiles clean; `prettier --check` passes; `next dev` serves `/travel` with 200 and no server errors. Not exercised against live Neon/a real browser in this sandbox — same standing limitation as every prior Travel-page session.
+
+---
+
 ## 2026-09-07 — Travel page, round two: notification bell, minimal Overview strip, collapsible map, AI Brief retired
 
 Follow-up to the Overview + tabs restructure below. John walked through the shipped result step by step and asked for three more changes, each explored on a design canvas first (three pages: notification treatment, three Overview-strip options, two Trip Map placements) before building:
