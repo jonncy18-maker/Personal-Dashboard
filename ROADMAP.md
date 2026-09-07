@@ -56,6 +56,32 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-07 (cont'd 4) — PTO Trips list, one more minimalism pass
+
+John still found the Trips sub-tab cluttered after the round-3 redesign — every trip, counted or not, sat in its own two-line row (name, dates on one line; a verbose "N days · auto"/"override (auto N)" summary plus the edit pencil on the second). Explored two more-minimalist directions on a canvas using John's real trip data (single-line rows either with No-PTO trips just dimmed inline, or collapsed behind one summary line) — John picked the collapse option.
+
+**`TripRow` is now one line**: name, dates, and the day count share a row via a dotted leader (like a table of contents) instead of stacking across two lines; the edit pencil only appears on `:hover`/`:focus-visible` instead of sitting on every row permanently. The verbose "N days · override (auto M)" wording is gone — an overridden count is now just tinted `--accent-ink` instead of spelling out "override" and the auto value in words; seeing or changing the actual override still means clicking through to edit, same as before.
+
+**No-PTO trips no longer take a row each.** New `TripsList` wrapper splits a year's trips into `active` (still shown as the one-line list) and `excluded` (`pto_exempt` trips), collapsing the excluded ones behind a single dashed-border toggle line — "N trips marked No PTO (name, name, …)" — that expands into the same one-line row style on click. If every trip in the year is excluded, the active list shows "No counted trips — everything's marked No PTO." instead of silently rendering nothing.
+
+No schema or API change — `TripRow` still calls the same `onSave` with the same `pto_days_override`/`pto_exempt` patches.
+
+**Verified:** `next build` compiles clean; `prettier --check` passes on both touched files; `next dev` serves `/travel` with 200 and no server errors. Not exercised against live Neon/a real browser in this sandbox — same standing limitation as every prior session.
+
+---
+
+## 2026-09-07 (cont'd 3) — Three real PTO bugs found from John's live screenshot
+
+John pasted a screenshot of the deployed Planning tab and asked "was this merged? this doesn't look right." It was merged, but the screenshot surfaced three genuine bugs — two cosmetic, one a real data-correctness issue:
+
+1. **"1 days" instead of "1 day."** Every hardcoded "days" string in `PtoPanel.jsx` (trip-row summaries, wishlist what-ifs, the sandbox calculator, saved-scenario costs) never checked for the singular case — a pre-existing bug, just newly visible now that trip rows render cleanly enough to notice. Added a `daysWord(n)` helper and applied it at all five call sites.
+2. **A negative "left" figure looked identical to a healthy one.** `data.left` can legitimately go negative (over budget) — `lib/pto.js`'s `ptoSummary()` deliberately never clamps it, "shown honestly" per its own comment — but the glance strip rendered it in the same plain ink color regardless. Added `.glanceFigureNegative` (`var(--critical)`, i.e. red) applied when `data.left < 0`.
+3. **The real bug: trips outside the selected year were showing up in that year's Trips list at "0 days."** `ptoSummary()` computed `tripCountedDays()` for every upcoming/past trip regardless of whether it actually overlapped the selected year — `tripAutoDays()` already zeroed out non-overlapping trips correctly, but the trip still made it into the returned `trips` list at 0 days, and worse, **a `pto_days_override` on an out-of-year trip would have counted toward whichever year's total happened to be open**, since the override branch in `tripCountedDays()` doesn't check year overlap at all. Fixed by filtering trips to `clampToYear(...) != null` *before* computing counted days, in `ptoSummary` itself — both the display bug and the override-leaking-across-years bug share the same root cause and the same fix. Verified in isolation (a copy of `lib/pto.js` run directly in Node, since it has zero DB/framework imports): a trip spanning Dec 31 2026 → Jan 15 2027 now correctly shows 1 day under 2026 and 11 under 2027, an out-of-year trip no longer appears in the list at all, and a `pto_days_override: 99` set on a trip entirely in 2028 no longer leaks into 2026's total.
+
+**Verified:** `next build` compiles clean; `prettier --check` passes on all three touched files. The `lib/pto.js` fix was exercised directly (pure functions, no DB) but not through the live `/api/pto` route in this sandbox — same standing no-`DATABASE_URL` limitation as every prior session.
+
+---
+
 ## 2026-09-07 (cont'd 2) — Planning tab redesign: PTO Planner sub-tabs, Checklists read/edit split
 
 John felt the newly-folded Planning tab was still cluttered, specifically `PtoPanel` (883 lines, five always-stacked sections: headline, budget/banked chips, the full trip list, manual entries, then three simulation tools) and `ChecklistTemplates`'s expanded template view (a live grid of section+item text inputs even when John just wanted to glance at a list). Explored redesigns on a design canvas first — a compact glance strip + internal Trips/Log/Simulate sub-tabs for PTO (mirroring the outer page's own tab pattern), and a read-then-edit split for Checklists (mirroring the past-trip recap/edit split) — before building.

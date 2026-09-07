@@ -61,6 +61,9 @@
   font-size: 26px;
   font-weight: 800;
 }
+.glanceFigureNegative {
+  color: var(--critical);
+}
 .glanceDetail {
   font-size: 13px;
   color: var(--ink-muted);
@@ -190,66 +193,98 @@
   color: var(--critical);
 }
 
-/* ─── trip rows ────────────────────────────────────────────── */
+/* ─── trip rows — one line each, edit affordance only on hover ───────── */
 .tripList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 .tripRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 4px;
+  border-top: 1px solid var(--border);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.tripList .tripRow:first-child {
+  border-top: none;
+}
+.tripName {
+  font-weight: 700;
+  color: var(--ink);
+  flex: 0 0 auto;
+}
+.tripDates {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  flex: 0 0 auto;
+}
+.tripFill {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted var(--border-strong);
+  margin: 0 2px 3px;
+}
+.tripDaysText {
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.tripDaysOverride {
+  color: var(--accent-ink);
+}
+.tripDaysExempt {
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+.editGhost {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  opacity: 0;
+  flex: 0 0 auto;
+}
+.tripRow:hover .editGhost,
+.tripRow:focus-visible .editGhost {
+  opacity: 0.7;
+}
+.editGhost svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* the row's edit state replaces the button with name/dates + controls */
+.tripRowEditing {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 10px;
+  padding: 8px 4px;
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
-.tripRow:first-child {
+.tripList .tripRowEditing:first-child {
   border-top: none;
 }
-.tripRowExempt {
-  opacity: 0.55;
-}
-.tripRowInfo {
+.tripInfo {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-}
-.tripRowName {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.tripRowDates {
-  font-size: 11.5px;
-  color: var(--ink-faint);
-}
-.tripRowSummary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  flex: 0 0 auto;
-  background: none;
-  border: none;
-  padding: 2px;
-  cursor: pointer;
-  color: var(--ink-faint);
-}
-.tripRowSummary:hover {
-  color: var(--ink-muted);
-}
-.tripRowSummary svg {
-  width: 13px;
-  height: 13px;
-  opacity: 0.7;
-}
-.tripRowAuto {
-  font-size: 11.5px;
-  color: inherit;
-  white-space: nowrap;
-  font-weight: 600;
 }
 .tripRowEdit {
   display: flex;
@@ -292,6 +327,39 @@
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+/* ─── excluded (No PTO) trips — collapsed behind one line ─────────────── */
+.excludedToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 4px;
+  margin-top: 2px;
+  border: none;
+  border-top: 1px dashed var(--border-strong);
+  background: none;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  cursor: pointer;
+  text-align: left;
+}
+.excludedToggle:hover {
+  color: var(--ink-muted);
+}
+.excludedToggleAction {
+  color: var(--accent-ink);
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.excludedLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ─── manual entries ───────────────────────────────────────── */

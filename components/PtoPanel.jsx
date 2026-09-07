@@ -15,6 +15,10 @@ function fmtDate(value) {
   });
 }
 
+function daysWord(n) {
+  return Math.abs(n) === 1 ? 'day' : 'days';
+}
+
 // A "YYYY-MM-DD" string that falls on a Saturday/Sunday almost certainly
 // means someone typed the unobserved date by mistake (holidays are always
 // stored as their observed weekday date — PTO_BUILD_PLAN.md §2). Warn, don't
@@ -90,10 +94,13 @@ function YearSwitcher({ year, currentYear, onChange }) {
   );
 }
 
-// ─── per-trip row ────────────────────────────────────────────────────────
+// ─── per-trip row — one line: name · dates ⋯⋯⋯ days [edit] ────────────────
 // Read-only by default — the override input + No-PTO checkbox only appear
 // once the row's edit affordance is clicked, so a clean list of trips isn't
-// permanently cluttered with form controls most of them never need.
+// permanently cluttered with form controls most of them never need. The
+// "auto vs. override" distinction that used to spell itself out in words
+// now just tints the day count (accent color) when overridden — clicking
+// through to edit is how you see or change the actual override value.
 function TripRow({ trip, onSave }) {
   const [editing, setEditing] = useState(false);
   const [override, setOverride] = useState(trip.override ?? '');
@@ -122,30 +129,15 @@ function TripRow({ trip, onSave }) {
     setSaving(false);
   }
 
-  const summary = exempt
-    ? 'not counted · No PTO'
-    : trip.override != null
-      ? `${trip.counted} days · override (auto ${trip.autoDays})`
-      : `${trip.autoDays} days · auto`;
+  const dates = `${fmtDate(trip.start_date)} – ${fmtDate(trip.end_date)}`;
 
-  return (
-    <div className={`${styles.tripRow} ${exempt ? styles.tripRowExempt : ''}`}>
-      <div className={styles.tripRowInfo}>
-        <span className={styles.tripRowName}>{trip.destination}</span>
-        <span className={styles.tripRowDates}>
-          {fmtDate(trip.start_date)} – {fmtDate(trip.end_date)}
-        </span>
-      </div>
-      {!editing ? (
-        <button
-          type="button"
-          className={styles.tripRowSummary}
-          onClick={() => setEditing(true)}
-        >
-          <span className={styles.tripRowAuto}>{summary}</span>
-          <EditIcon />
-        </button>
-      ) : (
+  if (editing) {
+    return (
+      <div className={styles.tripRowEditing}>
+        <div className={styles.tripInfo}>
+          <span className={styles.tripName}>{trip.destination}</span>
+          <span className={styles.tripDates}>{dates}</span>
+        </div>
         <div className={styles.tripRowEdit}>
           <input
             type="number"
@@ -171,6 +163,80 @@ function TripRow({ trip, onSave }) {
             Done
           </button>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={styles.tripRow}
+      onClick={() => setEditing(true)}
+    >
+      <span className={styles.tripName}>{trip.destination}</span>
+      <span className={`${styles.tripDates} tabular`}>{dates}</span>
+      <span className={styles.tripFill} aria-hidden="true" />
+      <span
+        className={`${styles.tripDaysText} tabular ${
+          exempt
+            ? styles.tripDaysExempt
+            : trip.override != null
+              ? styles.tripDaysOverride
+              : ''
+        }`}
+      >
+        {exempt ? 'No PTO' : `${trip.counted} ${daysWord(trip.counted)}`}
+      </span>
+      <span className={styles.editGhost} aria-hidden="true">
+        <EditIcon />
+      </span>
+    </button>
+  );
+}
+
+// ─── trips list — active rows, No-PTO trips collapsed behind one line ─────
+function TripsList({ trips, onSave }) {
+  const [showExcluded, setShowExcluded] = useState(false);
+  const active = trips.filter((t) => !t.exempt);
+  const excluded = trips.filter((t) => t.exempt);
+
+  return (
+    <div>
+      {active.length > 0 ? (
+        <div className={styles.tripList}>
+          {active.map((t) => (
+            <TripRow key={t.id} trip={t} onSave={onSave} />
+          ))}
+        </div>
+      ) : (
+        <p className={styles.subEmpty}>
+          No counted trips — everything's marked No PTO.
+        </p>
+      )}
+      {excluded.length > 0 && (
+        <>
+          <button
+            type="button"
+            className={styles.excludedToggle}
+            onClick={() => setShowExcluded((v) => !v)}
+            aria-expanded={showExcluded}
+          >
+            <span className={styles.excludedLabel}>
+              {excluded.length} {excluded.length === 1 ? 'trip' : 'trips'}{' '}
+              marked No PTO ({excluded.map((t) => t.destination).join(', ')})
+            </span>
+            <span className={styles.excludedToggleAction}>
+              {showExcluded ? 'Hide' : 'Show'}
+            </span>
+          </button>
+          {showExcluded && (
+            <div className={styles.tripList}>
+              {excluded.map((t) => (
+                <TripRow key={t.id} trip={t} onSave={onSave} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -358,8 +424,8 @@ function WishlistWhatIfs({ wishlist, left }) {
             <span className={styles.whatIfName}>{t.destination}</span>
             {t.simDays != null ? (
               <span className={styles.whatIfCost}>
-                would cost <strong>{t.simDays}</strong> days → would leave{' '}
-                <strong>{wouldLeave(left, t.simDays)}</strong>
+                would cost <strong>{t.simDays}</strong> {daysWord(t.simDays)} →
+                would leave <strong>{wouldLeave(left, t.simDays)}</strong>
               </span>
             ) : (
               <span className={styles.whatIfCost}>add dates to simulate</span>
@@ -403,7 +469,7 @@ function SandboxCalculator({ year, holidaySet, left }) {
       </div>
       {cost != null && (
         <p className={styles.sandboxResult}>
-          would cost <strong>{cost}</strong> days → would leave{' '}
+          would cost <strong>{cost}</strong> {daysWord(cost)} → would leave{' '}
           <strong>{wouldLeave(left, cost)}</strong>
         </p>
       )}
@@ -543,7 +609,9 @@ function ScenarioCard({
                 : c.item.label || 'Range'}
             </span>
             <span>
-              {c.simulable ? `${c.days} days` : `not simulable (${c.reason})`}
+              {c.simulable
+                ? `${c.days} ${daysWord(c.days)}`
+                : `not simulable (${c.reason})`}
             </span>
             <button
               className={styles.scenarioItemRemove}
@@ -558,8 +626,8 @@ function ScenarioCard({
       <ScenarioItemForm wishlist={wishlist} onAdd={onAddItem} />
 
       <p className={styles.scenarioTotal}>
-        Total <strong>{costed.total}</strong> days → would leave{' '}
-        <strong>{wouldLeave(left, costed.total)}</strong>
+        Total <strong>{costed.total}</strong> {daysWord(costed.total)} → would
+        leave <strong>{wouldLeave(left, costed.total)}</strong>
         {!costed.allSimulable && ' (some items not simulable — excluded above)'}
       </p>
     </div>
@@ -759,7 +827,11 @@ export default function PtoPanel() {
       </div>
 
       <div className={styles.glance}>
-        <span className={`${styles.glanceFigure} tabular`}>{data.left}</span>
+        <span
+          className={`${styles.glanceFigure} ${data.left < 0 ? styles.glanceFigureNegative : ''} tabular`}
+        >
+          {data.left}
+        </span>
         <span className={`${styles.glanceDetail} tabular`}>
           left · {data.taken} taken · {data.planned} planned
         </span>
@@ -805,11 +877,7 @@ export default function PtoPanel() {
 
       {subtab === 'trips' &&
         (trips.length > 0 ? (
-          <div className={styles.tripList}>
-            {trips.map((t) => (
-              <TripRow key={t.id} trip={t} onSave={saveTrip} />
-            ))}
-          </div>
+          <TripsList trips={trips} onSave={saveTrip} />
         ) : (
           <p className={styles.subEmpty}>
             No trips counted toward {data.year} yet.
