@@ -56,6 +56,20 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-07 (cont'd 4) — PTO Trips list, one more minimalism pass
+
+John still found the Trips sub-tab cluttered after the round-3 redesign — every trip, counted or not, sat in its own two-line row (name, dates on one line; a verbose "N days · auto"/"override (auto N)" summary plus the edit pencil on the second). Explored two more-minimalist directions on a canvas using John's real trip data (single-line rows either with No-PTO trips just dimmed inline, or collapsed behind one summary line) — John picked the collapse option.
+
+**`TripRow` is now one line**: name, dates, and the day count share a row via a dotted leader (like a table of contents) instead of stacking across two lines; the edit pencil only appears on `:hover`/`:focus-visible` instead of sitting on every row permanently. The verbose "N days · override (auto M)" wording is gone — an overridden count is now just tinted `--accent-ink` instead of spelling out "override" and the auto value in words; seeing or changing the actual override still means clicking through to edit, same as before.
+
+**No-PTO trips no longer take a row each.** New `TripsList` wrapper splits a year's trips into `active` (still shown as the one-line list) and `excluded` (`pto_exempt` trips), collapsing the excluded ones behind a single dashed-border toggle line — "N trips marked No PTO (name, name, …)" — that expands into the same one-line row style on click. If every trip in the year is excluded, the active list shows "No counted trips — everything's marked No PTO." instead of silently rendering nothing.
+
+No schema or API change — `TripRow` still calls the same `onSave` with the same `pto_days_override`/`pto_exempt` patches.
+
+**Verified:** `next build` compiles clean; `prettier --check` passes on both touched files; `next dev` serves `/travel` with 200 and no server errors. Not exercised against live Neon/a real browser in this sandbox — same standing limitation as every prior session.
+
+---
+
 ## 2026-09-07 (cont'd 3) — Three real PTO bugs found from John's live screenshot
 
 John pasted a screenshot of the deployed Planning tab and asked "was this merged? this doesn't look right." It was merged, but the screenshot surfaced three genuine bugs — two cosmetic, one a real data-correctness issue:
