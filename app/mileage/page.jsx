@@ -1305,6 +1305,7 @@ function TravelExclusionsBody({ exclusions, reviewCount, onScan, onAddManual, on
           type="button"
           className={styles.editSettingsBtn}
           onClick={() => setManaging(true)}
+          disabled={exclusions.length === 0}
         >
           Manage →
         </button>
