@@ -18,7 +18,8 @@
 --                      015_trip_country, 016_pto, 017_mileage,
 --                      018_mileage_usual_trips, 019_mileage_usual_legs,
 --                      020_mileage_places, 021_mileage_scenario_legs,
---                      022_mileage_travel_exclusions, 023_trip_merge
+--                      022_mileage_travel_exclusions, 023_trip_merge,
+--                      024_pto_banked_shortfall
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -339,9 +340,10 @@ CREATE TRIGGER language_notes_set_updated_at
 -- pto_exempt above (weekdays minus firm holidays); manual whole-day entries
 -- and a separate banked-holiday ledger sit alongside; see lib/pto.js.
 CREATE TABLE IF NOT EXISTS pto_settings (
-  id            smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  annual_budget integer NOT NULL DEFAULT 25,  -- John's target, not an employer number
-  updated_at    timestamptz NOT NULL DEFAULT now()
+  id                       smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  annual_budget            integer NOT NULL DEFAULT 25,  -- John's target, not an employer number
+  use_banked_for_shortfall boolean NOT NULL DEFAULT false,  -- migration 024 — opt-in only, see Planning sub-tab
+  updated_at               timestamptz NOT NULL DEFAULT now()
 );
 
 -- Firm holidays, editable in-app. `worked` feeds the banked counter. Stored
