@@ -615,6 +615,212 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
   );
 }
 
+function toMonthInput(dateStr) {
+  return dateStr ? dateStr.slice(0, 7) : '';
+}
+
+// Editing a scenario in place — occurrence itself is fixed at creation (a
+// leg-based scenario is always recurring; a one-time scenario has no yearly
+// impacts to migrate to), so this only ever shows the fields that already
+// apply to the scenario being edited, pre-filled from it.
+function EditScenarioForm({ scenario, legs, leaseStart, onSave, onCancel }) {
+  const isOneTime = scenario.occurrence === 'one_time';
+  const isLeg = !!scenario.leg_id;
+  const leg = legs?.find((l) => l.id === scenario.leg_id) || null;
+
+  const [name, setName] = useState(scenario.name || '');
+  const [note, setNote] = useState(scenario.note || '');
+  const [impact1, setImpact1] = useState(scenario.impact_1yr ?? '');
+  const [impact2, setImpact2] = useState(scenario.impact_2yr ?? '');
+  const [impact3, setImpact3] = useState(scenario.impact_3yr ?? '');
+  const [newTimesPerWeek, setNewTimesPerWeek] = useState(
+    scenario.new_times_per_week ?? ''
+  );
+  const [effectiveStart, setEffectiveStart] = useState(
+    toMonthInput(scenario.effective_start)
+  );
+  const [oneTimeStart, setOneTimeStart] = useState(
+    toMonthInput(scenario.one_time_start)
+  );
+  const [oneTimeEnd, setOneTimeEnd] = useState(
+    toMonthInput(scenario.one_time_end)
+  );
+  const [oneTimeMiles, setOneTimeMiles] = useState(
+    scenario.one_time_miles ?? ''
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const preview =
+    isLeg && leg && leaseStart && newTimesPerWeek !== ''
+      ? legFrequencyScenarioImpacts({
+          leaseStart,
+          leg,
+          newTimesPerWeek: Number(newTimesPerWeek) || 0,
+        })
+      : null;
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    if (isOneTime && !oneTimeStart) return;
+    setSaving(true);
+    setError(null);
+    try {
+      if (isOneTime) {
+        await onSave({
+          name: name.trim(),
+          note: note.trim() || null,
+          one_time_start: `${oneTimeStart}-01`,
+          one_time_end: `${oneTimeEnd || oneTimeStart}-01`,
+          one_time_miles: Number(oneTimeMiles) || 0,
+        });
+      } else if (isLeg) {
+        await onSave({
+          name: name.trim(),
+          note: note.trim() || null,
+          new_times_per_week: Number(newTimesPerWeek) || 0,
+          effective_start: effectiveStart ? `${effectiveStart}-01` : null,
+        });
+      } else {
+        await onSave({
+          name: name.trim(),
+          note: note.trim() || null,
+          effective_start: effectiveStart ? `${effectiveStart}-01` : null,
+          impact_1yr: Number(impact1) || 0,
+          impact_2yr: Number(impact2) || 0,
+          impact_3yr: Number(impact3) || 0,
+        });
+      }
+    } catch (err) {
+      setError(err.message || 'Could not save that scenario.');
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+  }
+
+  return (
+    <form className={styles.newScenarioForm} onSubmit={submit}>
+      <input
+        type="text"
+        placeholder="Scenario name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Note (optional)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+
+      {isOneTime ? (
+        <>
+          <div className={styles.impactRow}>
+            <label className={styles.scenarioTimingLabel}>
+              From month
+              <input
+                type="month"
+                value={oneTimeStart}
+                onChange={(e) => setOneTimeStart(e.target.value)}
+              />
+            </label>
+            <label className={styles.scenarioTimingLabel}>
+              To month (optional)
+              <input
+                type="month"
+                value={oneTimeEnd}
+                onChange={(e) => setOneTimeEnd(e.target.value)}
+              />
+            </label>
+          </div>
+          <input
+            type="number"
+            placeholder="Total miles for this event"
+            value={oneTimeMiles}
+            onChange={(e) => setOneTimeMiles(e.target.value)}
+          />
+        </>
+      ) : isLeg ? (
+        <>
+          <p className={styles.detail}>
+            {leg ? `${leg.origin} → ${leg.destination}` : 'Route'}
+          </p>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="New ×/week"
+            value={newTimesPerWeek}
+            onChange={(e) => setNewTimesPerWeek(e.target.value)}
+          />
+          {preview && (
+            <p className={styles.scenarioImpact}>
+              {preview.extraMilesPerWeek >= 0 ? '+' : ''}
+              {preview.extraMilesPerWeek.toFixed(1)} mi/wk &rarr;{' '}
+              <strong>
+                {preview.impact_3yr >= 0 ? '+' : ''}
+                {fmtNum(preview.impact_3yr)}
+              </strong>{' '}
+              mi by the 3-year mark
+            </p>
+          )}
+          <label className={styles.scenarioTimingLabel}>
+            Starts (optional — defaults to lease start)
+            <input
+              type="month"
+              value={effectiveStart}
+              onChange={(e) => setEffectiveStart(e.target.value)}
+            />
+          </label>
+        </>
+      ) : (
+        <>
+          <div className={styles.impactRow}>
+            <input
+              type="number"
+              placeholder="+mi by 1yr"
+              value={impact1}
+              onChange={(e) => setImpact1(e.target.value)}
+            />
+            <input
+              type="number"
+              placeholder="+mi by 2yr"
+              value={impact2}
+              onChange={(e) => setImpact2(e.target.value)}
+            />
+            <input
+              type="number"
+              placeholder="+mi by 3yr"
+              value={impact3}
+              onChange={(e) => setImpact3(e.target.value)}
+            />
+          </div>
+          <label className={styles.scenarioTimingLabel}>
+            Starts (optional — defaults to lease start)
+            <input
+              type="month"
+              value={effectiveStart}
+              onChange={(e) => setEffectiveStart(e.target.value)}
+            />
+          </label>
+        </>
+      )}
+
+      <div className={styles.settingsActions}>
+        <button type="submit" disabled={saving || (isOneTime && !oneTimeStart)}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+        <button type="button" className={styles.cancelBtn} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+      {error && <p className={styles.formError}>{error}</p>}
+    </form>
+  );
+}
+
 function AddUsualLegForm({ onAdd }) {
   const [origin, setOrigin] = useState('Home');
   const [destination, setDestination] = useState('');
@@ -1617,8 +1823,9 @@ function PaceBody({ summary, readings, deleteReading, draftOdometer, setDraftOdo
   );
 }
 
-function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario, usualLegs, leaseStart }) {
+function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario, updateScenario, usualLegs, leaseStart }) {
   const [managing, setManaging] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const activeScenarios = scenarios.filter((s) => s.active);
   const totalImpact3yr = activeScenarios.reduce(
     (sum, s) => sum + Number(s.impact_3yr || 0),
@@ -1668,64 +1875,87 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
           onClose={() => setManaging(false)}
         >
           <div className={styles.scenarioList}>
-            {scenarios.map((s) => (
-              <div
-                className={`${styles.scenarioCard} ${s.active ? styles.scenarioCardActive : ''}`}
-                key={s.id}
-              >
-                <div className={styles.scenarioTop}>
-                  <div>
-                    <p className={styles.scenarioName}>{s.name}</p>
-                    {s.note && <p className={styles.scenarioNote}>{s.note}</p>}
+            {scenarios.map((s) =>
+              editingId === s.id ? (
+                <EditScenarioForm
+                  key={s.id}
+                  scenario={s}
+                  legs={usualLegs}
+                  leaseStart={leaseStart}
+                  onSave={async (patch) => {
+                    await updateScenario(s.id, patch);
+                    setEditingId(null);
+                  }}
+                  onCancel={() => setEditingId(null)}
+                />
+              ) : (
+                <div
+                  className={`${styles.scenarioCard} ${s.active ? styles.scenarioCardActive : ''}`}
+                  key={s.id}
+                >
+                  <div className={styles.scenarioTop}>
+                    <div>
+                      <p className={styles.scenarioName}>{s.name}</p>
+                      {s.note && <p className={styles.scenarioNote}>{s.note}</p>}
+                    </div>
+                    <div className={styles.scenarioActions}>
+                      <label className={styles.toggleLabel}>
+                        <input
+                          type="checkbox"
+                          checked={s.active}
+                          onChange={(e) => toggleScenario(s.id, e.target.checked)}
+                        />
+                        Included
+                      </label>
+                      <button
+                        type="button"
+                        className={`${styles.rowDelete} ${styles.rowEdit}`}
+                        onClick={() => setEditingId(s.id)}
+                        aria-label="Edit scenario"
+                        title="Edit"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+                      </button>
+                      <button
+                        className={styles.rowDelete}
+                        onClick={() => deleteScenario(s.id)}
+                        aria-label="Delete scenario"
+                      >
+                        &times;
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.scenarioActions}>
-                    <label className={styles.toggleLabel}>
-                      <input
-                        type="checkbox"
-                        checked={s.active}
-                        onChange={(e) => toggleScenario(s.id, e.target.checked)}
-                      />
-                      Included
-                    </label>
-                    <button
-                      className={styles.rowDelete}
-                      onClick={() => deleteScenario(s.id)}
-                      aria-label="Delete scenario"
-                    >
-                      &times;
-                    </button>
-                  </div>
+                  {s.occurrence === 'one_time' ? (
+                    <p className={styles.scenarioImpact}>
+                      One-time &middot;{' '}
+                      {fmtMonth(s.one_time_start)}
+                      {s.one_time_end && s.one_time_end !== s.one_time_start
+                        ? `–${fmtMonth(s.one_time_end)}`
+                        : ''}{' '}
+                      &middot; adds{' '}
+                      <strong>
+                        {s.one_time_miles >= 0 ? '+' : ''}
+                        {fmtNum(s.one_time_miles)}
+                      </strong>{' '}
+                      mi once it's passed
+                    </p>
+                  ) : (
+                    <p className={styles.scenarioImpact}>
+                      {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
+                      {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
+                      <strong>
+                        {s.impact_3yr >= 0 ? '+' : ''}
+                        {fmtNum(s.impact_3yr)}
+                      </strong>{' '}
+                      mi by the 3-year mark
+                      {s.effective_start && (
+                        <> &middot; starts {fmtMonth(s.effective_start)}</>
+                      )}
+                    </p>
+                  )}
                 </div>
-                {s.occurrence === 'one_time' ? (
-                  <p className={styles.scenarioImpact}>
-                    One-time &middot;{' '}
-                    {fmtMonth(s.one_time_start)}
-                    {s.one_time_end && s.one_time_end !== s.one_time_start
-                      ? `–${fmtMonth(s.one_time_end)}`
-                      : ''}{' '}
-                    &middot; adds{' '}
-                    <strong>
-                      {s.one_time_miles >= 0 ? '+' : ''}
-                      {fmtNum(s.one_time_miles)}
-                    </strong>{' '}
-                    mi once it's passed
-                  </p>
-                ) : (
-                  <p className={styles.scenarioImpact}>
-                    {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
-                    {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
-                    <strong>
-                      {s.impact_3yr >= 0 ? '+' : ''}
-                      {fmtNum(s.impact_3yr)}
-                    </strong>{' '}
-                    mi by the 3-year mark
-                    {s.effective_start && (
-                      <> &middot; starts {fmtMonth(s.effective_start)}</>
-                    )}
-                  </p>
-                )}
-              </div>
-            ))}
+              )
+            )}
           </div>
         </ManagePopup>
       )}
@@ -1816,6 +2046,333 @@ function TripLogBody({ trips, addTrip, deleteTrip }) {
   );
 }
 
+function daysBetweenDates(a, b) {
+  return Math.round((parseISO(b) - parseISO(a)) / 86400000);
+}
+
+// Piecewise-linear lookup along a sorted-by-x point list — used to evaluate
+// both the mileage line and the budget line at the same x so the
+// over-allowance band can be shaded wherever one crosses the other, even
+// though the two lines don't share the same vertices (readings are dated
+// arbitrarily; the budget line only bends at each checkpoint).
+function interpAt(points, x) {
+  if (!points.length) return null;
+  if (x <= points[0].x) return points[0].y;
+  for (let i = 1; i < points.length; i++) {
+    if (x <= points[i].x) {
+      const a = points[i - 1];
+      const b = points[i];
+      const t = b.x === a.x ? 0 : (x - a.x) / (b.x - a.x);
+      return a.y + (b.y - a.y) * t;
+    }
+  }
+  return points[points.length - 1].y;
+}
+
+// Actual vs. forecast vs. budgeted allowance, one line chart. Actual
+// (solid) and forecast (dashed) are drawn as ONE hue since forecast is just
+// the unrealized continuation of the same "miles driven" line, not a
+// second identity; budgeted allowance is a flat reference threshold, not a
+// data series, so it stays neutral. The gap is shaded only where the
+// mileage line runs over the budget line, reusing the same --critical the
+// checkpoint tiles already use for "over" — never a fabricated third color.
+function ForecastChart({ summary, readings, settings }) {
+  if (!summary.configured || !summary.checkpoints?.length) {
+    return (
+      <p className={styles.detail}>Set up your lease to see the forecast chart.</p>
+    );
+  }
+  const leaseStart = settings.lease_start_date;
+  const startingOdometer = settings.starting_odometer;
+  const checkpoints = summary.checkpoints;
+  const lastCp = checkpoints[checkpoints.length - 1];
+  const maxDays = daysBetweenDates(leaseStart, lastCp.date);
+  if (maxDays <= 0) {
+    return (
+      <p className={styles.detail}>
+        Not enough lease history yet to chart a forecast.
+      </p>
+    );
+  }
+
+  const sortedReadings = [...readings].sort((a, b) =>
+    a.reading_date < b.reading_date ? -1 : a.reading_date > b.reading_date ? 1 : 0
+  );
+  const actualPoints = [
+    { x: 0, y: 0 },
+    ...sortedReadings.map((r) => ({
+      x: Math.max(0, daysBetweenDates(leaseStart, r.reading_date)),
+      y: r.odometer - startingOdometer,
+    })),
+  ];
+
+  const anchorDays = summary.latestDate
+    ? daysBetweenDates(leaseStart, summary.latestDate)
+    : 0;
+  const anchorMiles = (summary.latestOdometer ?? startingOdometer) - startingOdometer;
+
+  const forecastPoints = [
+    { x: anchorDays, y: anchorMiles },
+    ...checkpoints
+      .filter((cp) => cp.projectedMiles != null)
+      .map((cp) => ({ x: daysBetweenDates(leaseStart, cp.date), y: cp.projectedMiles })),
+  ];
+
+  const budgetPoints = [
+    { x: 0, y: 0 },
+    ...checkpoints.map((cp) => ({
+      x: daysBetweenDates(leaseStart, cp.date),
+      y: cp.allowanceMiles,
+    })),
+  ];
+
+  const combinedMilesPoints = [...actualPoints, ...forecastPoints.slice(1)];
+  const maxMiles =
+    Math.max(
+      combinedMilesPoints[combinedMilesPoints.length - 1]?.y || 0,
+      budgetPoints[budgetPoints.length - 1]?.y || 0,
+      1
+    ) * 1.1;
+
+  const W = 560;
+  const H = 220;
+  const xPx = (days) => (Math.min(Math.max(days, 0), maxDays) / maxDays) * W;
+  const yPx = (miles) => H * (1 - Math.min(Math.max(miles, 0), maxMiles) / maxMiles);
+
+  const toPx = (pts) => pts.map((p) => `${xPx(p.x)},${yPx(p.y)}`).join(' ');
+  const actualPx = toPx(actualPoints);
+  const forecastPx = toPx(forecastPoints);
+  const budgetPx = toPx(budgetPoints);
+
+  const allXs = Array.from(
+    new Set([
+      ...combinedMilesPoints.map((p) => p.x),
+      ...budgetPoints.map((p) => p.x),
+    ])
+  ).sort((a, b) => a - b);
+  const bandSegments = [];
+  for (let i = 1; i < allXs.length; i++) {
+    const x0 = allXs[i - 1];
+    const x1 = allXs[i];
+    const top0 = interpAt(combinedMilesPoints, x0);
+    const top1 = interpAt(combinedMilesPoints, x1);
+    const bot0 = interpAt(budgetPoints, x0);
+    const bot1 = interpAt(budgetPoints, x1);
+    if (top0 > bot0 || top1 > bot1) {
+      bandSegments.push(
+        `${xPx(x0)},${yPx(top0)} ${xPx(x1)},${yPx(top1)} ${xPx(x1)},${yPx(bot1)} ${xPx(x0)},${yPx(bot0)}`
+      );
+    }
+  }
+
+  const finalMiles = combinedMilesPoints[combinedMilesPoints.length - 1];
+  const finalBudget = budgetPoints[budgetPoints.length - 1];
+  const overAtLast = lastCp.deltaMiles;
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxMiles * f));
+
+  return (
+    <>
+      <div className={styles.forecastStatRow}>
+        <div className={styles.forecastStat}>
+          <div className={styles.forecastStatLabel}>Actual to date</div>
+          <div className={styles.forecastStatFigure}>
+            {fmtNum(summary.milesElapsed)} <span>mi</span>
+          </div>
+        </div>
+        <div className={styles.forecastStat}>
+          <div className={styles.forecastStatLabel}>
+            {checkpointLabel(lastCp.n)} forecast
+          </div>
+          <div className={styles.forecastStatFigure}>
+            {fmtNum(lastCp.projectedMiles)} <span>mi</span>
+          </div>
+        </div>
+        <div className={styles.forecastStat}>
+          <div className={styles.forecastStatLabel}>
+            {checkpointLabel(lastCp.n)} budget
+          </div>
+          <div className={styles.forecastStatFigure}>
+            {fmtNum(lastCp.allowanceMiles)} <span>mi</span>
+          </div>
+        </div>
+        <div className={styles.forecastStat}>
+          <div className={styles.forecastStatLabel}>Projected at {lastCp.n}yr</div>
+          <div
+            className={styles.forecastStatFigure}
+            style={{ color: overAtLast > 0 ? 'var(--critical)' : 'var(--good)' }}
+          >
+            {overAtLast > 0 ? '+' : '−'}
+            {fmtNum(Math.abs(overAtLast))} <span>{overAtLast > 0 ? 'over' : 'under'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.forecastChartWrap}>
+        <svg
+          viewBox={`-52 -14 ${W + 60} ${H + 48}`}
+          width="100%"
+          height="auto"
+          style={{ display: 'block', overflow: 'visible' }}
+        >
+          {yTicks.map((v, i) => (
+            <g key={v}>
+              <line
+                x1="0"
+                y1={yPx(v)}
+                x2={W}
+                y2={yPx(v)}
+                style={{ stroke: i === 0 ? 'var(--border-strong)' : 'var(--border)' }}
+                strokeWidth="1"
+              />
+              <text
+                x="-10"
+                y={yPx(v) + 3}
+                textAnchor="end"
+                fontSize="10"
+                style={{ fill: 'var(--ink-faint)' }}
+              >
+                {v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}k` : v}
+              </text>
+            </g>
+          ))}
+
+          <text x="0" y={H + 18} fontSize="10" style={{ fill: 'var(--ink-faint)' }}>
+            Lease start
+          </text>
+          {checkpoints.map((cp) => (
+            <text
+              key={cp.n}
+              x={xPx(daysBetweenDates(leaseStart, cp.date))}
+              y={H + 18}
+              textAnchor={cp.n === lastCp.n ? 'end' : 'middle'}
+              fontSize="10"
+              style={{ fill: 'var(--ink-faint)' }}
+            >
+              {cp.n}-yr
+            </text>
+          ))}
+
+          {bandSegments.map((pts, i) => (
+            <polygon key={i} points={pts} style={{ fill: 'var(--critical-soft)' }} />
+          ))}
+
+          <polyline
+            points={budgetPx}
+            fill="none"
+            style={{ stroke: 'var(--ink-muted)' }}
+            strokeWidth="2"
+            strokeDasharray="2 4"
+            strokeLinecap="round"
+          />
+          {finalBudget && (
+            <text
+              x={xPx(finalBudget.x) - 4}
+              y={yPx(finalBudget.y) - 8}
+              textAnchor="end"
+              fontSize="10"
+              fontWeight="700"
+              style={{ fill: 'var(--ink-muted)' }}
+            >
+              {fmtNum(finalBudget.y)} mi budget
+            </text>
+          )}
+
+          <polyline
+            points={actualPx}
+            fill="none"
+            style={{ stroke: 'var(--dom-mileage)' }}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {actualPoints.map((p, i) => (
+            <circle
+              key={i}
+              cx={xPx(p.x)}
+              cy={yPx(p.y)}
+              r="3"
+              style={{ fill: 'var(--dom-mileage)' }}
+            />
+          ))}
+
+          {forecastPoints.length > 1 && (
+            <>
+              <polyline
+                points={forecastPx}
+                fill="none"
+                style={{ stroke: 'var(--dom-mileage)' }}
+                strokeWidth="2.5"
+                strokeDasharray="1 6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {finalMiles && (
+                <>
+                  <circle
+                    cx={xPx(finalMiles.x)}
+                    cy={yPx(finalMiles.y)}
+                    r="3"
+                    style={{ fill: 'var(--dom-mileage)' }}
+                  />
+                  <text
+                    x={xPx(finalMiles.x) - 4}
+                    y={yPx(finalMiles.y) - 8}
+                    textAnchor="end"
+                    fontSize="10"
+                    fontWeight="700"
+                    style={{ fill: 'var(--dom-mileage)' }}
+                  >
+                    {fmtNum(finalMiles.y)} mi forecast
+                  </text>
+                </>
+              )}
+            </>
+          )}
+
+          <line
+            x1={xPx(anchorDays)}
+            y1="0"
+            x2={xPx(anchorDays)}
+            y2={H}
+            style={{ stroke: 'var(--border-strong)' }}
+            strokeWidth="1"
+            strokeDasharray="2 3"
+          />
+        </svg>
+      </div>
+
+      <div className={styles.forecastLegend}>
+        <div className={styles.forecastLegendItem}>
+          <svg width="18" height="8">
+            <line x1="0" y1="4" x2="18" y2="4" style={{ stroke: 'var(--dom-mileage)' }} strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+          Actual (odometer log)
+        </div>
+        <div className={styles.forecastLegendItem}>
+          <svg width="18" height="8">
+            <line x1="0" y1="4" x2="18" y2="4" style={{ stroke: 'var(--dom-mileage)' }} strokeWidth="2.5" strokeDasharray="1 4" strokeLinecap="round" />
+          </svg>
+          Forecast (pace + active scenarios)
+        </div>
+        <div className={styles.forecastLegendItem}>
+          <svg width="18" height="8">
+            <line x1="0" y1="4" x2="18" y2="4" style={{ stroke: 'var(--ink-muted)' }} strokeWidth="2" strokeDasharray="2 4" strokeLinecap="round" />
+          </svg>
+          Budgeted allowance
+        </div>
+        {bandSegments.length > 0 && (
+          <div className={styles.forecastLegendItem}>
+            <svg width="14" height="10">
+              <rect width="14" height="10" rx="2" style={{ fill: 'var(--critical-soft)' }} />
+            </svg>
+            Projected over allowance
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function DataPanelSection(props) {
   const [tab, setTab] = useState('pace'); // 'pace' | 'scenarios' | 'trips'
   return (
@@ -1843,10 +2400,18 @@ function DataPanelSection(props) {
         >
           Trip log{props.trips.length > 0 ? ` (${props.trips.length})` : ''}
         </button>
+        <button
+          type="button"
+          className={tab === 'dashboard' ? styles.dpTabActive : ''}
+          onClick={() => setTab('dashboard')}
+        >
+          Dashboard
+        </button>
       </div>
       {tab === 'pace' && <PaceBody {...props} />}
       {tab === 'scenarios' && <ScenariosBody {...props} />}
       {tab === 'trips' && <TripLogBody {...props} />}
+      {tab === 'dashboard' && <ForecastChart {...props} />}
     </div>
   );
 }
@@ -2002,6 +2567,18 @@ export default function MileagePage() {
       body: JSON.stringify({ active }),
     });
     if (!res.ok) setScenarios(prev);
+    refresh();
+  }
+
+  async function updateScenario(id, patch) {
+    const res = await fetch(`/api/mileage/scenarios/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Could not save that scenario');
+    setScenarios((s) => s.map((x) => (x.id === id ? body.scenario : x)));
     refresh();
   }
 
@@ -2212,6 +2789,7 @@ export default function MileagePage() {
 
       <DataPanelSection
         summary={summary}
+        settings={settings}
         readings={readings}
         deleteReading={deleteReading}
         draftOdometer={draftOdometer}
@@ -2223,6 +2801,7 @@ export default function MileagePage() {
         toggleScenario={toggleScenario}
         deleteScenario={deleteScenario}
         addScenario={addScenario}
+        updateScenario={updateScenario}
         usualLegs={usualLegs}
         leaseStart={settings?.lease_start_date}
         trips={trips}

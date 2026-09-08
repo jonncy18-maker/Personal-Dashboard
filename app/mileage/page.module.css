@@ -719,6 +719,13 @@
 .rowDelete:hover {
   color: var(--critical);
 }
+.rowEdit {
+  display: inline-flex;
+  align-items: center;
+}
+.rowEdit:hover {
+  color: var(--dom-mileage);
+}
 
 .addReadingForm {
   display: flex;
@@ -906,6 +913,57 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-sunken);
+}
+
+/* ── forecast dashboard chart ───────────────────────────── */
+.forecastStatRow {
+  display: flex;
+  gap: 14px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 15px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.forecastStat {
+  flex: 1 1 140px;
+}
+.forecastStatLabel {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+.forecastStatFigure {
+  font-size: 17px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+.forecastStatFigure span {
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+.forecastChartWrap {
+  padding: 4px 4px 0;
+}
+.forecastLegend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-strong);
+}
+.forecastLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  font-weight: 700;
 }
 
 /* ── trip log ───────────────────────────────────────────── */
