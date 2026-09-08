@@ -418,6 +418,41 @@ function HolidaysPopup({ holidays, onClose, onAdd, onSave, onDelete }) {
   );
 }
 
+// ─── planning: banked-holiday shortfall toggle ──────────────────────────
+// A deliberate, explicit opt-in (migration 024) — the banked ledger stays
+// computed fully separately either way; this only decides whether its
+// `available` count gets added into the glance strip's net figure.
+function BankedShortfallToggle({ useBankedForShortfall, left, bankedAvailable, onSave }) {
+  const [saving, setSaving] = useState(false);
+
+  async function toggle(e) {
+    const checked = e.target.checked;
+    setSaving(true);
+    await onSave(checked);
+    setSaving(false);
+  }
+
+  return (
+    <div className={styles.subSection}>
+      <p className={styles.subSectionTitle}>Banked holidays</p>
+      <label className={styles.planningToggle}>
+        <input
+          type="checkbox"
+          checked={useBankedForShortfall}
+          disabled={saving}
+          onChange={toggle}
+        />
+        Use banked holidays to cover a PTO shortfall
+      </label>
+      <p className={styles.subEmpty}>
+        {useBankedForShortfall
+          ? `On — the figure above is your ${left} PTO left plus ${bankedAvailable} banked, for a net of ${left + bankedAvailable}.`
+          : `Off — your ${bankedAvailable} banked holidays stay tracked separately and aren't added to the ${left} PTO left above.`}
+      </p>
+    </div>
+  );
+}
+
 // ─── simulation: wishlist what-ifs ──────────────────────────────────────
 function WishlistWhatIfs({ wishlist, left }) {
   if (wishlist.length === 0) return null;
@@ -708,6 +743,7 @@ export default function PtoPanel() {
   const [trips, setTrips] = useState([]);
   const [holidaysOpen, setHolidaysOpen] = useState(false);
   const [subtab, setSubtab] = useState('trips');
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     if (data) {
@@ -726,6 +762,15 @@ export default function PtoPanel() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ annual_budget: n }),
+    });
+    reload();
+  }
+
+  async function saveUseBankedForShortfall(value) {
+    await fetch('/api/pto', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ use_banked_for_shortfall: value }),
     });
     reload();
   }
@@ -833,14 +878,42 @@ export default function PtoPanel() {
       </div>
 
       <div className={styles.glance}>
-        <span
-          className={`${styles.glanceFigure} ${data.left < 0 ? styles.glanceFigureNegative : ''} tabular`}
-        >
-          {data.left}
-        </span>
-        <span className={`${styles.glanceDetail} tabular`}>
-          left · {data.taken} taken · {data.planned} planned
-        </span>
+        <div className={styles.glanceFigureWrap}>
+          <button
+            type="button"
+            className={styles.glanceFigureBtn}
+            onClick={() => setDetailOpen((v) => !v)}
+            aria-expanded={detailOpen}
+            aria-label="PTO breakdown"
+          >
+            <span
+              className={`${styles.glanceFigure} ${data.net < 0 ? styles.glanceFigureNegative : ''} tabular`}
+            >
+              {data.net}
+            </span>
+            <span className={`${styles.glanceDetail} tabular`}>
+              net PTO{data.useBankedForShortfall ? ' + banked' : ''}
+            </span>
+          </button>
+          <div
+            className={`${styles.glancePopover} ${detailOpen ? styles.glancePopoverOpen : ''}`}
+            role="tooltip"
+          >
+            <p className="tabular">
+              <strong>{data.left}</strong> PTO left &middot; {data.taken} taken
+              &middot; {data.planned} planned
+            </p>
+            <p className="tabular">
+              <strong>{data.banked.available}</strong> banked holidays
+              available
+            </p>
+            <p className={styles.glancePopoverNote}>
+              {data.useBankedForShortfall
+                ? 'Banked holidays are included above to cover a shortfall — change this in Planning.'
+                : 'Banked holidays are tracked separately and not included above — turn this on in Planning.'}
+            </p>
+          </div>
+        </div>
         <div className={styles.chips}>
           <BudgetEditor budget={data.budget} onSave={saveBudget} />
           <button
@@ -878,6 +951,13 @@ export default function PtoPanel() {
           onClick={() => setSubtab('simulate')}
         >
           Simulate
+        </button>
+        <button
+          type="button"
+          className={`${styles.subtab} ${subtab === 'planning' ? styles.subtabActive : ''}`}
+          onClick={() => setSubtab('planning')}
+        >
+          Planning
         </button>
       </div>
 
@@ -920,6 +1000,15 @@ export default function PtoPanel() {
             onRemoveItem={patchScenario}
           />
         </div>
+      )}
+
+      {subtab === 'planning' && (
+        <BankedShortfallToggle
+          useBankedForShortfall={data.useBankedForShortfall}
+          left={data.left}
+          bankedAvailable={data.banked.available}
+          onSave={saveUseBankedForShortfall}
+        />
       )}
 
       {holidaysOpen && (

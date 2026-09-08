@@ -7,6 +7,7 @@ import {
   holidaySetForYear,
   clampToYear,
   weekdaysExcludingHolidays,
+  netPtoLeft,
 } from '../../../lib/pto';
 import { collapseMergedTrips } from '../../../lib/trip-merge';
 
@@ -24,7 +25,7 @@ function todayStr() {
 async function loadAll(sql) {
   const [[settings], holidayRows, entryRows, tripRows, scenarioRows] =
     await Promise.all([
-      sql`SELECT annual_budget FROM pto_settings WHERE id = 1`,
+      sql`SELECT annual_budget, use_banked_for_shortfall FROM pto_settings WHERE id = 1`,
       sql`SELECT id, holiday_date, name, worked FROM pto_holidays ORDER BY holiday_date ASC`,
       sql`SELECT id, entry_date, kind, note FROM pto_entries ORDER BY entry_date ASC`,
       sql`
@@ -38,6 +39,7 @@ async function loadAll(sql) {
 
   return {
     budget: settings?.annual_budget ?? 25,
+    useBankedForShortfall: settings?.use_banked_for_shortfall ?? false,
     holidays: holidayRows.map((h) => ({
       ...h,
       holiday_date: dateOnly(h.holiday_date),
@@ -70,6 +72,7 @@ export const GET = route(async (request) => {
   const sql = getDb();
   const {
     budget,
+    useBankedForShortfall,
     holidays,
     entries,
     trips: rawTrips,
@@ -114,6 +117,8 @@ export const GET = route(async (request) => {
     taken: summary.taken,
     planned: summary.planned,
     left: summary.left,
+    useBankedForShortfall,
+    net: netPtoLeft(summary.left, summary.banked.available, useBankedForShortfall),
     holidaysEntered: summary.holidaysEntered,
     banked: summary.banked,
     trips: summary.trips,
@@ -126,17 +131,41 @@ export const GET = route(async (request) => {
 
 export const PATCH = route(async (request) => {
   const body = await request.json();
-  const budget = Number(body.annual_budget);
-  if (!Number.isInteger(budget) || budget < 0) {
-    return Response.json(
-      { error: 'annual_budget must be a non-negative integer' },
-      { status: 400 }
-    );
-  }
   const sql = getDb();
-  await sql`
-    UPDATE pto_settings SET annual_budget = ${budget}, updated_at = now()
-    WHERE id = 1
+
+  if (body.annual_budget !== undefined) {
+    const budget = Number(body.annual_budget);
+    if (!Number.isInteger(budget) || budget < 0) {
+      return Response.json(
+        { error: 'annual_budget must be a non-negative integer' },
+        { status: 400 }
+      );
+    }
+    await sql`
+      UPDATE pto_settings SET annual_budget = ${budget}, updated_at = now()
+      WHERE id = 1
+    `;
+  }
+
+  if (body.use_banked_for_shortfall !== undefined) {
+    if (typeof body.use_banked_for_shortfall !== 'boolean') {
+      return Response.json(
+        { error: 'use_banked_for_shortfall must be a boolean' },
+        { status: 400 }
+      );
+    }
+    await sql`
+      UPDATE pto_settings
+      SET use_banked_for_shortfall = ${body.use_banked_for_shortfall}, updated_at = now()
+      WHERE id = 1
+    `;
+  }
+
+  const [settings] = await sql`
+    SELECT annual_budget, use_banked_for_shortfall FROM pto_settings WHERE id = 1
   `;
-  return Response.json({ annual_budget: budget });
+  return Response.json({
+    annual_budget: settings.annual_budget,
+    use_banked_for_shortfall: settings.use_banked_for_shortfall,
+  });
 });
