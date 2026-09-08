@@ -8,6 +8,7 @@ import {
   usualLegsWeeklyTotal,
   legFrequencyScenarioImpacts,
   tripDayCount,
+  monthlyForecast,
 } from '../../lib/mileage';
 import { MileageIcon } from '../../components/icons';
 import styles from './page.module.css';
@@ -2076,7 +2077,7 @@ function interpAt(points, x) {
 // data series, so it stays neutral. The gap is shaded only where the
 // mileage line runs over the budget line, reusing the same --critical the
 // checkpoint tiles already use for "over" — never a fabricated third color.
-function ForecastChart({ summary, readings, settings }) {
+function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
   if (!summary.configured || !summary.checkpoints?.length) {
     return (
       <p className={styles.detail}>Set up your lease to see the forecast chart.</p>
@@ -2111,12 +2112,34 @@ function ForecastChart({ summary, readings, settings }) {
     : 0;
   const anchorMiles = (summary.latestOdometer ?? startingOdometer) - startingOdometer;
 
-  const forecastPoints = [
-    { x: anchorDays, y: anchorMiles },
-    ...checkpoints
-      .filter((cp) => cp.projectedMiles != null)
-      .map((cp) => ({ x: daysBetweenDates(leaseStart, cp.date), y: cp.projectedMiles })),
-  ];
+  // Monthly resolution (not just anchor + 3 yearly checkpoints) so a
+  // one-time scenario's landing shows up as a visible step in the line
+  // instead of being smoothed away between two far-apart yearly points.
+  const monthly = monthlyForecast({ settings, readings, scenarios, exclusions });
+  const forecastPoints =
+    monthly.length > 0
+      ? monthly
+          .filter((p) => p.projectedMiles != null)
+          .map((p) => ({
+            x: daysBetweenDates(leaseStart, p.date),
+            y: p.projectedMiles - startingOdometer,
+          }))
+          .filter((p) => p.x >= anchorDays)
+      : [];
+  if (forecastPoints.length === 0 || forecastPoints[0].x > anchorDays) {
+    forecastPoints.unshift({ x: anchorDays, y: anchorMiles });
+  }
+  const landingPoints = monthly
+    .filter(
+      (p) =>
+        p.landings.length > 0 &&
+        daysBetweenDates(leaseStart, p.date) >= anchorDays
+    )
+    .map((p) => ({
+      x: daysBetweenDates(leaseStart, p.date),
+      y: p.projectedMiles - startingOdometer,
+      names: p.landings.map((s) => s.name),
+    }));
 
   const budgetPoints = [
     { x: 0, y: 0 },
@@ -2326,6 +2349,22 @@ function ForecastChart({ summary, readings, settings }) {
                   </text>
                 </>
               )}
+              {landingPoints.map((p, i) => (
+                <g key={i}>
+                  <circle
+                    cx={xPx(p.x)}
+                    cy={yPx(p.y)}
+                    r="4"
+                    style={{
+                      fill: 'var(--surface)',
+                      stroke: 'var(--dom-mileage)',
+                    }}
+                    strokeWidth="2"
+                  >
+                    <title>{p.names.join(', ')}</title>
+                  </circle>
+                </g>
+              ))}
             </>
           )}
 
@@ -2366,6 +2405,20 @@ function ForecastChart({ summary, readings, settings }) {
               <rect width="14" height="10" rx="2" style={{ fill: 'var(--critical-soft)' }} />
             </svg>
             Projected over allowance
+          </div>
+        )}
+        {landingPoints.length > 0 && (
+          <div className={styles.forecastLegendItem}>
+            <svg width="10" height="10">
+              <circle
+                cx="5"
+                cy="5"
+                r="4"
+                style={{ fill: 'var(--surface)', stroke: 'var(--dom-mileage)' }}
+                strokeWidth="2"
+              />
+            </svg>
+            Scenario landing (hover for name)
           </div>
         )}
       </div>
@@ -2807,6 +2860,7 @@ export default function MileagePage() {
         trips={trips}
         addTrip={addTrip}
         deleteTrip={deleteTrip}
+        exclusions={travelExclusions}
       />
     </div>
   );
