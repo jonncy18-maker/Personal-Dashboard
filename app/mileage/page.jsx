@@ -52,47 +52,6 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// ─── Model 3 illustration — a drawn stylization, not a photo or a claim of ──
-// one. No Tesla API/photo source is wired up for this app (CLAUDE.md's
-// no-fabricated-imagery discipline applies to real photos, not a decorative
-// icon), so this fills the same visual role a hero photo would.
-function ModelThreeArt() {
-  return (
-    <svg viewBox="0 0 320 150" className={styles.heroCar} aria-hidden="true">
-      <defs>
-        <linearGradient id="m3body" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ff5a52" />
-          <stop offset="55%" stopColor="#d4241f" />
-          <stop offset="100%" stopColor="#9c1613" />
-        </linearGradient>
-        <radialGradient id="m3shadow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#000" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#000" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <ellipse cx="163" cy="128" rx="118" ry="12" fill="url(#m3shadow)" />
-      <path
-        d="M24 96c-10 0-15-5-15-13 0-7 5-12 13-13l20-3 14-24c5-8 15-14 26-14h102c13 0 25 6 32 16l16 23 19 4c8 1 13 8 13 15 0 8-6 13-14 13z"
-        fill="url(#m3body)"
-      />
-      <path
-        d="M78 47l11-19c3-5 9-8 15-8h30v29zm68-27h32c8 0 16 4 20 11l11 16h-63z"
-        fill="#141416"
-        opacity="0.92"
-      />
-      <path d="M24 96l-15-3v-8l17-2z" fill="#7c0f0d" />
-      <path d="M283 96l17-3v-6l-16-4z" fill="#7c0f0d" />
-      <circle cx="78" cy="97" r="19" fill="#17181c" />
-      <circle cx="78" cy="97" r="10" fill="#4a4d57" />
-      <circle cx="78" cy="97" r="3.2" fill="#17181c" />
-      <circle cx="238" cy="97" r="19" fill="#17181c" />
-      <circle cx="238" cy="97" r="10" fill="#4a4d57" />
-      <circle cx="238" cy="97" r="3.2" fill="#17181c" />
-      <path d="M17 78l270-1" stroke="#ffffff" strokeOpacity="0.15" strokeWidth="1" />
-    </svg>
-  );
-}
-
 function HeroBadgeIcon({ name }) {
   const common = {
     viewBox: '0 0 24 24',
@@ -154,9 +113,6 @@ function TeslaHero({ settings, summary, placesCount, onEditSettings, onOpenPlace
             Favorite places{placesCount > 0 ? ` (${placesCount})` : ''}
           </button>
         </div>
-      </div>
-      <div className={styles.heroStage}>
-        <ModelThreeArt />
       </div>
       <div className={styles.heroBadges}>
         <div className={styles.heroBadge}>
