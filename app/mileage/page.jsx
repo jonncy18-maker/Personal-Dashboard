@@ -1255,14 +1255,61 @@ function UsualTripsBody({ settings, summary, legs, onSave, onAddLeg, onDeleteLeg
   );
 }
 
+// ─── Manage popup — reused wherever a list moves out of the tab body ───────
+function ManagePopup({ title, subtitle, onClose, children }) {
+  return (
+    <div className={styles.popupScrim} onClick={onClose}>
+      <div className={styles.popup} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.popupHead}>
+          <h3 className={styles.popupTitle}>{title}</h3>
+          <button className={styles.popupClose} onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        {subtitle && <p className={styles.popupSub}>{subtitle}</p>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function TravelExclusionsBody({ exclusions, reviewCount, onScan, onAddManual, onDelete }) {
+  const [managing, setManaging] = useState(false);
+  const total = exclusions.reduce(
+    (sum, e) => sum + Number(e.miles_excluded || 0),
+    0
+  );
+
   return (
     <>
-      <div className={styles.baselineBodyHead}>
-        <p className={styles.detail} style={{ margin: 0 }}>
-          Real trips excluded from the forecast, since your usual daily driving
-          doesn't happen while you're away — a fact, not a hypothetical.
-        </p>
+      <p className={styles.detail} style={{ marginBottom: 10 }}>
+        Real trips excluded from the forecast, since your usual daily driving
+        doesn't happen while you're away — a fact, not a hypothetical.
+      </p>
+      <div className={styles.summaryRow}>
+        <div className={styles.summaryStat}>
+          <span className="tabular">{exclusions.length}</span>
+          <span className={styles.summaryUnit}>
+            exclusion{exclusions.length === 1 ? '' : 's'} accepted
+          </span>
+        </div>
+        {total > 0 && (
+          <div className={styles.summaryMini}>
+            <div>
+              <span className="tabular">−{fmtNum(total)}</span>
+              <span className={styles.summaryUnit}>total mi</span>
+            </div>
+          </div>
+        )}
+        <button
+          type="button"
+          className={styles.editSettingsBtn}
+          onClick={() => setManaging(true)}
+        >
+          Manage →
+        </button>
+      </div>
+      <div className={styles.baselineBodyHead} style={{ marginTop: 10 }}>
         <button
           type="button"
           className={styles.editSettingsBtn}
@@ -1271,34 +1318,43 @@ function TravelExclusionsBody({ exclusions, reviewCount, onScan, onAddManual, on
           Scan travel{reviewCount > 0 ? ` (${reviewCount})` : ''}
         </button>
       </div>
-      <div className={styles.tripList}>
-        {exclusions.map((e) => (
-          <div className={styles.tripRow} key={e.id}>
-            <div className={styles.tripInfo}>
-              <p className={styles.tripRoute}>{e.label || 'Trip'}</p>
-              <p className={styles.tripDate}>
-                {fmtDate(e.start_date)} – {fmtDate(e.end_date)} &middot;{' '}
-                {e.days} day{e.days === 1 ? '' : 's'} &middot;{' '}
-                {e.source === 'manual' ? 'Manual' : 'Travel'}
-              </p>
-            </div>
-            <span className={`${styles.tripMiles} tabular`}>
-              −{fmtNum(e.miles_excluded)} mi
-            </span>
-            <button
-              className={styles.rowDelete}
-              onClick={() => onDelete(e.id)}
-              aria-label="Remove exclusion"
-            >
-              &times;
-            </button>
-          </div>
-        ))}
-        {exclusions.length === 0 && (
-          <p className={styles.detail}>No travel exclusions accepted yet.</p>
-        )}
-      </div>
       <AddManualExclusionForm onAdd={onAddManual} />
+
+      {managing && (
+        <ManagePopup
+          title="Travel exclusions"
+          subtitle={`${exclusions.length} accepted${total > 0 ? ` · −${fmtNum(total)} mi total excluded from the forecast` : ''}`}
+          onClose={() => setManaging(false)}
+        >
+          <div className={styles.tripList}>
+            {exclusions.map((e) => (
+              <div className={styles.tripRow} key={e.id}>
+                <div className={styles.tripInfo}>
+                  <p className={styles.tripRoute}>{e.label || 'Trip'}</p>
+                  <p className={styles.tripDate}>
+                    {fmtDate(e.start_date)} – {fmtDate(e.end_date)} &middot;{' '}
+                    {e.days} day{e.days === 1 ? '' : 's'} &middot;{' '}
+                    {e.source === 'manual' ? 'Manual' : 'Travel'}
+                  </p>
+                </div>
+                <span className={`${styles.tripMiles} tabular`}>
+                  −{fmtNum(e.miles_excluded)} mi
+                </span>
+                <button
+                  className={styles.rowDelete}
+                  onClick={() => onDelete(e.id)}
+                  aria-label="Remove exclusion"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+            {exclusions.length === 0 && (
+              <p className={styles.detail}>No travel exclusions accepted yet.</p>
+            )}
+          </div>
+        </ManagePopup>
+      )}
     </>
   );
 }
@@ -1364,7 +1420,12 @@ function DrivingBaselineSection({
 }
 
 // ─── Pace / Forecast scenarios / Trip log — one panel, three tabs ──────────
-function PaceBody({ summary, sortedReadings, deleteReading, draftOdometer, setDraftOdometer, draftDate, setDraftDate, logReading }) {
+function PaceBody({ summary, readings, deleteReading, draftOdometer, setDraftOdometer, draftDate, setDraftDate, logReading }) {
+  const [managing, setManaging] = useState(false);
+  const sortedReadings = [...readings].sort((a, b) =>
+    a.reading_date < b.reading_date ? 1 : -1
+  );
+
   return (
     <>
       {summary.pace == null ? (
@@ -1389,24 +1450,21 @@ function PaceBody({ summary, sortedReadings, deleteReading, draftOdometer, setDr
         </>
       )}
 
-      <div className={styles.readingList}>
-        {sortedReadings.map((r) => (
-          <div className={styles.readingRow} key={r.id || r.reading_date}>
-            <span className={styles.readingDate}>{fmtDate(r.reading_date)}</span>
-            <span className={`${styles.readingMiles} tabular`}>
-              {fmtNum(r.odometer)} mi
-            </span>
-            {r.id && (
-              <button
-                className={styles.rowDelete}
-                onClick={() => deleteReading(r.id)}
-                aria-label="Delete reading"
-              >
-                &times;
-              </button>
-            )}
-          </div>
-        ))}
+      <div className={styles.summaryRow}>
+        <div className={styles.summaryStat}>
+          <span className="tabular">{readings.length}</span>
+          <span className={styles.summaryUnit}>
+            reading{readings.length === 1 ? '' : 's'} logged
+          </span>
+        </div>
+        <button
+          type="button"
+          className={styles.editSettingsBtn}
+          onClick={() => setManaging(true)}
+          disabled={readings.length === 0}
+        >
+          Manage →
+        </button>
       </div>
 
       <form className={styles.addReadingForm} onSubmit={logReading}>
@@ -1426,56 +1484,76 @@ function PaceBody({ summary, sortedReadings, deleteReading, draftOdometer, setDr
       <p className={styles.addReadingHint}>
         Logging a reading recalculates pace and every forecast above.
       </p>
+
+      {managing && (
+        <ManagePopup
+          title="Odometer readings"
+          subtitle={`${readings.length} logged.`}
+          onClose={() => setManaging(false)}
+        >
+          <div className={styles.readingList}>
+            {sortedReadings.map((r) => (
+              <div className={styles.readingRow} key={r.id || r.reading_date}>
+                <span className={styles.readingDate}>
+                  {fmtDate(r.reading_date)}
+                </span>
+                <span className={`${styles.readingMiles} tabular`}>
+                  {fmtNum(r.odometer)} mi
+                </span>
+                {r.id && (
+                  <button
+                    className={styles.rowDelete}
+                    onClick={() => deleteReading(r.id)}
+                    aria-label="Delete reading"
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </ManagePopup>
+      )}
     </>
   );
 }
 
 function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario, usualLegs, leaseStart }) {
+  const [managing, setManaging] = useState(false);
+  const activeScenarios = scenarios.filter((s) => s.active);
+  const totalImpact3yr = activeScenarios.reduce(
+    (sum, s) => sum + Number(s.impact_3yr || 0),
+    0
+  );
+
   return (
     <>
-      <div className={styles.scenarioList}>
-        {scenarios.map((s) => (
-          <div
-            className={`${styles.scenarioCard} ${s.active ? styles.scenarioCardActive : ''}`}
-            key={s.id}
-          >
-            <div className={styles.scenarioTop}>
-              <div>
-                <p className={styles.scenarioName}>{s.name}</p>
-                {s.note && <p className={styles.scenarioNote}>{s.note}</p>}
-              </div>
-              <div className={styles.scenarioActions}>
-                <label className={styles.toggleLabel}>
-                  <input
-                    type="checkbox"
-                    checked={s.active}
-                    onChange={(e) => toggleScenario(s.id, e.target.checked)}
-                  />
-                  Included
-                </label>
-                <button
-                  className={styles.rowDelete}
-                  onClick={() => deleteScenario(s.id)}
-                  aria-label="Delete scenario"
-                >
-                  &times;
-                </button>
-              </div>
+      <div className={styles.summaryRow}>
+        <div className={styles.summaryStat}>
+          <span className="tabular">{activeScenarios.length}</span>
+          <span className={styles.summaryUnit}>
+            scenario{activeScenarios.length === 1 ? '' : 's'} active
+          </span>
+        </div>
+        {activeScenarios.length > 0 && (
+          <div className={styles.summaryMini}>
+            <div>
+              <span className="tabular">
+                {totalImpact3yr >= 0 ? '+' : ''}
+                {fmtNum(totalImpact3yr)}
+              </span>
+              <span className={styles.summaryUnit}>mi by 3yr</span>
             </div>
-            <p className={styles.scenarioImpact}>
-              {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
-              {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
-              <strong>
-                {s.impact_3yr >= 0 ? '+' : ''}
-                {fmtNum(s.impact_3yr)}
-              </strong>{' '}
-              mi by the 3-year mark
-            </p>
           </div>
-        ))}
-        {scenarios.length === 0 && (
-          <p className={styles.detail}>No saved scenarios yet.</p>
         )}
+        <button
+          type="button"
+          className={styles.editSettingsBtn}
+          onClick={() => setManaging(true)}
+          disabled={scenarios.length === 0}
+        >
+          Manage →
+        </button>
       </div>
       <AddScenarioForm onAdd={addScenario} legs={usualLegs} leaseStart={leaseStart} />
       <p className={styles.scenarioLegendNote}>
@@ -1483,56 +1561,139 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
         unchecked ones stay saved but excluded. Every other future period
         uses your plain average pace.
       </p>
+
+      {managing && (
+        <ManagePopup
+          title="Forecast scenarios"
+          subtitle={`${scenarios.length} saved · ${activeScenarios.length} included in the forecast above.`}
+          onClose={() => setManaging(false)}
+        >
+          <div className={styles.scenarioList}>
+            {scenarios.map((s) => (
+              <div
+                className={`${styles.scenarioCard} ${s.active ? styles.scenarioCardActive : ''}`}
+                key={s.id}
+              >
+                <div className={styles.scenarioTop}>
+                  <div>
+                    <p className={styles.scenarioName}>{s.name}</p>
+                    {s.note && <p className={styles.scenarioNote}>{s.note}</p>}
+                  </div>
+                  <div className={styles.scenarioActions}>
+                    <label className={styles.toggleLabel}>
+                      <input
+                        type="checkbox"
+                        checked={s.active}
+                        onChange={(e) => toggleScenario(s.id, e.target.checked)}
+                      />
+                      Included
+                    </label>
+                    <button
+                      className={styles.rowDelete}
+                      onClick={() => deleteScenario(s.id)}
+                      aria-label="Delete scenario"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+                <p className={styles.scenarioImpact}>
+                  {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
+                  {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
+                  <strong>
+                    {s.impact_3yr >= 0 ? '+' : ''}
+                    {fmtNum(s.impact_3yr)}
+                  </strong>{' '}
+                  mi by the 3-year mark
+                </p>
+              </div>
+            ))}
+          </div>
+        </ManagePopup>
+      )}
     </>
   );
 }
 
 function TripLogBody({ trips, addTrip, deleteTrip }) {
+  const [managing, setManaging] = useState(false);
+  const totalMiles = trips.reduce((sum, t) => sum + Number(t.miles || 0), 0);
+
   return (
     <>
       <AddTripForm onAdd={addTrip} />
-      <div className={styles.tripList}>
-        {trips.map((t) => (
-          <div className={styles.tripRow} key={t.id}>
-            <div className={styles.tripIcon}>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="6" cy="7" r="2.4" />
-                <circle cx="18" cy="17" r="2.4" />
-                <path d="M8.1 8.4L15.9 15.6" strokeDasharray="2.6 2.6" />
-              </svg>
+      <div className={styles.summaryRow}>
+        <div className={styles.summaryStat}>
+          <span className="tabular">{trips.length}</span>
+          <span className={styles.summaryUnit}>
+            trip{trips.length === 1 ? '' : 's'} logged
+          </span>
+        </div>
+        {trips.length > 0 && (
+          <div className={styles.summaryMini}>
+            <div>
+              <span className="tabular">{fmtNum(totalMiles)}</span>
+              <span className={styles.summaryUnit}>total mi</span>
             </div>
-            <div className={styles.tripInfo}>
-              <p className={styles.tripRoute}>
-                {t.origin} → {t.destination}
-              </p>
-              <p className={styles.tripDate}>
-                {t.trip_date ? fmtDate(t.trip_date) : 'No date'}
-                {t.notes ? ` · ${t.notes}` : ''}
-              </p>
-            </div>
-            <span className={`${styles.tripMiles} tabular`}>
-              {fmtNum(t.miles)} mi
-            </span>
-            <button
-              className={styles.rowDelete}
-              onClick={() => deleteTrip(t.id)}
-              aria-label="Delete trip"
-            >
-              &times;
-            </button>
           </div>
-        ))}
-        {trips.length === 0 && (
-          <p className={styles.detail}>No trips logged yet.</p>
         )}
+        <button
+          type="button"
+          className={styles.editSettingsBtn}
+          onClick={() => setManaging(true)}
+          disabled={trips.length === 0}
+        >
+          Manage →
+        </button>
       </div>
+
+      {managing && (
+        <ManagePopup
+          title="Trip log"
+          subtitle={`${trips.length} logged · ${fmtNum(totalMiles)} mi total.`}
+          onClose={() => setManaging(false)}
+        >
+          <div className={styles.tripList}>
+            {trips.map((t) => (
+              <div className={styles.tripRow} key={t.id}>
+                <div className={styles.tripIcon}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="6" cy="7" r="2.4" />
+                    <circle cx="18" cy="17" r="2.4" />
+                    <path d="M8.1 8.4L15.9 15.6" strokeDasharray="2.6 2.6" />
+                  </svg>
+                </div>
+                <div className={styles.tripInfo}>
+                  <p className={styles.tripRoute}>
+                    {t.origin} → {t.destination}
+                  </p>
+                  <p className={styles.tripDate}>
+                    {t.trip_date ? fmtDate(t.trip_date) : 'No date'}
+                    {t.notes ? ` · ${t.notes}` : ''}
+                  </p>
+                </div>
+                <span className={`${styles.tripMiles} tabular`}>
+                  {fmtNum(t.miles)} mi
+                </span>
+                <button
+                  className={styles.rowDelete}
+                  onClick={() => deleteTrip(t.id)}
+                  aria-label="Delete trip"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        </ManagePopup>
+      )}
     </>
   );
 }
@@ -1861,10 +2022,6 @@ export default function MileagePage() {
     );
   }
 
-  const sortedReadings = [...readings]
-    .sort((a, b) => (a.reading_date < b.reading_date ? 1 : -1))
-    .slice(0, 4);
-
   const excludedTotal = travelExclusions
     .filter((e) => e.status === 'accepted')
     .reduce((sum, e) => sum + Number(e.miles_excluded || 0), 0);
@@ -1937,7 +2094,7 @@ export default function MileagePage() {
 
       <DataPanelSection
         summary={summary}
-        sortedReadings={sortedReadings}
+        readings={readings}
         deleteReading={deleteReading}
         draftOdometer={draftOdometer}
         setDraftOdometer={setDraftOdometer}
