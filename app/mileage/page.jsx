@@ -39,6 +39,11 @@ function fmtNum(n) {
   if (n == null || !Number.isFinite(n)) return '—';
   return Math.round(n).toLocaleString('en-US');
 }
+function fmtMonth(dateStr) {
+  if (!dateStr) return null;
+  const d = parseISO(dateStr);
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
 function checkpointLabel(n) {
   return n === 1 ? '1 Year Mark' : n === 2 ? '2 Year Mark' : '3 Year Mark';
 }
@@ -340,6 +345,7 @@ function AddTripForm({ onAdd }) {
 function AddScenarioForm({ onAdd, legs, leaseStart }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState('manual'); // 'manual' | 'leg'
+  const [occurrence, setOccurrence] = useState('recurring'); // 'recurring' | 'one_time'
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [impact1, setImpact1] = useState('');
@@ -347,6 +353,10 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
   const [impact3, setImpact3] = useState('');
   const [legId, setLegId] = useState('');
   const [newTimesPerWeek, setNewTimesPerWeek] = useState('');
+  const [effectiveStart, setEffectiveStart] = useState(''); // 'YYYY-MM'
+  const [oneTimeStart, setOneTimeStart] = useState(''); // 'YYYY-MM'
+  const [oneTimeEnd, setOneTimeEnd] = useState(''); // 'YYYY-MM'
+  const [oneTimeMiles, setOneTimeMiles] = useState('');
   const [saving, setSaving] = useState(false);
 
   if (!open) {
@@ -373,6 +383,7 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
   async function submit(e) {
     e.preventDefault();
     if (!name.trim()) return;
+    if (mode === 'manual' && occurrence === 'one_time' && !oneTimeStart) return;
     setSaving(true);
     try {
       if (mode === 'leg') {
@@ -382,11 +393,22 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
           note: note.trim() || null,
           leg_id: selectedLeg.id,
           new_times_per_week: Number(newTimesPerWeek) || 0,
+          effective_start: effectiveStart ? `${effectiveStart}-01` : null,
+        });
+      } else if (occurrence === 'one_time') {
+        await onAdd({
+          name: name.trim(),
+          note: note.trim() || null,
+          occurrence: 'one_time',
+          one_time_start: `${oneTimeStart}-01`,
+          one_time_end: `${oneTimeEnd || oneTimeStart}-01`,
+          one_time_miles: Number(oneTimeMiles) || 0,
         });
       } else {
         await onAdd({
           name: name.trim(),
           note: note.trim() || null,
+          effective_start: effectiveStart ? `${effectiveStart}-01` : null,
           impact_1yr: Number(impact1) || 0,
           impact_2yr: Number(impact2) || 0,
           impact_3yr: Number(impact3) || 0,
@@ -400,6 +422,11 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
       setImpact3('');
       setLegId('');
       setNewTimesPerWeek('');
+      setEffectiveStart('');
+      setOneTimeStart('');
+      setOneTimeEnd('');
+      setOneTimeMiles('');
+      setOccurrence('recurring');
     } finally {
       setSaving(false);
     }
@@ -418,12 +445,33 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
         <button
           type="button"
           className={mode === 'leg' ? styles.scenarioModeActive : ''}
-          onClick={() => setMode('leg')}
+          onClick={() => {
+            setMode('leg');
+            setOccurrence('recurring');
+          }}
           disabled={!legs || legs.length === 0}
         >
           From a route
         </button>
       </div>
+      {mode === 'manual' && (
+        <div className={styles.scenarioModeRow}>
+          <button
+            type="button"
+            className={occurrence === 'recurring' ? styles.scenarioModeActive : ''}
+            onClick={() => setOccurrence('recurring')}
+          >
+            Recurring
+          </button>
+          <button
+            type="button"
+            className={occurrence === 'one_time' ? styles.scenarioModeActive : ''}
+            onClick={() => setOccurrence('one_time')}
+          >
+            One-time
+          </button>
+        </div>
+      )}
       <input
         type="text"
         placeholder="Scenario name"
@@ -471,28 +519,77 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
               mi by the 3-year mark
             </p>
           )}
+          <label className={styles.scenarioTimingLabel}>
+            Starts (optional — defaults to lease start)
+            <input
+              type="month"
+              value={effectiveStart}
+              onChange={(e) => setEffectiveStart(e.target.value)}
+            />
+          </label>
+        </>
+      ) : occurrence === 'one_time' ? (
+        <>
+          <div className={styles.impactRow}>
+            <label className={styles.scenarioTimingLabel}>
+              From month
+              <input
+                type="month"
+                value={oneTimeStart}
+                onChange={(e) => setOneTimeStart(e.target.value)}
+              />
+            </label>
+            <label className={styles.scenarioTimingLabel}>
+              To month (optional)
+              <input
+                type="month"
+                value={oneTimeEnd}
+                onChange={(e) => setOneTimeEnd(e.target.value)}
+              />
+            </label>
+          </div>
+          <input
+            type="number"
+            placeholder="Total miles for this event"
+            value={oneTimeMiles}
+            onChange={(e) => setOneTimeMiles(e.target.value)}
+          />
+          <p className={styles.scenarioLegendNote}>
+            Lands as a one-time add once its month(s) have passed — not
+            spread across the forecast like a recurring scenario.
+          </p>
         </>
       ) : (
-        <div className={styles.impactRow}>
-          <input
-            type="number"
-            placeholder="+mi by 1yr"
-            value={impact1}
-            onChange={(e) => setImpact1(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="+mi by 2yr"
-            value={impact2}
-            onChange={(e) => setImpact2(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="+mi by 3yr"
-            value={impact3}
-            onChange={(e) => setImpact3(e.target.value)}
-          />
-        </div>
+        <>
+          <div className={styles.impactRow}>
+            <input
+              type="number"
+              placeholder="+mi by 1yr"
+              value={impact1}
+              onChange={(e) => setImpact1(e.target.value)}
+            />
+            <input
+              type="number"
+              placeholder="+mi by 2yr"
+              value={impact2}
+              onChange={(e) => setImpact2(e.target.value)}
+            />
+            <input
+              type="number"
+              placeholder="+mi by 3yr"
+              value={impact3}
+              onChange={(e) => setImpact3(e.target.value)}
+            />
+          </div>
+          <label className={styles.scenarioTimingLabel}>
+            Starts (optional — defaults to lease start)
+            <input
+              type="month"
+              value={effectiveStart}
+              onChange={(e) => setEffectiveStart(e.target.value)}
+            />
+          </label>
+        </>
       )}
 
       <div className={styles.settingsActions}>
@@ -500,7 +597,8 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
           type="submit"
           disabled={
             saving ||
-            (mode === 'leg' && (!selectedLeg || newTimesPerWeek === ''))
+            (mode === 'leg' && (!selectedLeg || newTimesPerWeek === '')) ||
+            (mode === 'manual' && occurrence === 'one_time' && !oneTimeStart)
           }
         >
           {saving ? 'Saving…' : 'Save scenario'}
@@ -1598,15 +1696,34 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
                     </button>
                   </div>
                 </div>
-                <p className={styles.scenarioImpact}>
-                  {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
-                  {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
-                  <strong>
-                    {s.impact_3yr >= 0 ? '+' : ''}
-                    {fmtNum(s.impact_3yr)}
-                  </strong>{' '}
-                  mi by the 3-year mark
-                </p>
+                {s.occurrence === 'one_time' ? (
+                  <p className={styles.scenarioImpact}>
+                    One-time &middot;{' '}
+                    {fmtMonth(s.one_time_start)}
+                    {s.one_time_end && s.one_time_end !== s.one_time_start
+                      ? `–${fmtMonth(s.one_time_end)}`
+                      : ''}{' '}
+                    &middot; adds{' '}
+                    <strong>
+                      {s.one_time_miles >= 0 ? '+' : ''}
+                      {fmtNum(s.one_time_miles)}
+                    </strong>{' '}
+                    mi once it's passed
+                  </p>
+                ) : (
+                  <p className={styles.scenarioImpact}>
+                    {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
+                    {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
+                    <strong>
+                      {s.impact_3yr >= 0 ? '+' : ''}
+                      {fmtNum(s.impact_3yr)}
+                    </strong>{' '}
+                    mi by the 3-year mark
+                    {s.effective_start && (
+                      <> &middot; starts {fmtMonth(s.effective_start)}</>
+                    )}
+                  </p>
+                )}
               </div>
             ))}
           </div>

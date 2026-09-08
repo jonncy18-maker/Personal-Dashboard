@@ -2,9 +2,14 @@ import { getDb, dateOnly } from '../../../../../lib/db';
 import { route } from '../../../../../lib/route';
 import { legFrequencyScenarioImpacts } from '../../../../../lib/mileage';
 
-// PATCH covers editing a scenario's fields, toggling `active`, and changing
-// a leg-based scenario's frequency (recomputes impacts server-side, same
-// as POST — never trusts client-sent impact numbers for a leg-based row).
+// PATCH covers editing a scenario's fields, toggling `active`, changing a
+// leg-based scenario's frequency (recomputes impacts server-side, same as
+// POST — never trusts client-sent impact numbers for a leg-based row), and
+// adjusting its timing (migration 025): `effective_start` for a recurring
+// scenario, or `one_time_start`/`one_time_end`/`one_time_miles` for a
+// one-time one. `occurrence` itself is fixed at creation — not editable
+// here, since a leg-based scenario is only ever recurring and a one-time
+// scenario has no yearly impacts to migrate to.
 export const PATCH = route(async (request, { params }) => {
   const { id } = await params;
   const body = await request.json();
@@ -24,11 +29,47 @@ export const PATCH = route(async (request, { params }) => {
   const note = body.note !== undefined ? body.note || null : existing.note;
   const active = body.active !== undefined ? !!body.active : existing.active;
 
+  if (existing.occurrence === 'one_time') {
+    const oneTimeStart =
+      body.one_time_start !== undefined
+        ? body.one_time_start
+        : existing.one_time_start;
+    if (!oneTimeStart) {
+      return Response.json(
+        { error: 'one_time_start is required for a one-time scenario' },
+        { status: 400 }
+      );
+    }
+    const oneTimeEnd =
+      body.one_time_end !== undefined
+        ? body.one_time_end || oneTimeStart
+        : existing.one_time_end || oneTimeStart;
+    const oneTimeMiles =
+      body.one_time_miles !== undefined
+        ? Number(body.one_time_miles) || 0
+        : existing.one_time_miles;
+
+    const [row] = await sql`
+      UPDATE mileage_scenarios SET
+        name = ${name}, note = ${note}, active = ${active},
+        one_time_start = ${oneTimeStart}, one_time_end = ${oneTimeEnd},
+        one_time_miles = ${oneTimeMiles},
+        updated_at = now()
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    return Response.json({ scenario: row });
+  }
+
   const legId = existing.leg_id;
   let impact1 = existing.impact_1yr;
   let impact2 = existing.impact_2yr;
   let impact3 = existing.impact_3yr;
   let newTimesPerWeek = existing.new_times_per_week;
+  const effectiveStart =
+    body.effective_start !== undefined
+      ? body.effective_start || null
+      : existing.effective_start;
 
   if (legId && body.new_times_per_week !== undefined) {
     const timesPerWeek = Number(body.new_times_per_week);
@@ -80,6 +121,7 @@ export const PATCH = route(async (request, { params }) => {
       name = ${name}, note = ${note}, active = ${active},
       impact_1yr = ${impact1}, impact_2yr = ${impact2}, impact_3yr = ${impact3},
       new_times_per_week = ${newTimesPerWeek},
+      effective_start = ${effectiveStart},
       updated_at = now()
     WHERE id = ${id}
     RETURNING *

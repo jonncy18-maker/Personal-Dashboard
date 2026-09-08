@@ -19,7 +19,7 @@
 --                      018_mileage_usual_trips, 019_mileage_usual_legs,
 --                      020_mileage_places, 021_mileage_scenario_legs,
 --                      022_mileage_travel_exclusions, 023_trip_merge,
---                      024_pto_banked_shortfall
+--                      024_pto_banked_shortfall, 025_mileage_scenario_timing
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -508,3 +508,19 @@ CREATE TABLE IF NOT EXISTS mileage_travel_exclusions (
 );
 CREATE INDEX IF NOT EXISTS mileage_travel_exclusions_trip_id_idx
   ON mileage_travel_exclusions (trip_id);
+
+-- Scenario timing (migration 025) — a scenario can now say WHEN it's
+-- expected to happen, not just how much it adds. `occurrence` splits it
+-- into 'recurring' (a routine change; `effective_start` is the month it
+-- begins — null means "since lease start", the pre-025 behavior, and
+-- lib/mileage.js scales the stored impact_Nyr proportionally from that
+-- month instead of lease start) or 'one_time' (a single dated event/span:
+-- `one_time_start`/`one_time_end` + a flat `one_time_miles`, landing once
+-- that span has passed — a real fact John can add after the fact to
+-- explain an unmodeled overage, not a hypothetical recurring change).
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS occurrence text
+  NOT NULL DEFAULT 'recurring' CHECK (occurrence IN ('recurring', 'one_time'));
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS effective_start date;
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_start date;
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_end date;
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_miles integer;
