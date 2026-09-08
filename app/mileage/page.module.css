@@ -891,6 +891,22 @@
 .impactRow input {
   flex: 1;
 }
+.scenarioTimingLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.scenarioTimingLabel input {
+  font: inherit;
+  color: var(--ink);
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
 
 /* ── trip log ───────────────────────────────────────────── */
 .addTripForm {
