@@ -9,6 +9,7 @@ import {
   legFrequencyScenarioImpacts,
   tripDayCount,
   monthlyForecast,
+  vehicleLabel,
 } from '../../../lib/mileage';
 import { MileageIcon } from '../../../components/icons';
 import styles from './page.module.css';
@@ -97,15 +98,28 @@ function HeroBadgeIcon({ name }) {
   );
 }
 
-function TeslaHero({ settings, summary, placesCount, onEditSettings, onOpenPlaces }) {
-  const nextCp = summary.checkpoints?.find((cp) => cp.projectedMiles != null) ||
+function TeslaHero({
+  settings,
+  summary,
+  placesCount,
+  onEditSettings,
+  onOpenPlaces,
+}) {
+  const nextCp =
+    summary.checkpoints?.find((cp) => cp.projectedMiles != null) ||
     summary.checkpoints?.[0];
   return (
     <div className={styles.heroCard}>
       <div className={styles.heroTop}>
         <div>
-          <p className={styles.heroEyebrow}>Mileage · Tesla lease</p>
-          <h1 className={styles.heroTitle}>Model 3</h1>
+          <p className={styles.heroEyebrow}>
+            {settings.vehicle_make
+              ? `Mileage · ${settings.vehicle_make} lease`
+              : 'Mileage · lease'}
+          </p>
+          <h1 className={styles.heroTitle}>
+            {vehicleLabel(settings) || 'Your vehicle'}
+          </h1>
           <p className={styles.heroSub}>
             Leased {fmtDate(settings.lease_start_date)} &middot;{' '}
             {settings.lease_term_months}-month term
@@ -163,7 +177,8 @@ function TeslaHero({ settings, summary, placesCount, onEditSettings, onOpenPlace
               {nextCp ? fmtNum(daysUntil(nextCp.date)) : '—'}
             </span>
             <span className={styles.heroBadgeLabel}>
-              days to {nextCp ? checkpointLabel(nextCp.n).toLowerCase() : 'next mark'}
+              days to{' '}
+              {nextCp ? checkpointLabel(nextCp.n).toLowerCase() : 'next mark'}
             </span>
           </div>
         </div>
@@ -173,6 +188,15 @@ function TeslaHero({ settings, summary, placesCount, onEditSettings, onOpenPlace
 }
 
 function SettingsForm({ settings, onSave, onCancel }) {
+  // The vehicle profile lives here, not on the Maintenance tab: it is one car
+  // for the whole Car domain, and this form is already "tell me about this car
+  // and its lease". Maintenance reads the same mileage_settings row.
+  const [vehicleYear, setVehicleYear] = useState(settings?.vehicle_year ?? '');
+  const [vehicleMake, setVehicleMake] = useState(settings?.vehicle_make || '');
+  const [vehicleModel, setVehicleModel] = useState(
+    settings?.vehicle_model || ''
+  );
+  const [vehicleTrim, setVehicleTrim] = useState(settings?.vehicle_trim || '');
   const [leaseStart, setLeaseStart] = useState(
     settings?.lease_start_date || ''
   );
@@ -205,6 +229,10 @@ function SettingsForm({ settings, onSave, onCancel }) {
     setFormError(null);
     try {
       await onSave({
+        vehicle_year: vehicleYear === '' ? null : Number(vehicleYear),
+        vehicle_make: vehicleMake.trim() || null,
+        vehicle_model: vehicleModel.trim() || null,
+        vehicle_trim: vehicleTrim.trim() || null,
         lease_start_date: leaseStart,
         lease_term_months: Number(termMonths) || 36,
         starting_odometer: Number(startingOdometer),
@@ -219,6 +247,40 @@ function SettingsForm({ settings, onSave, onCancel }) {
   return (
     <form className={styles.settingsForm} onSubmit={submit}>
       <div className={styles.settingsGrid}>
+        <label className={styles.fieldLabel}>
+          Year
+          <input
+            type="number"
+            min="1900"
+            value={vehicleYear}
+            onChange={(e) => setVehicleYear(e.target.value)}
+            placeholder="2024"
+          />
+        </label>
+        <label className={styles.fieldLabel}>
+          Make
+          <input
+            value={vehicleMake}
+            onChange={(e) => setVehicleMake(e.target.value)}
+            placeholder="Tesla"
+          />
+        </label>
+        <label className={styles.fieldLabel}>
+          Model
+          <input
+            value={vehicleModel}
+            onChange={(e) => setVehicleModel(e.target.value)}
+            placeholder="Model 3"
+          />
+        </label>
+        <label className={styles.fieldLabel}>
+          Trim
+          <input
+            value={vehicleTrim}
+            onChange={(e) => setVehicleTrim(e.target.value)}
+            placeholder="Long Range AWD"
+          />
+        </label>
         <label className={styles.fieldLabel}>
           Lease start date
           <input
@@ -459,14 +521,18 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
         <div className={styles.scenarioModeRow}>
           <button
             type="button"
-            className={occurrence === 'recurring' ? styles.scenarioModeActive : ''}
+            className={
+              occurrence === 'recurring' ? styles.scenarioModeActive : ''
+            }
             onClick={() => setOccurrence('recurring')}
           >
             Recurring
           </button>
           <button
             type="button"
-            className={occurrence === 'one_time' ? styles.scenarioModeActive : ''}
+            className={
+              occurrence === 'one_time' ? styles.scenarioModeActive : ''
+            }
             onClick={() => setOccurrence('one_time')}
           >
             One-time
@@ -556,8 +622,8 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
             onChange={(e) => setOneTimeMiles(e.target.value)}
           />
           <p className={styles.scenarioLegendNote}>
-            Lands as a one-time add once its month(s) have passed — not
-            spread across the forecast like a recurring scenario.
+            Lands as a one-time add once its month(s) have passed — not spread
+            across the forecast like a recurring scenario.
           </p>
         </>
       ) : (
@@ -1344,7 +1410,8 @@ function AddManualExclusionForm({ onAdd }) {
 
 // ─── Overview — Travel-style eyebrow + compact strip + checkpoint tiles ────
 function OverviewSection({ summary, excludedTotal }) {
-  const nextCp = summary.checkpoints?.find((cp) => cp.projectedMiles != null) ||
+  const nextCp =
+    summary.checkpoints?.find((cp) => cp.projectedMiles != null) ||
     summary.checkpoints?.[0];
   return (
     <>
@@ -1364,7 +1431,9 @@ function OverviewSection({ summary, excludedTotal }) {
             {summary.latestDate
               ? `Last logged ${fmtDate(summary.latestDate)}`
               : 'No readings yet'}
-            {summary.pace != null ? ` · ${summary.pace.toFixed(1)} mi/day pace` : ''}
+            {summary.pace != null
+              ? ` · ${summary.pace.toFixed(1)} mi/day pace`
+              : ''}
           </p>
         </div>
         {nextCp && (
@@ -1461,7 +1530,14 @@ function OverviewSection({ summary, excludedTotal }) {
 }
 
 // ─── Driving baseline — Usual trips + Travel exclusions as sub-tabs ────────
-function UsualTripsBody({ settings, summary, legs, onSave, onAddLeg, onDeleteLeg }) {
+function UsualTripsBody({
+  settings,
+  summary,
+  legs,
+  onSave,
+  onAddLeg,
+  onDeleteLeg,
+}) {
   const [miles, setMiles] = useState(settings?.usual_miles ?? '');
   const [period, setPeriod] = useState(settings?.usual_period || 'week');
   const [saving, setSaving] = useState(false);
@@ -1578,7 +1654,13 @@ function ManagePopup({ title, subtitle, onClose, children }) {
   );
 }
 
-function TravelExclusionsBody({ exclusions, reviewCount, onScan, onAddManual, onDelete }) {
+function TravelExclusionsBody({
+  exclusions,
+  reviewCount,
+  onScan,
+  onAddManual,
+  onDelete,
+}) {
   const [managing, setManaging] = useState(false);
   const total = exclusions.reduce(
     (sum, e) => sum + Number(e.miles_excluded || 0),
@@ -1656,7 +1738,9 @@ function TravelExclusionsBody({ exclusions, reviewCount, onScan, onAddManual, on
               </div>
             ))}
             {exclusions.length === 0 && (
-              <p className={styles.detail}>No travel exclusions accepted yet.</p>
+              <p className={styles.detail}>
+                No travel exclusions accepted yet.
+              </p>
             )}
           </div>
         </ManagePopup>
@@ -1726,7 +1810,16 @@ function DrivingBaselineSection({
 }
 
 // ─── Pace / Forecast scenarios / Trip log — one panel, three tabs ──────────
-function PaceBody({ summary, readings, deleteReading, draftOdometer, setDraftOdometer, draftDate, setDraftDate, logReading }) {
+function PaceBody({
+  summary,
+  readings,
+  deleteReading,
+  draftOdometer,
+  setDraftOdometer,
+  draftDate,
+  setDraftDate,
+  logReading,
+}) {
   const [managing, setManaging] = useState(false);
   const sortedReadings = [...readings].sort((a, b) =>
     a.reading_date < b.reading_date ? 1 : -1
@@ -1824,7 +1917,15 @@ function PaceBody({ summary, readings, deleteReading, draftOdometer, setDraftOdo
   );
 }
 
-function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario, updateScenario, usualLegs, leaseStart }) {
+function ScenariosBody({
+  scenarios,
+  toggleScenario,
+  deleteScenario,
+  addScenario,
+  updateScenario,
+  usualLegs,
+  leaseStart,
+}) {
   const [managing, setManaging] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const activeScenarios = scenarios.filter((s) => s.active);
@@ -1862,11 +1963,15 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
           Manage →
         </button>
       </div>
-      <AddScenarioForm onAdd={addScenario} legs={usualLegs} leaseStart={leaseStart} />
+      <AddScenarioForm
+        onAdd={addScenario}
+        legs={usualLegs}
+        leaseStart={leaseStart}
+      />
       <p className={styles.scenarioLegendNote}>
-        Only checked scenarios are added to the forecast above &mdash;
-        unchecked ones stay saved but excluded. Every other future period
-        uses your plain average pace.
+        Only checked scenarios are added to the forecast above &mdash; unchecked
+        ones stay saved but excluded. Every other future period uses your plain
+        average pace.
       </p>
 
       {managing && (
@@ -1897,14 +2002,18 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
                   <div className={styles.scenarioTop}>
                     <div>
                       <p className={styles.scenarioName}>{s.name}</p>
-                      {s.note && <p className={styles.scenarioNote}>{s.note}</p>}
+                      {s.note && (
+                        <p className={styles.scenarioNote}>{s.note}</p>
+                      )}
                     </div>
                     <div className={styles.scenarioActions}>
                       <label className={styles.toggleLabel}>
                         <input
                           type="checkbox"
                           checked={s.active}
-                          onChange={(e) => toggleScenario(s.id, e.target.checked)}
+                          onChange={(e) =>
+                            toggleScenario(s.id, e.target.checked)
+                          }
                         />
                         Included
                       </label>
@@ -1915,7 +2024,18 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
                         aria-label="Edit scenario"
                         title="Edit"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                        </svg>
                       </button>
                       <button
                         className={styles.rowDelete}
@@ -1928,8 +2048,7 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
                   </div>
                   {s.occurrence === 'one_time' ? (
                     <p className={styles.scenarioImpact}>
-                      One-time &middot;{' '}
-                      {fmtMonth(s.one_time_start)}
+                      One-time &middot; {fmtMonth(s.one_time_start)}
                       {s.one_time_end && s.one_time_end !== s.one_time_start
                         ? `–${fmtMonth(s.one_time_end)}`
                         : ''}{' '}
@@ -1942,7 +2061,9 @@ function ScenariosBody({ scenarios, toggleScenario, deleteScenario, addScenario,
                     </p>
                   ) : (
                     <p className={styles.scenarioImpact}>
-                      {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
+                      {s.leg_id && (
+                        <>{s.new_times_per_week}&times;/wk &middot; </>
+                      )}
                       {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
                       <strong>
                         {s.impact_3yr >= 0 ? '+' : ''}
@@ -2080,7 +2201,9 @@ function interpAt(points, x) {
 function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
   if (!summary.configured || !summary.checkpoints?.length) {
     return (
-      <p className={styles.detail}>Set up your lease to see the forecast chart.</p>
+      <p className={styles.detail}>
+        Set up your lease to see the forecast chart.
+      </p>
     );
   }
   const leaseStart = settings.lease_start_date;
@@ -2097,7 +2220,11 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
   }
 
   const sortedReadings = [...readings].sort((a, b) =>
-    a.reading_date < b.reading_date ? -1 : a.reading_date > b.reading_date ? 1 : 0
+    a.reading_date < b.reading_date
+      ? -1
+      : a.reading_date > b.reading_date
+        ? 1
+        : 0
   );
   const actualPoints = [
     { x: 0, y: 0 },
@@ -2110,12 +2237,18 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
   const anchorDays = summary.latestDate
     ? daysBetweenDates(leaseStart, summary.latestDate)
     : 0;
-  const anchorMiles = (summary.latestOdometer ?? startingOdometer) - startingOdometer;
+  const anchorMiles =
+    (summary.latestOdometer ?? startingOdometer) - startingOdometer;
 
   // Monthly resolution (not just anchor + 3 yearly checkpoints) so a
   // one-time scenario's landing shows up as a visible step in the line
   // instead of being smoothed away between two far-apart yearly points.
-  const monthly = monthlyForecast({ settings, readings, scenarios, exclusions });
+  const monthly = monthlyForecast({
+    settings,
+    readings,
+    scenarios,
+    exclusions,
+  });
   const forecastPoints =
     monthly.length > 0
       ? monthly
@@ -2160,7 +2293,8 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
   const W = 560;
   const H = 220;
   const xPx = (days) => (Math.min(Math.max(days, 0), maxDays) / maxDays) * W;
-  const yPx = (miles) => H * (1 - Math.min(Math.max(miles, 0), maxMiles) / maxMiles);
+  const yPx = (miles) =>
+    H * (1 - Math.min(Math.max(miles, 0), maxMiles) / maxMiles);
 
   const toPx = (pts) => pts.map((p) => `${xPx(p.x)},${yPx(p.y)}`).join(' ');
   const actualPx = toPx(actualPoints);
@@ -2219,13 +2353,18 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
           </div>
         </div>
         <div className={styles.forecastStat}>
-          <div className={styles.forecastStatLabel}>Projected at {lastCp.n}yr</div>
+          <div className={styles.forecastStatLabel}>
+            Projected at {lastCp.n}yr
+          </div>
           <div
             className={styles.forecastStatFigure}
-            style={{ color: overAtLast > 0 ? 'var(--critical)' : 'var(--good)' }}
+            style={{
+              color: overAtLast > 0 ? 'var(--critical)' : 'var(--good)',
+            }}
           >
             {overAtLast > 0 ? '+' : '−'}
-            {fmtNum(Math.abs(overAtLast))} <span>{overAtLast > 0 ? 'over' : 'under'}</span>
+            {fmtNum(Math.abs(overAtLast))}{' '}
+            <span>{overAtLast > 0 ? 'over' : 'under'}</span>
           </div>
         </div>
       </div>
@@ -2244,7 +2383,9 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
                 y1={yPx(v)}
                 x2={W}
                 y2={yPx(v)}
-                style={{ stroke: i === 0 ? 'var(--border-strong)' : 'var(--border)' }}
+                style={{
+                  stroke: i === 0 ? 'var(--border-strong)' : 'var(--border)',
+                }}
                 strokeWidth="1"
               />
               <text
@@ -2259,7 +2400,12 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
             </g>
           ))}
 
-          <text x="0" y={H + 18} fontSize="10" style={{ fill: 'var(--ink-faint)' }}>
+          <text
+            x="0"
+            y={H + 18}
+            fontSize="10"
+            style={{ fill: 'var(--ink-faint)' }}
+          >
             Lease start
           </text>
           {checkpoints.map((cp) => (
@@ -2276,7 +2422,11 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
           ))}
 
           {bandSegments.map((pts, i) => (
-            <polygon key={i} points={pts} style={{ fill: 'var(--critical-soft)' }} />
+            <polygon
+              key={i}
+              points={pts}
+              style={{ fill: 'var(--critical-soft)' }}
+            />
           ))}
 
           <polyline
@@ -2383,26 +2533,57 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
       <div className={styles.forecastLegend}>
         <div className={styles.forecastLegendItem}>
           <svg width="18" height="8">
-            <line x1="0" y1="4" x2="18" y2="4" style={{ stroke: 'var(--dom-mileage)' }} strokeWidth="2.5" strokeLinecap="round" />
+            <line
+              x1="0"
+              y1="4"
+              x2="18"
+              y2="4"
+              style={{ stroke: 'var(--dom-mileage)' }}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
           </svg>
           Actual (odometer log)
         </div>
         <div className={styles.forecastLegendItem}>
           <svg width="18" height="8">
-            <line x1="0" y1="4" x2="18" y2="4" style={{ stroke: 'var(--dom-mileage)' }} strokeWidth="2.5" strokeDasharray="1 4" strokeLinecap="round" />
+            <line
+              x1="0"
+              y1="4"
+              x2="18"
+              y2="4"
+              style={{ stroke: 'var(--dom-mileage)' }}
+              strokeWidth="2.5"
+              strokeDasharray="1 4"
+              strokeLinecap="round"
+            />
           </svg>
           Forecast (pace + active scenarios)
         </div>
         <div className={styles.forecastLegendItem}>
           <svg width="18" height="8">
-            <line x1="0" y1="4" x2="18" y2="4" style={{ stroke: 'var(--ink-muted)' }} strokeWidth="2" strokeDasharray="2 4" strokeLinecap="round" />
+            <line
+              x1="0"
+              y1="4"
+              x2="18"
+              y2="4"
+              style={{ stroke: 'var(--ink-muted)' }}
+              strokeWidth="2"
+              strokeDasharray="2 4"
+              strokeLinecap="round"
+            />
           </svg>
           Budgeted allowance
         </div>
         {bandSegments.length > 0 && (
           <div className={styles.forecastLegendItem}>
             <svg width="14" height="10">
-              <rect width="14" height="10" rx="2" style={{ fill: 'var(--critical-soft)' }} />
+              <rect
+                width="14"
+                height="10"
+                rx="2"
+                style={{ fill: 'var(--critical-soft)' }}
+              />
             </svg>
             Projected over allowance
           </div>
