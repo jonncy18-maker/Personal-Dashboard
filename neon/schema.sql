@@ -20,7 +20,7 @@
 --                      020_mileage_places, 021_mileage_scenario_legs,
 --                      022_mileage_travel_exclusions, 023_trip_merge,
 --                      024_pto_banked_shortfall, 025_mileage_scenario_timing,
---                      026_car_maintenance
+--                      026_car_maintenance, 027_trip_history_scan
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -240,6 +240,26 @@ CREATE INDEX IF NOT EXISTS trip_suggestions_status_idx ON trip_suggestions (stat
 DROP TRIGGER IF EXISTS trip_suggestions_set_updated_at ON trip_suggestions;
 CREATE TRIGGER trip_suggestions_set_updated_at
   BEFORE UPDATE ON trip_suggestions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- One-time historical Travel backfill (027) — the resumable cursor for
+-- app/api/trip-history-scan. Single row (id fixed to 1). See that migration
+-- for why this is separate from the weekly trip-scan's 30-day lookback.
+CREATE TABLE IF NOT EXISTS trip_history_scan (
+  id             integer PRIMARY KEY DEFAULT 1,
+  since_year     integer NOT NULL,
+  queries        jsonb NOT NULL,
+  query_index    integer NOT NULL DEFAULT 0,
+  page_token     text,
+  scanned_count  integer NOT NULL DEFAULT 0,
+  created_count  integer NOT NULL DEFAULT 0,
+  done           boolean NOT NULL DEFAULT false,
+  started_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  CHECK (id = 1)
+);
+DROP TRIGGER IF EXISTS trip_history_scan_set_updated_at ON trip_history_scan;
+CREATE TRIGGER trip_history_scan_set_updated_at
+  BEFORE UPDATE ON trip_history_scan FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ─── Language Learning ──────────────────────────────────────────────────────
 -- The broader domain shape is still undecided (this table exists only to
