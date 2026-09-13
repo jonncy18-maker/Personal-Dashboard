@@ -112,6 +112,20 @@ function fmtMiles(n) {
   return Math.round(n).toLocaleString('en-US');
 }
 
+// The Car card's maintenance line. Prefers miles when the item is
+// mileage-driven, since that is what the odometer actually measures.
+function serviceDueText(next) {
+  if (next.status === 'overdue') {
+    return next.milesRemaining != null && next.milesRemaining <= 0
+      ? `overdue by ~${fmtMiles(Math.abs(next.milesRemaining))} mi`
+      : 'overdue';
+  }
+  if (next.milesRemaining != null && next.milesRemaining <= 500) {
+    return `due in ~${fmtMiles(next.milesRemaining)} mi`;
+  }
+  return `due in ${next.daysRemaining} days`;
+}
+
 function Card({ domain, pill, children, figure, onClick }) {
   const meta = DOMAIN_META[domain];
   const Icon = meta.icon;
@@ -251,6 +265,21 @@ export default function DomainGrid({ summary }) {
                 </p>
               )}
             </>
+          )}
+          {summary.mileage?.nextService && (
+            <p className={styles.serviceLine}>
+              <span
+                className={
+                  summary.mileage.nextService.status === 'overdue'
+                    ? styles.serviceDotOverdue
+                    : styles.serviceDotSoon
+                }
+              />
+              <span>
+                <strong>{summary.mileage.nextService.name}</strong>{' '}
+                {serviceDueText(summary.mileage.nextService)}
+              </span>
+            </p>
           )}
         </Card>
 

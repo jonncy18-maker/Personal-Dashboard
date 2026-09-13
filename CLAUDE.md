@@ -21,17 +21,17 @@ Master personal planning hub consolidating John's AI projects, travel, schedules
 
 ## 1. Stack
 
-| Layer      | Choice                                                                                                                      |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Framework  | Next.js (App Router)                                                                                                        |
-| Frontend   | React                                                                                                                       |
-| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                         |
-| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                                 |
-| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                    |
-| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                          |
-| Auth       | **None — deliberately dropped.** See §7 Hard Boundaries.                                                                                    |
-| Hosting    | Vercel (native Git integration — no CI workflow)                                                                            |
-| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                     |
+| Layer      | Choice                                                                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js (App Router)                                                                                                                           |
+| Frontend   | React                                                                                                                                          |
+| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                                            |
+| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                                                    |
+| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                                       |
+| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                                             |
+| Auth       | **None — deliberately dropped.** See §7 Hard Boundaries.                                                                                       |
+| Hosting    | Vercel (native Git integration — no CI workflow)                                                                                               |
+| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                                        |
 | AI         | Claude Haiku (`claude-haiku-4-5`) — narrow uses; Claude Sonnet (`claude-sonnet-5`) — the app-wide AI Assistant only; see the `assistant` skill |
 
 **Two deliberate divergences from the NextGen-Immersion gold standard, documented so a future session doesn't "fix" them back:**
@@ -40,7 +40,6 @@ Master personal planning hub consolidating John's AI projects, travel, schedules
 2. **No auth.** The blueprint calls same-origin Neon Auth "the single highest-value pattern to copy." It does not apply here: this is a single-user private app. Auth (and `better-auth`/`jose`/`@neondatabase/auth`) is deliberately omitted. Do not add it back — gate access at the Vercel project level if needed.
 
 No migration history — this is a new project, built directly to this stack from day one.
-
 
 ## 2. API Key / Security Rules
 
@@ -61,7 +60,8 @@ app/
   page.jsx                 # Home — status cards for all 6 domains
   ai-projects/page.jsx     # AI Projects — popup w/ project cards (Vercel + GitHub) + Add Project
   travel/page.jsx          # Travel — trip records + AI-assisted Gmail itinerary import
-  mileage/page.jsx         # Mileage — Tesla lease odometer log, trip journal, checkpoint forecast
+  car/mileage/page.jsx     # Car › Mileage — lease odometer log, trip journal, checkpoint forecast
+  car/maintenance/page.jsx # Car › Maintenance — service schedule off the same forecast
   schedules/page.jsx       # Schedules — cross-domain task/prep list, optional trip/project link
   language/page.jsx        # Language — "coming soon" + live "next Spanish call" card (Calendar)
   ideas/page.jsx           # Idea Board — title/notes/status/domain-tag CRUD
@@ -82,7 +82,6 @@ neon/
   migrations/              # numbered, immutable, additive (see §6)
 ```
 
-
 ## 4. Environment Variables
 
 ```
@@ -94,7 +93,7 @@ GOOGLE_CLIENT_ID=          # Google OAuth — read-only Calendar + Gmail
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REFRESH_TOKEN=
 GITHUB_TOKEN=              # OPTIONAL — raises GitHub rate limit + unlocks private repos (AI Projects)
-GOOGLE_MAPS_API_KEY=       # Geocoding API — Travel map/country stats + Mileage places/trips/legs
+GOOGLE_MAPS_API_KEY=       # Geocoding API — Travel map/country stats + Car places/trips/legs
 
 # Client-side (public-prefixed)
 NEXT_PUBLIC_APP_URL=       # Same-origin base URL
@@ -102,20 +101,18 @@ NEXT_PUBLIC_APP_URL=       # Same-origin base URL
 
 **Gotcha:** per Stack Blueprint Part 2, set every one of these for both **Production and Preview** in Vercel explicitly — a var present only in Production makes Preview deploys fail in a way that looks like a runtime bug, not a config bug.
 
-
 ## 5. Routes / Pages
 
-| Route          | Component         | Role                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`            | Home dashboard    | Status cards, one per domain (6), linking into each domain's page                                                                                                                                                                                                                                                                                                                              |
-| `/ai-projects` | AI Projects       | Popup lists all tracked projects. Each: Vercel deploy status + live link (if a Vercel URL is set) OR a "protocol/library" badge + GitHub link (if not). Each card shows a "Next Up" line parsed from that repo's `ROADMAP.md`. "Add Project" = two fields (GitHub URL required, Vercel URL optional)                                                                                           |
-| `/travel`      | Travel            | Trip records (destination, dates, status, notes, optional budget). Click into a trip for full day-by-day/port itinerary (AI-assisted Gmail import — `travel` skill). No Idea Board link in v1. Also hosts the **PTO Planner** panel — a self-set annual PTO budget, auto-derived from trips, plus a separate banked-holiday ledger and a read-only simulation layer (`pto` skill). Not a 7th domain                 |
-| `/mileage`     | Mileage           | The 7th domain — Tesla lease mileage tracker/forecaster. A dated odometer log is the ground truth for miles driven; a point-to-point trip journal (geocoded + OSRM-routed) is a supplementary log, never summed into the odometer total. Three lease checkpoints (1/2/3-yr) project miles vs. allowance from the current pace plus any John-checked named scenarios. No AI — see the `mileage` skill            |
-| `/schedules`   | Schedules         | Cross-domain task/prep list (title, notes, due date, status, optional link to Travel trip / AI project). A linked item's card shows a small indicator when it has open Schedules tasks. Distinct from Idea Board by having a due date                                                                                                                                                          |
-| `/language`    | Language Learning | Two different shapes, not one. **French** (active learning): hours logged via a screenshot import of Dreaming French's progress page (Haiku vision, preview-confirm-before-save). **Spanish** (already C1, ambient daily immersion): the live next-tutor-call card (Google Calendar, host/keyword match, no AI) plus an editable freeform note — no hours metric, since there's nothing to log |
-| `/ideas`       | Idea Board        | CRUD — title, notes, status, domain tag. No promotion path to AI Projects. Distinct from Schedules by having no due date                                                                                                                                                                                                                                                                       |
-| `/email`       | Email             | Read-only Gmail triage. No categorization buckets. Tier 1 + Tier 2 hide rules (`email` skill). Management view lists both tiers w/ undo/delete. First-run onboarding scan (`email` skill)                                                                                                                                                                                                                            |
-
+| Route          | Component         | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`            | Home dashboard    | Status cards, one per domain (6), linking into each domain's page                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/ai-projects` | AI Projects       | Popup lists all tracked projects. Each: Vercel deploy status + live link (if a Vercel URL is set) OR a "protocol/library" badge + GitHub link (if not). Each card shows a "Next Up" line parsed from that repo's `ROADMAP.md`. "Add Project" = two fields (GitHub URL required, Vercel URL optional)                                                                                                                                                                                                                                                                                                                                            |
+| `/travel`      | Travel            | Trip records (destination, dates, status, notes, optional budget). Click into a trip for full day-by-day/port itinerary (AI-assisted Gmail import — `travel` skill). No Idea Board link in v1. Also hosts the **PTO Planner** panel — a self-set annual PTO budget, auto-derived from trips, plus a separate banked-holiday ledger and a read-only simulation layer (`pto` skill). Not a 7th domain                                                                                                                                                                                                                                             |
+| `/car`         | Car               | The 7th domain, two tabs. **Mileage** — Tesla lease tracker/forecaster: a dated odometer log is the ground truth for miles driven; a point-to-point trip journal (geocoded + OSRM-routed) is a supplementary log, never summed into the odometer total; three lease checkpoints (1/2/3-yr) project miles vs. allowance from the current pace plus any John-checked named scenarios. **Maintenance** — a service schedule whose due dates invert that same forecast (whichever of a mileage/time interval comes first), with per-item interval provenance and an append-only service log. `/mileage` redirects here. No AI — see the `car` skill |
+| `/schedules`   | Schedules         | Cross-domain task/prep list (title, notes, due date, status, optional link to Travel trip / AI project). A linked item's card shows a small indicator when it has open Schedules tasks. Distinct from Idea Board by having a due date                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `/language`    | Language Learning | Two different shapes, not one. **French** (active learning): hours logged via a screenshot import of Dreaming French's progress page (Haiku vision, preview-confirm-before-save). **Spanish** (already C1, ambient daily immersion): the live next-tutor-call card (Google Calendar, host/keyword match, no AI) plus an editable freeform note — no hours metric, since there's nothing to log                                                                                                                                                                                                                                                  |
+| `/ideas`       | Idea Board        | CRUD — title, notes, status, domain tag. No promotion path to AI Projects. Distinct from Schedules by having no due date                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `/email`       | Email             | Read-only Gmail triage. No categorization buckets. Tier 1 + Tier 2 hide rules (`email` skill). Management view lists both tiers w/ undo/delete. First-run onboarding scan (`email` skill)                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ## 6. Schema & Migrations
 
@@ -130,7 +127,6 @@ Lightweight convention — no ORM (overkill for one user), but a small runner cl
 **`npm run migrate` (`scripts/migrate.js`) applies pending migrations — run it explicitly, never automatically.** It tracks applied files in a `schema_migrations` table and runs any `neon/migrations/*.sql` not yet recorded, in filename order. It is a plain script, not a framework (no Prisma/Drizzle) — splitting each file into individual statements itself, since the Neon serverless driver accepts one statement per call.
 
 **Deliberately NOT wired into the Vercel build.** Surfaced 2026-07-15/16: Preview and Production deployments share **one** Neon database here (no per-branch DB). Auto-running migrations on every build — the normal move for apps with a branched/staging DB — would mean an unmerged, unreviewed PR's schema change lands on the live database the moment its preview builds. Instead: **after merging a PR that adds a migration, run `npm run migrate` (or ask Claude Code to, via the Neon MCP) before relying on the deployed code that needs it.** This was a real outage during the Travel redesign (PR #29): the code shipped expecting new columns that didn't exist yet in Neon, and `/travel` 500'd until the migration was applied by hand.
-
 
 ## 7. Hard Boundaries
 
@@ -188,7 +184,7 @@ A change small enough to skip the loop is still governed by the profile.
 
 Domain rules live in `.claude/skills/`, which load themselves when the matching files are touched; this map is the fallback pointer if a skill doesn't fire.
 
-- `.claude/skills/mileage/SKILL.md` — Mileage: odometer ground truth, checkpoints, usual trips, favorite places, leg scenarios, travel day exclusions
+- `.claude/skills/car/SKILL.md` — Car: odometer ground truth, checkpoints, usual trips, favorite places, leg scenarios, travel day exclusions; maintenance schedule, whichever-comes-first due dates, interval provenance, check-off roll-forward
 - `.claude/skills/travel/SKILL.md` — Travel: itinerary import, destination photo, geocoded map pins, the retired AI Brief
 - `.claude/skills/pto/SKILL.md` — PTO Planner: the self-set budget, banked-holiday ledger, simulation layer, net glance figure
 - `.claude/skills/email/SKILL.md` — Email: Tier 1 / Tier 2 rules, Gmail-native categories, onboarding scan
@@ -197,7 +193,7 @@ Domain rules live in `.claude/skills/`, which load themselves when the matching 
 - `.claude/skills/language/SKILL.md` — Language: French hours import vs Spanish's ambient note
 - `.claude/skills/home/SKILL.md` — Home: time-of-day hero photo, daily quote, no fabricated metrics
 - `.claude/skills/schedules/SKILL.md` — Schedules: the AI screenshot import
-- `.claude/skills/geocoding/SKILL.md` — Geocoding: the Google Geocoding API, shared by Travel and Mileage
+- `.claude/skills/geocoding/SKILL.md` — Geocoding: the Google Geocoding API, shared by Travel and Car
 - `docs/api-keys.md` — the full API key table (§2's rules stay in this file)
 - `docs/runbooks/google-oauth.md` — the Google refresh-token 7-day trap and the re-mint runbook
 - `ROADMAP-ARCHIVE-2026-H1.md` — dated ROADMAP entries before 2026-07-15

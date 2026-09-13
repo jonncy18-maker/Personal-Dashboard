@@ -3,7 +3,31 @@ import { route } from '../../../lib/route';
 import { findNextTutorCall } from '../../../lib/tutor-call';
 import { fetchCalendarEvents } from '../../../lib/calendar-events';
 import { yearOf, ptoSummary } from '../../../lib/pto';
-import { mileageSummary } from '../../../lib/mileage';
+import { mileageSummary, monthlyForecast } from '../../../lib/mileage';
+import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
+
+// Maintenance's tables are read separately from the main Promise.all, and a
+// failure here degrades to "no maintenance line" instead of taking the whole
+// Home payload down with it.
+//
+// This is the one-shared-Neon-DB gotcha in CLAUDE.md §6 made concrete: a
+// merged PR deploys before `npm run migrate` is run by hand, so between those
+// two moments `maintenance_items` does not exist yet. Inside the main query
+// batch that throw would 500 the entire route and blank all six domain cards —
+// exactly the PR #29 outage. Home is a read-only glance; a domain whose
+// tables are not there yet should simply not appear on it.
+async function loadMaintenanceRows(sql) {
+  try {
+    const [items, records] = await Promise.all([
+      sql`SELECT * FROM maintenance_items ORDER BY sort_order ASC, created_at ASC`,
+      sql`SELECT * FROM maintenance_records ORDER BY service_date ASC`,
+    ]);
+    return { items, records };
+  } catch (err) {
+    console.error('[home-summary] maintenance read failed:', err);
+    return { items: [], records: [] };
+  }
+}
 import { collapseMergedTrips } from '../../../lib/trip-merge';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -106,6 +130,9 @@ export const GET = route(async () => {
     sql`SELECT id, active, impact_1yr, impact_2yr, impact_3yr FROM mileage_scenarios`,
   ]);
 
+  const { items: maintenanceItemRows, records: maintenanceRecordRows } =
+    await loadMaintenanceRows(sql);
+
   const trips = tripRows.map((t) => ({
     ...t,
     nights: nightsBetween(t.start_date, t.end_date),
@@ -164,6 +191,41 @@ export const GET = route(async () => {
     scenarios: mileageScenarioRows,
   });
 
+  // The Car card's one maintenance line. Null when nothing is overdue or due
+  // soon — the card then renders no maintenance line at all rather than an
+  // "all clear" that would be a metric with nothing behind it.
+  const maintenanceRows = maintenanceSummary({
+    items: maintenanceItemRows,
+    recordsByItem: maintenanceRecordRows.reduce((acc, r) => {
+      (acc[r.item_id] ||= []).push({
+        ...r,
+        service_date: dateOnly(r.service_date),
+      });
+      return acc;
+    }, {}),
+    forecast: monthlyForecast({
+      settings: mileageSettings
+        ? {
+            ...mileageSettings,
+            lease_start_date: dateOnly(mileageSettings.lease_start_date),
+          }
+        : null,
+      readings: mileageReadingRows.map((r) => ({
+        ...r,
+        reading_date: dateOnly(r.reading_date),
+      })),
+      scenarios: mileageScenarioRows,
+    }),
+    settings: mileageSettings
+      ? {
+          ...mileageSettings,
+          lease_start_date: dateOnly(mileageSettings.lease_start_date),
+        }
+      : null,
+    today,
+  });
+  const nextService = nearestDue(maintenanceRows);
+
   return Response.json({
     projects: {
       count: projectRows.length,
@@ -217,6 +279,15 @@ export const GET = route(async () => {
             projectedMiles: mileage.checkpoints[0].projectedMiles,
             allowanceMiles: mileage.checkpoints[0].allowanceMiles,
             deltaMiles: mileage.checkpoints[0].deltaMiles,
+          }
+        : null,
+      nextService: nextService
+        ? {
+            name: nextService.item.name,
+            status: nextService.status,
+            milesRemaining: nextService.milesRemaining,
+            daysRemaining: nextService.daysRemaining,
+            dueDate: nextService.dueDate,
           }
         : null,
     },

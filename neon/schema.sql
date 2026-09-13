@@ -19,7 +19,8 @@
 --                      018_mileage_usual_trips, 019_mileage_usual_legs,
 --                      020_mileage_places, 021_mileage_scenario_legs,
 --                      022_mileage_travel_exclusions, 023_trip_merge,
---                      024_pto_banked_shortfall, 025_mileage_scenario_timing
+--                      024_pto_banked_shortfall, 025_mileage_scenario_timing,
+--                      026_car_maintenance
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -394,6 +395,10 @@ CREATE TABLE IF NOT EXISTS mileage_settings (
   usual_period            text NOT NULL DEFAULT 'week'
                           CHECK (usual_period IN ('day', 'week', 'month')),
   usual_active            boolean NOT NULL DEFAULT false, -- when true, replaces the logged-pace baseline
+  vehicle_make            text,           -- vehicle profile (migration 026) — drives which
+  vehicle_model           text,           -- maintenance preset list seeds, and labels the page
+  vehicle_year            integer,
+  vehicle_trim            text,
   updated_at              timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO mileage_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
@@ -524,3 +529,59 @@ ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS effective_start date;
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_start date;
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_end date;
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_miles integer;
+
+-- ---------------------------------------------------------------------------
+-- Car maintenance (migration 026) — the /car domain's Maintenance tab.
+-- ---------------------------------------------------------------------------
+-- The service schedule. Due points are computed in lib/maintenance.js off the
+-- odometer log's existing forecast (lib/mileage.js monthlyForecast), never a
+-- second pace calculation.
+--
+-- `source` records where an interval came from and is never inferred:
+--   official — the manufacturer's published schedule (source_url set)
+--   starter  — an unverified built-in default, shown as such until confirmed
+--   manual   — typed by John
+--
+-- Both intervals are nullable. An `official` row may legitimately have
+-- neither: the Model 3 manual's "Brake fluid health check every  years"
+-- states no number, so it is stored null and rendered as "interval not
+-- stated in source" rather than back-filled with a guess.
+--
+-- `condition_note` carries a trigger the app CANNOT compute (tire tread
+-- depth; "only where roads are salted in winter"). It is displayed as a
+-- stated condition and never turned into a due date.
+CREATE TABLE IF NOT EXISTS maintenance_items (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name               text NOT NULL,
+  interval_miles     integer,
+  interval_months    integer,
+  condition_note     text,
+  active             boolean NOT NULL DEFAULT true,
+  source             text NOT NULL DEFAULT 'manual'
+                     CHECK (source IN ('official', 'starter', 'manual')),
+  source_url         text,
+  source_fetched_at  timestamptz,
+  sort_order         integer NOT NULL DEFAULT 0,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS maintenance_items_set_updated_at ON maintenance_items;
+CREATE TRIGGER maintenance_items_set_updated_at
+  BEFORE UPDATE ON maintenance_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- One row per completed service. "Last done" is the latest row for an item,
+-- which is why rolling forward to the next period needs no extra item state.
+-- `odometer` is NOT written into mileage_readings — that log stays the single
+-- ground truth for cumulative miles. A check-off may also insert a reading,
+-- but only when John explicitly opts in at confirm time.
+CREATE TABLE IF NOT EXISTS maintenance_records (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_id       uuid NOT NULL REFERENCES maintenance_items (id) ON DELETE CASCADE,
+  service_date  date NOT NULL,
+  odometer      integer,
+  cost_cents    integer,
+  notes         text,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS maintenance_records_item_idx
+  ON maintenance_records (item_id, service_date DESC);
