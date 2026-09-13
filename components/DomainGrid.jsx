@@ -204,8 +204,13 @@ export default function DomainGrid({ summary }) {
               </p>
             </>
           )}
-          {summary.pto?.left != null && (
-            <p className={styles.detail}>{summary.pto.left} PTO left</p>
+          {summary.pto?.net != null && (
+            <div className={styles.ptoRow}>
+              <p className={styles.detail}>{summary.pto.net} PTO left</p>
+              <p className={styles.ptoBreakdown}>
+                {summary.pto.left} PTO &middot; {summary.pto.banked} banked
+              </p>
+            </div>
           )}
         </Card>
 
