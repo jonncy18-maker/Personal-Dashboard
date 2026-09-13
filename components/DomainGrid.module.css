@@ -27,6 +27,19 @@
   color: var(--ink);
   font-weight: 700;
 }
+.ptoRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ptoBreakdown {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--ink-muted);
+  opacity: 0.75;
+  white-space: nowrap;
+}
 .tripNameSm {
   margin: 0 0 2px;
   font-size: 15px;

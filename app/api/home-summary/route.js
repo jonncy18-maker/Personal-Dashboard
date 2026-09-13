@@ -2,7 +2,7 @@ import { getDb, num, dateOnly } from '../../../lib/db';
 import { route } from '../../../lib/route';
 import { findNextTutorCall } from '../../../lib/tutor-call';
 import { fetchCalendarEvents } from '../../../lib/calendar-events';
-import { yearOf, ptoSummary } from '../../../lib/pto';
+import { yearOf, ptoSummary, netPtoLeft } from '../../../lib/pto';
 import { mileageSummary, monthlyForecast } from '../../../lib/mileage';
 import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
 
@@ -115,7 +115,7 @@ export const GET = route(async () => {
     // PTO Planner's Home line (CLAUDE.md §7 / PTO_BUILD_PLAN.md §4) — all
     // DB-local queries, cheap and consistent with Home's no-external-calls
     // rule, computed via the same lib/pto.js math the /travel panel uses.
-    sql`SELECT annual_budget FROM pto_settings WHERE id = 1`,
+    sql`SELECT annual_budget, use_banked_for_shortfall FROM pto_settings WHERE id = 1`,
     sql`SELECT holiday_date, worked FROM pto_holidays`,
     sql`SELECT entry_date, kind FROM pto_entries`,
     sql`
@@ -269,7 +269,16 @@ export const GET = route(async () => {
       sender: t.sender,
       flagged_at: t.flagged_at,
     })),
-    pto: { left: pto.left },
+    pto: {
+      left: pto.left,
+      banked: pto.banked.available,
+      useBankedForShortfall: ptoSettings?.use_banked_for_shortfall ?? false,
+      net: netPtoLeft(
+        pto.left,
+        pto.banked.available,
+        ptoSettings?.use_banked_for_shortfall ?? false
+      ),
+    },
     mileage: {
       configured: mileage.configured,
       pace: mileage.pace ?? null,
