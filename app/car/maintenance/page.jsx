@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useResource } from '../../../lib/useResource';
 import { useRefresh } from '../../../lib/refresh';
 import { hasPresetsForModel } from '../../../lib/maintenance-presets';
+import { vehicleLabel, hasVehicle } from '../../../lib/mileage';
 import { absoluteDate } from '../../../lib/format';
 import { MileageIcon } from '../../../components/icons';
 import styles from './page.module.css';
@@ -89,79 +91,6 @@ function dueLabel(row) {
       : `${date} · ${row.daysRemaining}d`;
   }
   return date;
-}
-
-function VehicleForm({ settings, onSave, onCancel }) {
-  const [make, setMake] = useState(settings.vehicle_make || '');
-  const [model, setModel] = useState(settings.vehicle_model || '');
-  const [year, setYear] = useState(settings.vehicle_year ?? '');
-  const [trim, setTrim] = useState(settings.vehicle_trim || '');
-
-  function submit(e) {
-    e.preventDefault();
-    onSave({
-      vehicle_make: make.trim() || null,
-      vehicle_model: model.trim() || null,
-      vehicle_year: year === '' ? null : Number(year),
-      vehicle_trim: trim.trim() || null,
-    });
-  }
-
-  return (
-    <form className={styles.formCard} onSubmit={submit}>
-      <div className={styles.formGrid}>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Year</span>
-          <input
-            id="vehicle-year"
-            type="number"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            placeholder="2024"
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Make</span>
-          <input
-            id="vehicle-make"
-            value={make}
-            onChange={(e) => setMake(e.target.value)}
-            placeholder="Tesla"
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Model</span>
-          <input
-            id="vehicle-model"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            placeholder="Model 3"
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Trim</span>
-          <input
-            id="vehicle-trim"
-            value={trim}
-            onChange={(e) => setTrim(e.target.value)}
-            placeholder="Long Range AWD"
-          />
-        </label>
-      </div>
-      <p className={styles.formNote}>
-        The model decides which built-in schedule can be seeded. Everything
-        seeded stays editable.
-      </p>
-      <div className={styles.formActions}>
-        <button type="button" className={styles.btnGhost} onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className={styles.btnPrimary}>
-          Save vehicle
-        </button>
-      </div>
-    </form>
-  );
 }
 
 function AddItemForm({ onAdd, onCancel }) {
@@ -515,7 +444,6 @@ export default function MaintenancePage() {
   const [rows, setRows] = useState([]);
   const [recordsByItem, setRecordsByItem] = useState({});
   const [latestReading, setLatestReading] = useState(null);
-  const [editingVehicle, setEditingVehicle] = useState(false);
   const [adding, setAdding] = useState(false);
   const [checkOffRow, setCheckOffRow] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -527,21 +455,6 @@ export default function MaintenancePage() {
     setRecordsByItem(data.recordsByItem || {});
     setLatestReading(data.latestReading || null);
   }, [data]);
-
-  async function saveVehicle(patch) {
-    const res = await fetch('/api/mileage', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    });
-    if (res.ok) {
-      const body = await res.json();
-      setSettings(body.settings);
-      setEditingVehicle(false);
-      reload();
-      refresh();
-    }
-  }
 
   async function seedSchedule() {
     const res = await fetch('/api/maintenance/seed', { method: 'POST' });
@@ -630,15 +543,11 @@ export default function MaintenancePage() {
     return <p className={styles.loading}>Loading…</p>;
   }
 
-  const vehicleName = [
-    settings.vehicle_year,
-    settings.vehicle_make,
-    settings.vehicle_model,
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const hasVehicle = !!settings.vehicle_model;
-  const canSeed = hasVehicle && hasPresetsForModel(settings.vehicle_model);
+  // The vehicle profile is set once on the Mileage tab (same
+  // mileage_settings row); this tab only ever reads it.
+  const vehicleName = vehicleLabel(settings);
+  const vehicleSet = hasVehicle(settings);
+  const canSeed = vehicleSet && hasPresetsForModel(settings.vehicle_model);
 
   const active = rows.filter((r) => r.item.active);
   const overdue = active.filter((r) => r.status === 'overdue').length;
@@ -683,17 +592,13 @@ export default function MaintenancePage() {
               Add item
             </button>
           )}
-          <button
-            type="button"
-            className={styles.btnGhost}
-            onClick={() => setEditingVehicle((v) => !v)}
-          >
-            {hasVehicle ? 'Edit vehicle' : 'Set vehicle'}
-          </button>
+          <Link className={styles.btnGhost} href="/car/mileage">
+            {vehicleSet ? 'Edit vehicle' : 'Set vehicle'}
+          </Link>
         </div>
       </div>
 
-      {hasVehicle && !editingVehicle && (
+      {vehicleSet && (
         <div className={styles.vehicleStrip}>
           <span className={styles.vehicleName}>{vehicleName}</span>
           {settings.vehicle_trim && (
@@ -708,14 +613,6 @@ export default function MaintenancePage() {
         </div>
       )}
 
-      {editingVehicle && (
-        <VehicleForm
-          settings={settings}
-          onSave={saveVehicle}
-          onCancel={() => setEditingVehicle(false)}
-        />
-      )}
-
       {notice && <p className={styles.notice}>{notice}</p>}
 
       {adding && (
@@ -728,11 +625,16 @@ export default function MaintenancePage() {
           <p className={styles.emptyText}>
             {canSeed
               ? `Start from the built-in ${settings.vehicle_model} schedule, or add items one at a time. Either way every interval stays yours to edit.`
-              : hasVehicle
+              : vehicleSet
                 ? `No built-in schedule for “${settings.vehicle_model}” — add the items you want to track.`
-                : 'Set the vehicle first, then seed a schedule or add items one at a time.'}
+                : 'Add your vehicle on the Mileage tab and a matching schedule can be seeded here — or add items one at a time.'}
           </p>
           <div className={styles.emptyActions}>
+            {!vehicleSet && (
+              <Link className={styles.btnPrimary} href="/car/mileage">
+                Add your vehicle
+              </Link>
+            )}
             {canSeed && (
               <button
                 type="button"
