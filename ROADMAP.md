@@ -32,6 +32,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [ ] **Build the official-source maintenance sync (PR 2).** Deferred 2026-09-13: `tesla.com` is blocked by the dev environment's egress policy, so no parser could be written against observed output. Capture a real fetch from a Preview deploy first, then build fetch → Haiku extract → preview-diff John accepts per row. Must stay a refresh over working data, never a dependency.
 - [ ] **Confirm the Model 3 brake-fluid interval.** Tesla's own manual page renders "Brake fluid health check every years" with no number, so the seeded item carries a null interval and shows "Set interval". Check the car's touchscreen or the PDF manual and set it.
 - [x] **Run `npm run migrate` after the trip-merging PR merges** — 2026-09-07, applied via the Neon MCP right after #93 merged. Migration 023 (`trip_merge`) added `trips.merged_into_id`; confirmed the column exists and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, same as prior entries — the net state is identical to a `npm run migrate` run.)_
+- [x] **Run `npm run migrate` after the Travel historical-import PR (#104) merges** — 2026-09-13, applied via the Neon MCP right after #104 merged. Migration 027 added `trip_history_scan` (the resumable-scan cursor row); confirmed the table exists and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, same as prior entries — the net state is identical to an `npm run migrate` run.)_
 
 ---
 
