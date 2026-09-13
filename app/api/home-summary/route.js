@@ -5,6 +5,29 @@ import { fetchCalendarEvents } from '../../../lib/calendar-events';
 import { yearOf, ptoSummary } from '../../../lib/pto';
 import { mileageSummary, monthlyForecast } from '../../../lib/mileage';
 import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
+
+// Maintenance's tables are read separately from the main Promise.all, and a
+// failure here degrades to "no maintenance line" instead of taking the whole
+// Home payload down with it.
+//
+// This is the one-shared-Neon-DB gotcha in CLAUDE.md §6 made concrete: a
+// merged PR deploys before `npm run migrate` is run by hand, so between those
+// two moments `maintenance_items` does not exist yet. Inside the main query
+// batch that throw would 500 the entire route and blank all six domain cards —
+// exactly the PR #29 outage. Home is a read-only glance; a domain whose
+// tables are not there yet should simply not appear on it.
+async function loadMaintenanceRows(sql) {
+  try {
+    const [items, records] = await Promise.all([
+      sql`SELECT * FROM maintenance_items ORDER BY sort_order ASC, created_at ASC`,
+      sql`SELECT * FROM maintenance_records ORDER BY service_date ASC`,
+    ]);
+    return { items, records };
+  } catch (err) {
+    console.error('[home-summary] maintenance read failed:', err);
+    return { items: [], records: [] };
+  }
+}
 import { collapseMergedTrips } from '../../../lib/trip-merge';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -38,8 +61,6 @@ export const GET = route(async () => {
     [mileageSettings],
     mileageReadingRows,
     mileageScenarioRows,
-    maintenanceItemRows,
-    maintenanceRecordRows,
   ] = await Promise.all([
     // Statuses (not just a count) so the Home card can render a status-dot row.
     sql`SELECT status FROM projects ORDER BY created_at DESC`,
@@ -107,9 +128,10 @@ export const GET = route(async () => {
     sql`SELECT * FROM mileage_settings WHERE id = 1`,
     sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
     sql`SELECT id, active, impact_1yr, impact_2yr, impact_3yr FROM mileage_scenarios`,
-    sql`SELECT * FROM maintenance_items ORDER BY sort_order ASC, created_at ASC`,
-    sql`SELECT * FROM maintenance_records ORDER BY service_date ASC`,
   ]);
+
+  const { items: maintenanceItemRows, records: maintenanceRecordRows } =
+    await loadMaintenanceRows(sql);
 
   const trips = tripRows.map((t) => ({
     ...t,
