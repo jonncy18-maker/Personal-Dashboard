@@ -268,6 +268,20 @@ No new API routes — every one of these already existed from the Mileage build;
 
 **Verified:** `next build` clean, Prettier clean, no duplicate tool names in the catalog (checked directly).
 
+## 2026-09-13 (cont'd) — Travel: one-time historical Gmail import (migration 027)
+
+John asked to pull past trip history into Travel — "there should be a lot of past history." Two open questions resolved with John via `AskUserQuestion` before building: how far back (**2015**, his call), and how to handle Gmail's newest-first pagination against a single request's duration cap on a search spanning 10+ years (**resumable multi-page scan**, his call, over a one-shot best-effort).
+
+**Built on the existing weekly trip-scan, not a new pipeline.** The weekly scan (`app/api/trip-scan`, 003) already does exactly this shape of work — deterministic Gmail search → Haiku `detectTripFromEmail` → dedupe against known trips/suggestions → insert a `pending` row into `trip_suggestions` for John to Approve/Dismiss on `/travel` — just hardcoded to a 30-day lookback for ongoing new-booking detection. Pulled the search vocabulary (`SEARCH_TERMS`, `TRAVEL_SENDER_DOMAINS`), the query builders, and the dedupe/concurrency helpers out into `lib/trip-scan-shared.js` so both scans share one definition of "what counts as a trip email" and one definition of "is this candidate already accounted for" — they can't drift apart. `app/api/trip-scan/route.js` itself is unchanged in behavior, just re-wired onto the shared module.
+
+**The historical scan (`app/api/trip-history-scan`) is the same detection pipeline, resumable.** `after:2015/01/01` instead of a 30-day window means Gmail can return years of matches, and Gmail lists newest-first — so getting to the OLD end means paging through, which won't fit one request. Migration 027 (`trip_history_scan`, one fixed row) freezes the ordered query list (the primary search + one query per travel-sender-domain allowlist entry) at scan start and tracks a cursor (`query_index`, Gmail's own `page_token`) plus running totals. Each POST to `/api/trip-history-scan` runs one ~50s time-boxed chunk against that cursor, updates it, and returns whether it's done — so the "Import Trip History" button on `/travel` can be clicked repeatedly (label switches to "Continue Import") until the whole range is covered, without ever rescanning a page it already processed. A GET reports current progress (for the button label / note) without touching Gmail.
+
+**No new review surface — suggestions land in the same bell/Approve/Dismiss flow** the weekly scan already built, so this needed no new UI beyond the one button + progress note; hard boundary #4 (no AI import ever auto-saves) is unaffected because nothing here is new in that respect, just a wider `after:` date on an existing preview-first pipeline.
+
+**Run `npm run migrate` after this merges** — migration 027 adds `trip_history_scan`; until applied, `/api/trip-history-scan` will error on both GET and POST.
+
+**Verified:** `next build` clean, Prettier clean.
+
 ## 2026-09-13 — Mileage became Car; maintenance schedule built (migration 026)
 
 **John's question, in order: should Tesla maintenance live inside Mileage or separately, and should the domain stay "Mileage" or become "Car" with sections?** Answer taken: Car, with `/car/mileage` and `/car/maintenance` as two tabs. Maintenance genuinely needs the odometer log — service intervals are mileage-and-time based — so a separate 8th domain would have split one data model across two places. A single page called "Mileage" holding a maintenance panel would have been the same mismatch in the other direction. Same shape as Travel hosting the PTO Planner: a second concern on a domain page, not a new domain.

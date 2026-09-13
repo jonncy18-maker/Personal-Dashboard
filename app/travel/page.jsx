@@ -775,11 +775,15 @@ export default function TravelPage() {
   const { data: statsData } = useResource('/api/travel-stats');
   const suggestionsRes = useResource('/api/trip-suggestions');
   const loadSuggestions = suggestionsRes.reload;
+  const historyScanRes = useResource('/api/trip-history-scan');
 
   const [trips, setTrips] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState(null);
+  const [historyScan, setHistoryScan] = useState(null);
+  const [historyScanning, setHistoryScanning] = useState(false);
+  const [historyScanNote, setHistoryScanNote] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming');
   const [bellOpen, setBellOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -793,6 +797,10 @@ export default function TravelPage() {
     if (suggestionsRes.data)
       setSuggestions(suggestionsRes.data.suggestions || []);
   }, [suggestionsRes.data]);
+
+  useEffect(() => {
+    if (historyScanRes.data) setHistoryScan(historyScanRes.data);
+  }, [historyScanRes.data]);
 
   async function handleScan() {
     setScanning(true);
@@ -821,6 +829,47 @@ export default function TravelPage() {
       setScanNote('Scan failed — try again.');
     } finally {
       setScanning(false);
+    }
+  }
+
+  // Historical import (2015-onward Gmail backfill) is separate from the
+  // weekly "Scan Gmail" (30-day lookback) — it's a one-time, resumable job
+  // that may take several clicks to page through years of mail, so each
+  // click runs one time-boxed chunk and reports progress rather than a
+  // single found/not-found result.
+  async function handleHistoryScan() {
+    setHistoryScanning(true);
+    setHistoryScanNote(null);
+    try {
+      const res = await fetch('/api/trip-history-scan', { method: 'POST' });
+      const data = await res.json();
+      setHistoryScan(data);
+      if (data.configured === false) {
+        setHistoryScanNote('Gmail isn’t connected yet.');
+      } else if (data.error === 'gmail_auth') {
+        setHistoryScanNote(
+          'Gmail access has expired — reconnect Google (refresh token) to import.'
+        );
+      } else if (data.error) {
+        setHistoryScanNote('Couldn’t reach Gmail — try again.');
+      } else if (data.alreadyDone) {
+        setHistoryScanNote(
+          `Trip history already imported — ${data.totalCreated} trip${data.totalCreated === 1 ? '' : 's'} found.`
+        );
+      } else if (data.done) {
+        setHistoryScanNote(
+          `Done — found ${data.totalCreated} trip${data.totalCreated === 1 ? '' : 's'} since ${data.sinceYear || 2015}.`
+        );
+      } else {
+        setHistoryScanNote(
+          `Scanned ${data.totalScanned} emails so far, ${data.totalCreated} trip${data.totalCreated === 1 ? '' : 's'} found — more to go, click Continue.`
+        );
+      }
+      loadSuggestions();
+    } catch {
+      setHistoryScanNote('Import failed — try again.');
+    } finally {
+      setHistoryScanning(false);
     }
   }
 
@@ -894,6 +943,20 @@ export default function TravelPage() {
           >
             {scanning ? 'Scanning…' : 'Scan Gmail'}
           </button>
+          {!historyScan?.done && (
+            <button
+              className={styles.scanButton}
+              onClick={handleHistoryScan}
+              disabled={historyScanning}
+              title="One-time backfill: search Gmail since 2015 for past trips"
+            >
+              {historyScanning
+                ? 'Importing…'
+                : historyScan?.started
+                  ? 'Continue Import'
+                  : 'Import Trip History'}
+            </button>
+          )}
           <AddTripForm
             onAdded={(trip) => setTrips((prev) => [trip, ...(prev || [])])}
           />
@@ -901,6 +964,7 @@ export default function TravelPage() {
       </div>
 
       {scanNote && <p className={styles.scanNote}>{scanNote}</p>}
+      {historyScanNote && <p className={styles.scanNote}>{historyScanNote}</p>}
 
       {loadError && <p className={styles.formError}>{loadError}</p>}
       {trips === null && !loadError && <p className={styles.empty}>Loading…</p>}

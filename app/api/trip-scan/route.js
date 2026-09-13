@@ -1,9 +1,20 @@
-import { getDb, dateOnly } from '../../../lib/db';
+import { getDb } from '../../../lib/db';
 import { getGmailClient } from '../../../lib/google';
 import { header } from '../../../lib/email-sender';
 import { extractPlainText } from '../../../lib/gmail-body';
-import { meaningfulWords } from '../../../lib/destination';
 import { detectTripFromEmail } from '../../../lib/trip-detect';
+import {
+  primaryQuery,
+  travelSenderQuery as sharedTravelSenderQuery,
+  dateStamp,
+  isAuthFailure,
+  mapWithConcurrency,
+  matchesKnownTrip,
+  TRAVEL_SENDER_DOMAINS,
+  MIN_CONFIDENCE,
+  BODY_LIMIT,
+  DETECT_CONCURRENCY,
+} from '../../../lib/trip-scan-shared';
 
 // Weekly Gmail trip auto-detection (CLAUDE.md §7). Read-only Gmail, same hard
 // boundary as Email/itinerary-import. Deterministic search finds candidate
@@ -17,114 +28,27 @@ import { detectTripFromEmail } from '../../../lib/trip-detect';
 // — well past Vercel's 10s default function duration.
 export const maxDuration = 60;
 
-// High-precision travel PHRASES, not bare words. The scan has no destination to
-// anchor on (it's discovering trips), so bare "booking"/"confirmation"/
-// "reservation" matched every order receipt, bank alert, and personal email —
-// which both wasted Haiku calls and (Gmail returns newest-first) pushed real
-// older confirmations past the candidate cap. Verified against a real inbox:
-// this cut a 30-day match set from ~200 to ~50 and surfaced a Singapore Airlines
-// booking that the bare-word query had truncated. (Distinct from travel-import's
-// terms, which can stay broad because a destination narrows them.)
-const SEARCH_TERMS = [
-  '"booking confirmation"',
-  '"flight confirmation"',
-  '"trip confirmation"',
-  '"travel confirmation"',
-  '"reservation confirmation"',
-  '"hotel confirmation"',
-  '"cruise confirmation"',
-  '"e-ticket"',
-  '"boarding pass"',
-  '"your itinerary"',
-  '"travel itinerary"',
-  '"flight itinerary"',
-  'itinerary',
-];
-// Travel brands whose booking-bearing mail arrives through their MARKETING
-// stream, so Gmail files it under category:promotions — which the primary
-// query below deliberately excludes. Surfaced 2026-08-09: John's booked
-// Celebrity Beyond sailing (Dec 20, 2026) was invisible to every scan, because
-// the only emails referencing it are Celebrity's own sale emails, each
-// carrying a real reservation block ("We look forward to seeing you on board
-// … on December 20, 2026", Booking #). Verified against the live mailbox: the
-// primary query returns ZERO Celebrity threads, the same query without
-// -category:promotions returns 19. So promotions stay excluded in general
-// (that exclusion is what keeps the candidate set ~50 instead of ~200), and
-// these senders are queried separately as an allowlist.
-const TRAVEL_SENDER_DOMAINS = [
-  'celebritycruises.com',
-  'royalcaribbean.com',
-  'royalcaribbeanmarketing.com',
-  'princess.com',
-  'hollandamerica.com',
-  'ncl.com',
-  'carnival.com',
-  'virginvoyages.com',
-  'vikingcruises.com',
-  'expediacruises.com',
-  'delta.com',
-  'aa.com',
-  'united.com',
-  'southwest.com',
-  'flybreeze.com',
-  'marriott.com',
-  'hilton.com',
-  'booking.com',
-  'expedia.com',
-  'airbnb.com',
-];
-
 const LOOKBACK_DAYS = 30;
 const MAX_CANDIDATES = 40; // headroom so real confirmations aren't truncated
 // Per-brand cap on the allowlist pass. A cruise line re-sends the same
 // reservation block in every sale email (Celebrity: 37 threads in 30 days), so
 // the newest few are plenty — and without a cap one chatty brand would eat the
 // whole candidate budget and truncate everything else, the exact failure the
-// SEARCH_TERMS comment above describes.
+// SEARCH_TERMS comment (lib/trip-scan-shared) above describes.
 const MAX_PER_TRAVEL_SENDER = 3;
 const MAX_TRAVEL_CANDIDATES = 15; // slots reserved for the allowlist pass
-const DETECT_CONCURRENCY = 4; // Haiku calls in flight (keeps the run inside maxDuration)
-const MIN_CONFIDENCE = 0.6;
-// The reservation block sits at the BOTTOM of these marketing emails — measured
-// at char 10,233 of 13,509 in the real Celebrity email — so the shared 12k
-// default would clip it on any slightly longer sibling. Scan-only widening.
-const BODY_LIMIT = 20000;
 
 function sinceStamp() {
-  const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-  const y = since.getFullYear();
-  const m = String(since.getMonth() + 1).padStart(2, '0');
-  const d = String(since.getDate()).padStart(2, '0');
-  return `${y}/${m}/${d}`;
+  return dateStamp(new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000));
 }
 
 function lookbackQuery() {
-  const keywords = `(${SEARCH_TERMS.join(' OR ')})`;
-  return `${keywords} after:${sinceStamp()} -category:promotions -category:social`;
+  return primaryQuery(sinceStamp());
 }
 
 // Same keywords, one trusted sender, no category exclusion.
 function travelSenderQuery(domain) {
-  const keywords = `(${SEARCH_TERMS.join(' OR ')})`;
-  return `${keywords} after:${sinceStamp()} from:${domain}`;
-}
-
-// A dead/revoked GOOGLE_REFRESH_TOKEN fails every query identically, so it has
-// to be told apart from "this one brand's search errored". Surfaced 2026-08-09:
-// the token had expired, every list threw invalid_grant, and swallowing that as
-// an empty result reported a confident "No new trips found" over a scan that
-// never reached Gmail — the dishonest-empty-state failure this app's own rules
-// forbid.
-function isAuthFailure(err) {
-  const message = String(err?.message || '');
-  const status = err?.response?.status ?? err?.code;
-  return (
-    message.includes('invalid_grant') ||
-    message.includes('invalid_client') ||
-    message.includes('unauthorized_client') ||
-    status === 401 ||
-    status === 403
-  );
+  return sharedTravelSenderQuery(domain, sinceStamp());
 }
 
 async function listIds(gmail, q, maxResults) {
@@ -141,50 +65,6 @@ async function listIds(gmail, q, maxResults) {
     console.error('[trip-scan] list failed for query:', q, err?.message || err);
     return { ids: [], failed: true, authFailed: isAuthFailure(err) };
   }
-}
-
-async function mapWithConcurrency(items, limit, fn) {
-  const out = [];
-  for (let i = 0; i < items.length; i += limit) {
-    const batch = items.slice(i, i + limit);
-    out.push(...(await Promise.all(batch.map(fn))));
-  }
-  return out;
-}
-
-// Skip a candidate if something already known plainly covers it: dates overlap
-// AND the destinations share a real place-word. Coarse on purpose — a false
-// "already have it" only means one fewer suggestion, which John can still add
-// manually.
-//
-// `known` is real trips PLUS every prior suggestion (pending, approved, or
-// dismissed) and anything created earlier in this same run. Matching against
-// suggestions too became load-bearing with the allowlist pass above: one cruise
-// booking is echoed by dozens of marketing emails, each a distinct Gmail id, so
-// the source_gmail_id key alone would file the same sailing dozens of times —
-// and a trip John already dismissed would come straight back every scan.
-function matchesKnownTrip(cand, known) {
-  const candWords = new Set(
-    meaningfulWords(cand.destination).map((w) => w.toLowerCase())
-  );
-  return known.some((t) => {
-    const shareWord = meaningfulWords(t.destination).some((w) =>
-      candWords.has(w.toLowerCase())
-    );
-    if (!shareWord) return false;
-    if (!cand.start_date || !t.start_date) return true; // shared place, no dates to separate them
-    // Normalize both sides to bare "YYYY-MM-DD" before comparing. The trip rows
-    // come from Neon as JS Date objects (DATE columns) while the candidate dates
-    // are plain strings from detection; a raw Date <= string comparison coerces
-    // the Date via .toString() ("Thu Jul 16 2026 ..."), not its ISO form, so the
-    // overlap test was never reliably correct. dateOnly gives both an ISO date
-    // string, which sorts lexicographically the same as calendar order.
-    const cs = dateOnly(cand.start_date);
-    const ce = dateOnly(cand.end_date || cand.start_date);
-    const ts = dateOnly(t.start_date);
-    const te = dateOnly(t.end_date || t.start_date);
-    return cs <= te && ts <= ce; // range overlap
-  });
 }
 
 async function runScan() {
