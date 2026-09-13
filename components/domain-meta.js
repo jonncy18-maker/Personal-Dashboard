@@ -24,9 +24,13 @@ export const DOMAIN_META = {
     color: 'var(--dom-travel)',
     soft: 'var(--dom-travel-soft)',
   },
+  // Key stays `mileage` — it addresses the domain's data across
+  // home-summary, the agenda and the assistant catalog, and renaming it
+  // would be a wide rename for a label change. The route and label moved to
+  // Car when maintenance joined it (2026-09-13).
   mileage: {
-    label: 'Mileage',
-    href: '/mileage',
+    label: 'Car',
+    href: '/car',
     icon: MileageIcon,
     color: 'var(--dom-mileage)',
     soft: 'var(--dom-mileage-soft)',

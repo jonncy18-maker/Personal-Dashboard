@@ -1,0 +1,630 @@
+.page {
+  max-width: 1180px;
+}
+
+.loading,
+.loadError {
+  padding: 16px 0;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+}
+.loadError {
+  color: var(--critical);
+}
+
+/* ── header (mirrors the Mileage tab's headRow) ─────────── */
+.headRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.headLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.headIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--dom-mileage-soft);
+  color: var(--dom-mileage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.headIcon svg {
+  width: 24px;
+  height: 24px;
+}
+.headActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--dom-mileage);
+  margin: 0 0 2px;
+}
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.pageSub {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+/* ── buttons ────────────────────────────────────────────── */
+.btnGhost,
+.btnPrimary {
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btnGhost {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+}
+.btnGhost:hover {
+  border-color: var(--dom-mileage);
+  color: var(--dom-mileage);
+}
+.btnPrimary {
+  background: var(--dom-mileage);
+  border: 1px solid var(--dom-mileage);
+  color: #fff;
+}
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── vehicle profile strip ──────────────────────────────── */
+.vehicleStrip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--dom-mileage-soft);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+  margin-bottom: 18px;
+}
+.vehicleName {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.vehicleTrim {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--dom-mileage);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.vehicleSpacer {
+  flex: 1 1 auto;
+}
+.vehicleOdo {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.notice {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  color: var(--dom-mileage);
+  font-weight: 600;
+}
+
+/* ── forms ──────────────────────────────────────────────── */
+.formCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.fieldWide {
+  grid-column: 1 / -1;
+}
+.fieldLabel {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-faint);
+}
+.field input {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  width: 100%;
+}
+.field input:focus-visible {
+  outline: none;
+  border-color: var(--dom-mileage);
+  box-shadow: 0 0 0 3px var(--dom-mileage-soft);
+}
+.formNote {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+.formError {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--critical);
+  font-weight: 600;
+}
+.formActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ── empty state ────────────────────────────────────────── */
+.empty {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 44px 40px;
+  text-align: center;
+}
+.emptyTitle {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.emptyText {
+  margin: 0 auto 22px;
+  font-size: 13.5px;
+  color: var(--ink-muted);
+  max-width: 48ch;
+  line-height: 1.6;
+}
+.emptyActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── panel ──────────────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.panelDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dom-mileage);
+  box-shadow: 0 0 0 3px var(--dom-mileage-soft);
+  flex: none;
+}
+.panelTitle {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-muted);
+}
+.panelSpacer {
+  flex: 1 1 auto;
+}
+.panelCount {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+
+/* ── item rows ──────────────────────────────────────────── */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 6px 26px 1fr auto;
+  gap: 13px;
+  align-items: start;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 13px 15px 13px 0;
+  overflow: hidden;
+}
+.stripe {
+  align-self: stretch;
+  margin: -13px 0;
+  background: var(--border-strong);
+}
+.rowOverdue .stripe {
+  background: var(--critical);
+}
+.rowSoon .stripe {
+  background: var(--warn);
+}
+.rowOk .stripe {
+  background: var(--good);
+}
+.rowUnknown .stripe {
+  background: var(--ink-faint);
+}
+.rowOff {
+  border-style: dashed;
+  opacity: 0.72;
+}
+
+.checkBox {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1.8px solid var(--border-strong);
+  background: var(--surface);
+  cursor: pointer;
+  margin-top: 1px;
+  padding: 0;
+}
+.checkBox:hover {
+  border-color: var(--dom-mileage);
+  box-shadow: 0 0 0 3px var(--dom-mileage-soft);
+}
+.rowOverdue .checkBox {
+  border-color: var(--critical);
+}
+.rowSoon .checkBox {
+  border-color: var(--warn);
+}
+
+.rowMain {
+  min-width: 0;
+}
+.rowName {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.rowOff .rowName {
+  color: var(--ink-muted);
+}
+.rowSub {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+.src,
+.srcOfficial {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  color: var(--ink-faint);
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.src::before,
+.srcOfficial::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.srcOfficial {
+  color: var(--good);
+}
+.conditionNote {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+.rowActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.rowActions button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.rowActions button:hover {
+  color: var(--dom-mileage);
+}
+
+.history {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.historyEmpty {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.historyRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.historyRow:first-child {
+  border-top: none;
+}
+.historyMiles,
+.historyCost {
+  font-family: var(--font-mono), monospace;
+}
+.historyMiles {
+  margin-left: auto;
+}
+.historyCost {
+  width: 64px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.rowRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.pillOverdue,
+.pillSoon,
+.pillOk,
+.pillUnknown,
+.pillOff {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.pillOverdue {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+.pillSoon {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.pillOk {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.pillUnknown {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-muted);
+}
+.pillOff {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-faint);
+}
+.rowWhen {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* ── check-off popup ────────────────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 29, 46, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 40;
+}
+.popup {
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+}
+.popupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.popupCheck {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--good);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  flex: none;
+}
+.popupEyebrow {
+  margin: 0 0 1px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--dom-mileage);
+}
+.popupTitle {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.popupBody {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.prefillNote {
+  margin: -8px 0 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+.optIn {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  padding: 13px 14px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.optIn input {
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  flex: none;
+  accent-color: var(--dom-mileage);
+}
+.optInTitle {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.optInSub {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.nextBlock {
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--dom-mileage);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.nextEyebrow {
+  margin: 0 0 8px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--dom-mileage);
+}
+.nextRow {
+  display: flex;
+  gap: 26px;
+  flex-wrap: wrap;
+}
+.nextNum {
+  display: block;
+  font-family: var(--font-mono), monospace;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.nextSub {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+.popupFoot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunken);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 6px 26px 1fr;
+  }
+  .rowRight {
+    grid-column: 3;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+}

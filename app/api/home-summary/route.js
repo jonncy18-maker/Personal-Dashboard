@@ -3,7 +3,8 @@ import { route } from '../../../lib/route';
 import { findNextTutorCall } from '../../../lib/tutor-call';
 import { fetchCalendarEvents } from '../../../lib/calendar-events';
 import { yearOf, ptoSummary } from '../../../lib/pto';
-import { mileageSummary } from '../../../lib/mileage';
+import { mileageSummary, monthlyForecast } from '../../../lib/mileage';
+import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
 import { collapseMergedTrips } from '../../../lib/trip-merge';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -37,6 +38,8 @@ export const GET = route(async () => {
     [mileageSettings],
     mileageReadingRows,
     mileageScenarioRows,
+    maintenanceItemRows,
+    maintenanceRecordRows,
   ] = await Promise.all([
     // Statuses (not just a count) so the Home card can render a status-dot row.
     sql`SELECT status FROM projects ORDER BY created_at DESC`,
@@ -104,6 +107,8 @@ export const GET = route(async () => {
     sql`SELECT * FROM mileage_settings WHERE id = 1`,
     sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
     sql`SELECT id, active, impact_1yr, impact_2yr, impact_3yr FROM mileage_scenarios`,
+    sql`SELECT * FROM maintenance_items ORDER BY sort_order ASC, created_at ASC`,
+    sql`SELECT * FROM maintenance_records ORDER BY service_date ASC`,
   ]);
 
   const trips = tripRows.map((t) => ({
@@ -164,6 +169,41 @@ export const GET = route(async () => {
     scenarios: mileageScenarioRows,
   });
 
+  // The Car card's one maintenance line. Null when nothing is overdue or due
+  // soon — the card then renders no maintenance line at all rather than an
+  // "all clear" that would be a metric with nothing behind it.
+  const maintenanceRows = maintenanceSummary({
+    items: maintenanceItemRows,
+    recordsByItem: maintenanceRecordRows.reduce((acc, r) => {
+      (acc[r.item_id] ||= []).push({
+        ...r,
+        service_date: dateOnly(r.service_date),
+      });
+      return acc;
+    }, {}),
+    forecast: monthlyForecast({
+      settings: mileageSettings
+        ? {
+            ...mileageSettings,
+            lease_start_date: dateOnly(mileageSettings.lease_start_date),
+          }
+        : null,
+      readings: mileageReadingRows.map((r) => ({
+        ...r,
+        reading_date: dateOnly(r.reading_date),
+      })),
+      scenarios: mileageScenarioRows,
+    }),
+    settings: mileageSettings
+      ? {
+          ...mileageSettings,
+          lease_start_date: dateOnly(mileageSettings.lease_start_date),
+        }
+      : null,
+    today,
+  });
+  const nextService = nearestDue(maintenanceRows);
+
   return Response.json({
     projects: {
       count: projectRows.length,
@@ -217,6 +257,15 @@ export const GET = route(async () => {
             projectedMiles: mileage.checkpoints[0].projectedMiles,
             allowanceMiles: mileage.checkpoints[0].allowanceMiles,
             deltaMiles: mileage.checkpoints[0].deltaMiles,
+          }
+        : null,
+      nextService: nextService
+        ? {
+            name: nextService.item.name,
+            status: nextService.status,
+            milesRemaining: nextService.milesRemaining,
+            daysRemaining: nextService.daysRemaining,
+            dueDate: nextService.dueDate,
           }
         : null,
     },

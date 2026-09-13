@@ -129,8 +129,12 @@ const NUMERIC_FIELDS = [
   'overage_rate_cents',
   'starting_odometer',
   'usual_miles',
+  'vehicle_year',
 ];
 const USUAL_PERIODS = ['day', 'week', 'month'];
+// Vehicle profile (migration 026) — also drives which maintenance preset
+// list the Maintenance tab can seed from.
+const TEXT_FIELDS = ['vehicle_make', 'vehicle_model', 'vehicle_trim'];
 
 export const PATCH = route(async (request) => {
   const body = await request.json();
@@ -172,6 +176,13 @@ export const PATCH = route(async (request) => {
   if ('usual_active' in body) {
     updates.usual_active = !!body.usual_active;
   }
+  for (const field of TEXT_FIELDS) {
+    if (field in body) {
+      const value =
+        body[field] === null ? null : String(body[field]).trim() || null;
+      updates[field] = value;
+    }
+  }
   if (Object.keys(updates).length === 0) {
     return Response.json(
       { error: 'no valid fields to update' },
@@ -190,6 +201,16 @@ export const PATCH = route(async (request) => {
       usual_miles = COALESCE(${updates.usual_miles ?? null}, usual_miles),
       usual_period = COALESCE(${updates.usual_period ?? null}, usual_period),
       usual_active = COALESCE(${updates.usual_active ?? null}, usual_active),
+      -- Text profile fields use an explicit presence flag rather than
+      -- COALESCE: clearing a trim back to blank is a real edit, and COALESCE
+      -- would silently treat it as "leave unchanged".
+      vehicle_make = CASE WHEN ${'vehicle_make' in updates}
+        THEN ${updates.vehicle_make ?? null} ELSE vehicle_make END,
+      vehicle_model = CASE WHEN ${'vehicle_model' in updates}
+        THEN ${updates.vehicle_model ?? null} ELSE vehicle_model END,
+      vehicle_trim = CASE WHEN ${'vehicle_trim' in updates}
+        THEN ${updates.vehicle_trim ?? null} ELSE vehicle_trim END,
+      vehicle_year = COALESCE(${updates.vehicle_year ?? null}, vehicle_year),
       updated_at = now()
     WHERE id = 1
     RETURNING *
