@@ -8,6 +8,7 @@ import {
   travelSenderQuery,
   dateStamp,
   isAuthFailure,
+  isQuotaError,
   mapWithConcurrency,
   matchesKnownTrip,
   TRAVEL_SENDER_DOMAINS,
@@ -107,6 +108,7 @@ async function listPage(gmail, q, pageToken) {
       nextPageToken: null,
       failed: true,
       authFailed: isAuthFailure(err),
+      quotaExceeded: isQuotaError(err),
     };
   }
 }
@@ -130,6 +132,7 @@ async function runChunk(state) {
   let pageToken = state.page_token;
   let runScanned = 0;
   let runCreated = 0;
+  let quotaHit = false;
   const deadline = Date.now() + TIME_BUDGET_MS;
 
   while (queryIndex < queries.length && Date.now() < deadline) {
@@ -138,9 +141,18 @@ async function runChunk(state) {
     if (page.authFailed) {
       return { configured: true, error: 'gmail_auth', done: false };
     }
+    if (page.quotaExceeded) {
+      // Gmail's per-minute budget is gone for every remaining query in this
+      // run too — stop rather than treat it like an exhausted query (that
+      // used to cascade query_index to the end and falsely report the whole
+      // scan "done"). Leaving the cursor untouched means the next click
+      // resumes this exact query/page instead of skipping it.
+      quotaHit = true;
+      break;
+    }
     if (page.failed) {
-      // A bad/transient query must not stall the whole backfill forever —
-      // move on rather than retrying the same query indefinitely.
+      // A bad/transient (non-quota) query must not stall the whole backfill
+      // forever — move on rather than retrying the same query indefinitely.
       queryIndex++;
       pageToken = null;
       continue;
@@ -171,13 +183,20 @@ async function runChunk(state) {
             id,
             err?.message || err
           );
-          return { id, subject: null, trip: null };
+          return {
+            id,
+            subject: null,
+            trip: null,
+            quotaExceeded: isQuotaError(err),
+          };
         }
       }
     );
     runScanned += newIds.length;
 
-    for (const { id, subject, trip } of detected) {
+    let candidateQuotaHit = false;
+    for (const { id, subject, trip, quotaExceeded } of detected) {
+      if (quotaExceeded) candidateQuotaHit = true;
       if (!trip || trip.confidence < MIN_CONFIDENCE || !trip.start_date)
         continue;
       if (matchesKnownTrip(trip, known)) continue;
@@ -198,6 +217,15 @@ async function runChunk(state) {
       }
     }
 
+    if (candidateQuotaHit) {
+      // Same reasoning as the list-level check above: stop without advancing
+      // past this page, since some of its candidates were never actually
+      // classified (Haiku never ran on them) — leaving the cursor here means
+      // they're retried, not silently skipped, next chunk.
+      quotaHit = true;
+      break;
+    }
+
     if (page.nextPageToken) {
       pageToken = page.nextPageToken;
     } else {
@@ -206,7 +234,7 @@ async function runChunk(state) {
     }
   }
 
-  const done = queryIndex >= queries.length;
+  const done = !quotaHit && queryIndex >= queries.length;
   const totalScanned = state.scanned_count + runScanned;
   const totalCreated = state.created_count + runCreated;
 
@@ -223,6 +251,7 @@ async function runChunk(state) {
   return {
     configured: true,
     done,
+    error: quotaHit ? 'gmail_quota' : undefined,
     scannedThisRun: runScanned,
     createdThisRun: runCreated,
     totalScanned,
