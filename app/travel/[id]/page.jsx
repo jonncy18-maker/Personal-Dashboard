@@ -25,16 +25,176 @@ function lengthDays(trip) {
   return Math.round((e - s) / DAY_MS) + 1;
 }
 
+// ─── itinerary timeline (read-only recap) ──────────────────────────────────
+// A stop's "kind" is a presentational guess from its own title/notes text —
+// never a stored field, never invented data — used only to pick which dot
+// style/icon a stop gets on the timeline. Worst case a guess is wrong and a
+// stop just gets the plain "stop" pin instead of the sea/milestone treatment.
+function stopKind(day) {
+  const text = `${day.title || ''} ${day.notes || ''}`.toLowerCase();
+  if (/\bat sea\b|\bsea day\b/.test(text)) return 'sea';
+  if (
+    /\bboard(ing)?\b|\bdisembark|\barrive|\bdepart|\bfly\b|\bflight\b/.test(
+      text
+    )
+  )
+    return 'milestone';
+  return 'stop';
+}
+
+function milestoneIcon(text) {
+  return /\bship\b|\bboard(ing)?\b|\bdisembark|\bcruise\b/.test(
+    text.toLowerCase()
+  )
+    ? 'ship'
+    : 'plane';
+}
+
+function StopIcon({ kind }) {
+  if (kind === 'wave') {
+    return (
+      <svg viewBox="0 0 20 20" fill="none">
+        <path
+          d="M2 8c1.2-1.2 2.8-1.2 4 0s2.8 1.2 4 0 2.8-1.2 4-1.2 2.8 0 4 1.2"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+        <path
+          d="M2 13c1.2-1.2 2.8-1.2 4 0s2.8 1.2 4 0 2.8-1.2 4-1.2 2.8 0 4 1.2"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  if (kind === 'ship') {
+    return (
+      <svg viewBox="0 0 20 20" fill="none">
+        <path
+          d="M4 12h12l-1.5 4.5a1 1 0 0 1-.95.7H6.45a1 1 0 0 1-.95-.7L4 12Z"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6 12V6a1 1 0 0 1 1-1h1v7M12 12V4a1 1 0 0 1 1-1h1v9"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  if (kind === 'plane') {
+    return (
+      <svg viewBox="0 0 20 20" fill="none">
+        <path
+          d="M17.5 2.5 2 9l6 2 2 6 2.7-5.2L17.5 2.5Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <path
+          d="M10 12l3.5-3.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 20 20" fill="none">
+      <path
+        d="M10 18s6-5.686 6-10a6 6 0 1 0-12 0c0 4.314 6 10 6 10Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none">
+      <path
+        d="M6 8l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// Weekday + day number + (only on the first stop, or when the month changes
+// from the previous stop) a month tag — so a multi-week trip doesn't repeat
+// "OCT" down the whole rail.
+function dateBadge(dateStr, prevDateStr) {
+  if (!dateStr) return { wk: '', dnum: '—', mon: '', showMonth: false };
+  const d = parseDateInput(dateStr);
+  const mon = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const prevMon = prevDateStr
+    ? parseDateInput(prevDateStr)
+        .toLocaleDateString('en-US', { month: 'short' })
+        .toUpperCase()
+    : null;
+  return {
+    wk: d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+    dnum: String(d.getDate()),
+    mon,
+    showMonth: !prevDateStr || mon !== prevMon,
+  };
+}
+
+// Contiguous runs sharing the same (trimmed) leg value — including runs of
+// "no leg" stops, which render flat with no header. Mirrors the editor's own
+// leg-header-on-change logic, just carried through as real groups instead of
+// a one-off boolean, so the recap can collapse a leg as a unit.
+function groupByLeg(itinerary) {
+  const groups = [];
+  itinerary.forEach((day, index) => {
+    const leg = (day.leg || '').trim();
+    const current = groups[groups.length - 1];
+    if (current && current.leg === leg) {
+      current.items.push({ day, index });
+    } else {
+      groups.push({ leg, items: [{ day, index }] });
+    }
+  });
+  return groups;
+}
+
 // Read-only journal view for a trip that's already happened — the itinerary
-// and trip facts as a recap rather than an editable form. Grouped by leg the
-// same way the editor is, so a multi-part journey still reads as segments.
+// and trip facts as a recap rather than an editable form.
 function TripRecap({ trip, itinerary, onEdit }) {
   // Collapsed by default — a long cruise's day-by-day recap otherwise pushes
   // straight past the trip stats on open. The stat strip above already shows
   // the stop count, so nothing is lost while collapsed.
   const [itineraryOpen, setItineraryOpen] = useState(false);
+  // Which leg groups (by index) are expanded — only meaningful once a trip
+  // has 2+ named legs, in which case every leg starts collapsed too: a
+  // multi-week trip should open to a short list of leg headers, not a wall
+  // of every stop in every leg at once.
+  const [openLegs, setOpenLegs] = useState({});
   const len = lengthDays(trip);
   const budget = money(trip.budget);
+
+  const legGroups = groupByLeg(itinerary);
+  const namedLegCount = legGroups.filter((g) => g.leg).length;
+  const legsCollapsible = namedLegCount >= 2;
+
+  function toggleLeg(gi) {
+    setOpenLegs((prev) => ({ ...prev, [gi]: !prev[gi] }));
+  }
+
   return (
     <>
       <div className={styles.section}>
@@ -95,36 +255,108 @@ function TripRecap({ trip, itinerary, onEdit }) {
         {itinerary.length === 0 && (
           <p className={styles.itineraryEmpty}>No stops were logged.</p>
         )}
-        {itineraryOpen &&
-          itinerary.map((day, i) => {
-            const leg = (day.leg || '').trim();
-            const prevLeg = i > 0 ? (itinerary[i - 1].leg || '').trim() : '';
-            const showLegHeader = leg && leg !== prevLeg;
-            return (
-              <div key={i} className={styles.recapDayWrap}>
-                {showLegHeader && <p className={styles.legHeader}>{leg}</p>}
-                <div className={styles.recapDay}>
-                  <span className={styles.recapDayDate}>
-                    {day.date ? absoluteDate(day.date) : '—'}
-                  </span>
-                  <span className={styles.recapDayBody}>
-                    <span className={styles.recapDayTitle}>
-                      {day.title || '(untitled)'}
-                      {day.location && (
-                        <span className={styles.previewPin}>
-                          {' '}
-                          · {day.location}
+        {itineraryOpen && (
+          <div className={styles.timeline}>
+            {legGroups.map((group, gi) => {
+              const open = !legsCollapsible || !!openLegs[gi];
+              return (
+                <div className={styles.legBlock} key={gi}>
+                  {group.leg &&
+                    (legsCollapsible ? (
+                      <button
+                        type="button"
+                        className={styles.legToggle}
+                        aria-expanded={open}
+                        onClick={() => toggleLeg(gi)}
+                      >
+                        <span className={styles.legIcon}>
+                          <StopIcon kind={milestoneIcon(group.leg)} />
                         </span>
-                      )}
-                    </span>
-                    {day.notes && (
-                      <span className={styles.recapDayNotes}>{day.notes}</span>
-                    )}
-                  </span>
+                        <span className={styles.legName}>{group.leg}</span>
+                        <span className={styles.legPill}>
+                          {group.items.length}{' '}
+                          {group.items.length === 1 ? 'day' : 'days'}
+                        </span>
+                        <span
+                          className={styles.legChevron}
+                          data-open={open || undefined}
+                        >
+                          <ChevronIcon />
+                        </span>
+                      </button>
+                    ) : (
+                      <div className={styles.legHead}>
+                        <span className={styles.legIcon}>
+                          <StopIcon kind={milestoneIcon(group.leg)} />
+                        </span>
+                        <span className={styles.legName}>{group.leg}</span>
+                        <span className={styles.legPill}>
+                          {group.items.length}{' '}
+                          {group.items.length === 1 ? 'day' : 'days'}
+                        </span>
+                      </div>
+                    ))}
+                  {open &&
+                    group.items.map(({ day, index }, ri) => {
+                      const kind = stopKind(day);
+                      const dotKind =
+                        kind === 'sea'
+                          ? 'wave'
+                          : kind === 'milestone'
+                            ? milestoneIcon(`${day.title} ${day.notes}`)
+                            : 'pin';
+                      const badge = dateBadge(
+                        day.date,
+                        index > 0 ? itinerary[index - 1].date : null
+                      );
+                      const isLast = ri === group.items.length - 1;
+                      return (
+                        <div className={styles.row} key={index}>
+                          <div className={styles.rail}>
+                            <div
+                              className={[
+                                styles.dot,
+                                kind === 'sea' ? styles.dotSea : '',
+                                kind === 'milestone' ? styles.dotMilestone : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                            >
+                              <StopIcon kind={dotKind} />
+                            </div>
+                            {!isLast && <div className={styles.line} />}
+                          </div>
+                          <div className={styles.dateCol}>
+                            <span className={styles.wk}>{badge.wk}</span>
+                            <span className={styles.dnum}>{badge.dnum}</span>
+                            {badge.showMonth && (
+                              <span className={styles.mon}>{badge.mon}</span>
+                            )}
+                          </div>
+                          <div className={styles.body}>
+                            <div className={styles.titleRow}>
+                              <span className={styles.title}>
+                                {day.title || '(untitled)'}
+                              </span>
+                              {day.location && (
+                                <span className={styles.loc}>
+                                  <StopIcon kind="pin" />
+                                  {day.location}
+                                </span>
+                              )}
+                            </div>
+                            {day.notes && (
+                              <p className={styles.notes}>{day.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );

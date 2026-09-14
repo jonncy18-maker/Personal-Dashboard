@@ -266,33 +266,197 @@
   color: var(--ink-muted);
   white-space: pre-wrap;
 }
-.recapDayWrap:not(:first-of-type) {
-  border-top: 1px solid var(--border);
+/* ─── itinerary timeline (read-only recap) ─────────────────────────────── */
+.timeline {
+  margin-top: 2px;
 }
-.recapDay {
+.legBlock {
+  margin-bottom: 4px;
+}
+.legHead,
+.legToggle {
   display: flex;
-  gap: 14px;
-  padding: 10px 0;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: left;
 }
-.recapDayDate {
-  flex: 0 0 92px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
+.legBlock:first-child .legHead,
+.legBlock:first-child .legToggle {
+  margin-top: 2px;
 }
-.recapDayBody {
+.legToggle {
+  width: 100%;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.legToggle:hover .legName {
+  color: var(--accent-ink);
+}
+.legIcon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
 }
-.recapDayTitle {
-  font-size: 13.5px;
-  font-weight: 600;
+.legIcon svg {
+  width: 12px;
+  height: 12px;
+}
+.legName {
+  font-size: 12.5px;
+  font-weight: 800;
   color: var(--ink);
 }
-.recapDayNotes {
+.legPill {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.legToggle .legPill {
+  margin-left: auto;
+}
+.legChevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  transition: transform 0.15s ease;
+}
+.legChevron svg {
+  width: 14px;
+  height: 14px;
+}
+.legChevron[data-open] {
+  transform: rotate(180deg);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+.rail {
+  flex: 0 0 auto;
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dot {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--surface);
+  z-index: 1;
+}
+.dot svg {
+  width: 12px;
+  height: 12px;
+}
+.dotSea {
+  background: var(--surface-sunken);
+  color: var(--ink-faint);
+  border: 1.5px solid var(--border-strong);
+}
+.dotMilestone {
+  width: 26px;
+  height: 26px;
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 4.5px var(--accent-soft);
+}
+.dotMilestone svg {
+  width: 14px;
+  height: 14px;
+}
+.line {
+  flex: 1;
+  width: 2px;
+  background: var(--border-strong);
+  margin: 2px 0;
+}
+
+.dateCol {
+  flex: 0 0 40px;
+  padding-top: 1px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.wk {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--ink-faint);
+}
+.dnum {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.mon {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 16px;
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 1px;
+}
+.title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 8px 2px 6px;
+}
+.loc svg {
+  width: 10px;
+  height: 10px;
+}
+.notes {
+  margin: 4px 0 0;
   font-size: 12.5px;
   color: var(--ink-faint);
   line-height: 1.45;
