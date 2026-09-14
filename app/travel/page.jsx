@@ -850,6 +850,14 @@ export default function TravelPage() {
         setHistoryScanNote(
           'Gmail access has expired — reconnect Google (refresh token) to import.'
         );
+      } else if (data.error === 'gmail_quota') {
+        // Distinct from gmail_auth: the token is fine, Gmail's per-minute
+        // rate limit is just temporarily exhausted (a 10-year search plus
+        // repeated clicks can burn through it) — the cursor didn't move, so
+        // Continue Import picks up exactly where this chunk stopped.
+        setHistoryScanNote(
+          `Gmail's rate limit kicked in — wait a minute, then click Continue Import. (${data.totalScanned} scanned, ${data.totalCreated} trip${data.totalCreated === 1 ? '' : 's'} found so far.)`
+        );
       } else if (data.error) {
         setHistoryScanNote('Couldn’t reach Gmail — try again.');
       } else if (data.alreadyDone) {
