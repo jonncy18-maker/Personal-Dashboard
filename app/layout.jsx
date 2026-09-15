@@ -50,12 +50,24 @@ export const viewport = {
 
 // Runs before paint so the stored theme choice applies with no flash of the
 // wrong theme. Falls back to the OS preference on first-ever visit.
-const themeInitScript = `
+//
+// The intro decision lives here too, and has to: IntroSplash's markup is
+// always server-rendered, and CSS only reveals it when this attribute is
+// set. Deciding in a React effect instead would let the app paint for a
+// frame before the cover appeared, which is exactly the flash a splash is
+// supposed to prevent. Once per tab session, never under reduced motion.
+const bootScript = `
 (function() {
   try {
     var stored = localStorage.getItem('theme');
     var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {}
+  try {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (sessionStorage.getItem('intro-played')) return;
+    sessionStorage.setItem('intro-played', '1');
+    document.documentElement.setAttribute('data-intro', 'running');
   } catch (e) {}
 })();
 `;
@@ -68,7 +80,7 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: bootScript }} />
       </head>
       <body>
         <AppShell>{children}</AppShell>

@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import RegisterSW from './RegisterSW';
 import AssistantPanel from './AssistantPanel';
+import IntroSplash from './IntroSplash';
 import { RefreshProvider } from '../lib/refresh';
 import styles from './AppShell.module.css';
 
@@ -14,7 +15,7 @@ export default function AppShell({ children }) {
 
   return (
     <RefreshProvider>
-      <div className={styles.shell}>
+      <div className={styles.shell} data-app-root>
         <Sidebar
           collapsed={collapsed}
           drawerOpen={drawerOpen}
@@ -29,6 +30,7 @@ export default function AppShell({ children }) {
         </div>
       </div>
       <AssistantPanel />
+      <IntroSplash />
       <RegisterSW />
     </RefreshProvider>
   );

@@ -44,7 +44,7 @@ export default function Sidebar({ collapsed, drawerOpen, onCloseDrawer }) {
     return (
       <>
         <div className={styles.brand}>
-          <span className={styles.brandScript}>
+          <span className={styles.brandScript} data-brand-mark>
             {isCollapsed ? 'J' : 'John'}
           </span>
           <span className={`${styles.brandSub} mono`}>Personal OS</span>

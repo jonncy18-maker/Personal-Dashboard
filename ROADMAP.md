@@ -64,6 +64,22 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-15 — App-launch intro: the wordmark flies into the sidebar
+
+Home's cards already faded up on load, but on its own that read as a glitch rather than an entrance (John's word). Explored two directions as a design canvas; John picked the expressive one and asked for it bigger.
+
+**The idea that made it worth building: the splash hands over instead of being a curtain.** The wordmark rises letter by letter out of a drawn horizon, a ring traces around it with two particles, one pass of light crosses the composition, the subtitle relaxes into its resting tracking — then the mark flies into the sidebar's brand slot and *stays there* as the app's permanent mark. Intro and app become one gesture. ~1.9s, once per tab session, skipped entirely under `prefers-reduced-motion`.
+
+Three decisions worth keeping:
+
+- **The flight target is measured, not hard-coded.** `IntroSplash` reads the real `[data-brand-mark]` element's rect and font-size at runtime, so a collapsed rail or a different viewport still lands exactly. Below 900px the sidebar is `display:none`, so there is nothing to fly to and the mark bows out in place instead.
+- **The run/skip decision lives in the pre-paint inline script in `app/layout.jsx`, not a React effect.** The splash markup is always server-rendered and CSS only reveals it when `data-intro` is set; deciding in an effect would let the app paint for a frame before the cover appeared — exactly the flash a splash exists to prevent.
+- **The app's own entrance animations are held at frame 1 while the cover is up** (`html[data-intro='running'] [data-app-root] * { animation-play-state: paused }`), released on the `handoff` phase. Without that, Home's fade-up burns through behind the cover and the dashboard is sitting there fully arrived when the splash clears. The real sidebar mark stays hidden across both phases so the same mark is never on screen twice.
+
+Two things the browser caught that review would not have: a `text-shadow` halo on the wordmark was being sheared into visible rectangles by the per-letter `overflow:hidden` clip boxes (it is its own layer now), and a hard-coded dark cover flashed white handing over to the light theme — the cover paints `var(--bg-grad)`, the app's own background, so the dissolve has no brightness jump.
+
+---
+
 ## 2026-09-12 — CLAUDE.md restructured: always-on core + on-demand skills
 
 **Why.** John had heard that Opus 5 changes how `CLAUDE.md` files should be structured and asked whether ours was worth reviewing. Measured it first rather than assuming: 253 lines, ~6,840 words, ~9,500 tokens loaded on every turn of every session. Section 7 alone was **63% of the file** (4,290 of 6,840 words) and on reading was not really rules — it was a decision archive. The Mileage "usual trips" bullet runs 1,238 characters; the assistant `max_tokens` incident, the Nominatim→Google geocoding switch, PTO's banked-holiday accounting. All genuinely valuable, none of it needed on a turn spent in `app/email/page.jsx`. Two consequences: the rules that are expensive to violate (Gmail read-only, no auth, no fabricated metrics) sat at the same weight as implementation detail, and there was no `.claude/` directory at all, so every domain rule was paying rent in always-on context.
