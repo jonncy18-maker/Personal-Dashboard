@@ -1,0 +1,506 @@
+/* App-launch intro. Timings are absolute ms (not keyframe-percentage
+   staggers) because this plays exactly once — animation-delay is only
+   unreliable for staggering when an animation repeats. */
+
+.root {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+/* The inline script in app/layout.jsx sets data-intro before first paint;
+   without it this markup never shows at all. */
+:global(html[data-intro]) .root {
+  display: block;
+}
+
+/* ── The cover ──────────────────────────────────────────────────────
+   Opaque until the hand-off, then dissolves while easing back a touch —
+   a flat fade reads cheap.
+
+   The cover paints the app's OWN background token rather than a fixed
+   navy: the splash is then the same surface the dashboard sits on, so
+   the dissolve has no brightness jump. A hard-coded dark cover flashed
+   white when it handed over to the light theme. The accent, ink and
+   glow layers below follow the same rule — anything that only reads on
+   a dark ground is scoped to the dark theme. */
+.cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg-grad);
+  animation: coverOut 460ms cubic-bezier(0.7, 0, 0.2, 1) 1500ms both;
+}
+@keyframes coverOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+.nebula {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+}
+.nebulaA {
+  width: 760px;
+  height: 760px;
+  left: 12%;
+  top: -180px;
+  background: rgba(59, 107, 224, 0.14);
+  animation: driftA 1900ms ease-out both;
+}
+.nebulaB {
+  width: 620px;
+  height: 620px;
+  right: 8%;
+  bottom: -200px;
+  background: rgba(150, 110, 220, 0.1);
+  animation: driftB 1900ms ease-out both;
+}
+:global(:root[data-theme='dark']) .nebulaA {
+  background: rgba(109, 147, 255, 0.3);
+}
+:global(:root[data-theme='dark']) .nebulaB {
+  background: rgba(150, 110, 220, 0.22);
+}
+@keyframes driftA {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.45;
+  }
+  to {
+    transform: translate(60px, 40px) scale(1.14);
+    opacity: 0.95;
+  }
+}
+@keyframes driftB {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+  to {
+    transform: translate(-52px, -34px) scale(1.12);
+    opacity: 0.8;
+  }
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 45%,
+    transparent 42%,
+    rgba(3, 6, 14, 0.1) 100%
+  );
+}
+:global(:root[data-theme='dark']) .grain {
+  opacity: 0.05;
+}
+:global(:root[data-theme='dark']) .vignette {
+  background: radial-gradient(
+    circle at 50% 45%,
+    transparent 42%,
+    rgba(3, 6, 14, 0.62) 100%
+  );
+}
+
+/* The line the wordmark rises out of, then gets out of the way. */
+.horizon {
+  position: absolute;
+  left: 50%;
+  top: calc(42vh + 0.58em);
+  width: min(460px, 62vw);
+  height: 1px;
+  margin-left: calc(min(460px, 62vw) / -2);
+  font-size: var(--intro-size);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent) 30%,
+    var(--accent) 70%,
+    transparent
+  );
+  box-shadow: 0 0 18px rgba(109, 147, 255, 0.5);
+  transform-origin: center;
+  animation: horizonDraw 620ms cubic-bezier(0.19, 1, 0.22, 1) 120ms both;
+}
+@keyframes horizonDraw {
+  0% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  38% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+:global(:root[data-theme='dark']) .horizon {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent) 22%,
+    #cddaff 50%,
+    var(--accent) 78%,
+    transparent
+  );
+  box-shadow: 0 0 18px rgba(109, 147, 255, 0.8);
+}
+
+/* A ring drawn around the wordmark, with two particles riding it. */
+.ringBox {
+  position: absolute;
+  left: 50%;
+  top: 42vh;
+  width: 0;
+  height: 0;
+  animation: ringOut 300ms ease 1450ms both;
+}
+@keyframes ringOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.ring {
+  position: absolute;
+  left: -310px;
+  top: -310px;
+  width: 620px;
+  height: 620px;
+}
+.ring circle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 1646;
+  transform: rotate(-90deg);
+  transform-origin: 310px 310px;
+  animation: ringDraw 820ms cubic-bezier(0.33, 0, 0.2, 1) 480ms both;
+}
+@keyframes ringDraw {
+  from {
+    stroke-dashoffset: 1646;
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.55;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 0.55;
+  }
+}
+
+.orbit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+.orbitA {
+  animation: spinA 1000ms cubic-bezier(0.4, 0, 0.25, 1) 480ms both;
+}
+.orbitB {
+  animation: spinB 1000ms cubic-bezier(0.4, 0, 0.25, 1) 480ms both;
+}
+@keyframes spinA {
+  from {
+    transform: rotate(-115deg);
+  }
+  to {
+    transform: rotate(300deg);
+  }
+}
+@keyframes spinB {
+  from {
+    transform: rotate(70deg);
+  }
+  to {
+    transform: rotate(-235deg);
+  }
+}
+.particle {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(109, 147, 255, 0.95);
+  animation: particleIn 260ms ease-out 480ms both;
+}
+:global(:root[data-theme='dark']) .particle {
+  background: #cddaff;
+}
+.orbitA .particle {
+  transform: translateX(262px);
+}
+.orbitB .particle {
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  transform: translateX(178px);
+}
+@keyframes particleIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Subtitle: opens wide, relaxes into its resting tracking. */
+.subRow {
+  position: absolute;
+  left: 50%;
+  top: calc(42vh + 1.05em);
+  font-size: var(--intro-size);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: subOut 220ms ease 1460ms both;
+}
+@keyframes subOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.sub {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  animation: subIn 560ms cubic-bezier(0.16, 1, 0.3, 1) 880ms both;
+}
+@keyframes subIn {
+  from {
+    opacity: 0;
+    letter-spacing: 0.68em;
+  }
+  to {
+    opacity: 1;
+    letter-spacing: 0.26em;
+  }
+}
+.live {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: liveIn 280ms ease-out 1120ms both;
+}
+@keyframes liveIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.live::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(109, 147, 255, 0.6);
+  animation: ping 520ms ease-out 1220ms both;
+}
+@keyframes ping {
+  from {
+    opacity: 0.9;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+/* One slow pass of light across the composition. A screen-blended highlight
+   only reads against a dark ground — on the light theme it would just wash
+   the screen out, so it is dark-theme only. */
+.sweep {
+  display: none;
+}
+:global(:root[data-theme='dark']) .sweep {
+  display: block;
+  position: absolute;
+  top: -20%;
+  left: 0;
+  width: 34%;
+  height: 140%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(150, 180, 255, 0.1) 35%,
+    rgba(215, 230, 255, 0.28) 50%,
+    rgba(150, 180, 255, 0.1) 65%,
+    transparent
+  );
+  filter: blur(16px);
+  mix-blend-mode: screen;
+  animation: sweep 760ms cubic-bezier(0.5, 0, 0.5, 1) 820ms both;
+}
+@keyframes sweep {
+  from {
+    transform: translateX(-150%) skewX(-18deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  76% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(330%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+/* ── The mark that flies home ───────────────────────────────────────
+   Sits above the cover so it survives the dissolve. Centring is pure CSS
+   (a percentage translate resolves against the element's own box), so
+   only the flight TARGET has to come from JS — see IntroSplash.jsx. */
+.mark {
+  --intro-size: clamp(56px, 8.5vw, 112px);
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform-origin: left top;
+  transform: translate(calc(50vw - 50%), calc(42vh - 50%));
+}
+.root[data-fly='sidebar'] .mark {
+  animation: flyHome 420ms cubic-bezier(0.7, 0, 0.18, 1) 1500ms both;
+}
+@keyframes flyHome {
+  from {
+    transform: translate(calc(50vw - 50%), calc(42vh - 50%)) scale(1);
+  }
+  to {
+    transform: translate(var(--fx), var(--fy)) scale(var(--fs));
+  }
+}
+/* No visible sidebar to fly to (narrow viewports): bow out in place. */
+.root[data-fly='none'] .mark {
+  animation: flyNone 380ms cubic-bezier(0.4, 0, 1, 1) 1500ms both;
+}
+@keyframes flyNone {
+  from {
+    transform: translate(calc(50vw - 50%), calc(42vh - 50%)) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(50vw - 50%), calc(42vh - 50%)) scale(0.86);
+    opacity: 0;
+  }
+}
+
+.script {
+  display: flex;
+  font-family: var(--font-display), serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: var(--intro-size);
+  line-height: 1;
+  color: var(--accent);
+}
+/* The halo is its own layer rather than a text-shadow: each letter sits in
+   an overflow:hidden clip box, and a shadow would be sheared off at those
+   box edges, painting a visible rectangle behind every letter. It hangs off
+   .mark, not .script, so it stays out of the letters' nth-child order. */
+.glow {
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  top: -28%;
+  bottom: -8%;
+  background: radial-gradient(
+    closest-side,
+    rgba(59, 107, 224, 0.16),
+    transparent 72%
+  );
+  filter: blur(24px);
+  animation: glowIn 700ms ease-out 260ms both;
+}
+:global(:root[data-theme='dark']) .glow {
+  background: radial-gradient(
+    closest-side,
+    rgba(109, 147, 255, 0.42),
+    transparent 72%
+  );
+}
+@keyframes glowIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Each letter rises into a static clip box, so the letters emerge rather
+   than just fade. The box carries side padding (cancelled by a negative
+   margin) so the italic's overhang is never shaved off. */
+.letterBox {
+  display: inline-block;
+  overflow: hidden;
+  padding: 0 0.06em 0.16em;
+  margin: 0 -0.06em;
+}
+.letter {
+  display: inline-block;
+  animation: letterRise 520ms cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+.letterBox:nth-child(1) .letter {
+  animation-delay: 260ms;
+}
+.letterBox:nth-child(2) .letter {
+  animation-delay: 360ms;
+}
+.letterBox:nth-child(3) .letter {
+  animation-delay: 460ms;
+}
+.letterBox:nth-child(4) .letter {
+  animation-delay: 560ms;
+}
+@keyframes letterRise {
+  from {
+    transform: translateY(118%);
+    filter: blur(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    filter: blur(0);
+    opacity: 1;
+  }
+}
