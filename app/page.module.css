@@ -6,6 +6,36 @@
   margin-top: 16px;
 }
 
+/* Entrance: hero, stat bar, and the glance section fade+slide in in sequence
+   on load. The keyframe is duplicated in each file that uses one (also in
+   HomeHero.module.css, DomainGrid.module.css) rather than shared from
+   globals.css — Next.js's CSS Modules scope an animation-name reference to
+   its own file, so a module file referencing a keyframe defined elsewhere
+   silently no-ops (confirmed: the browser resolved it to a mismatched,
+   nonexistent scoped name). */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.home > * {
+  animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.home > *:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.home > *:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.home > *:nth-child(4) {
+  animation-delay: 0.16s;
+}
+
 /* ─── stat bar (real data only) ──────────────────────────── */
 .statBar {
   display: grid;
