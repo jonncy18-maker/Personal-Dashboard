@@ -172,21 +172,14 @@ function groupByLeg(itinerary) {
   return groups;
 }
 
-// Read-only journal view for a trip that's already happened — the itinerary
-// and trip facts as a recap rather than an editable form.
-function TripRecap({ trip, itinerary, onEdit }) {
-  // Collapsed by default — a long cruise's day-by-day recap otherwise pushes
-  // straight past the trip stats on open. The stat strip above already shows
-  // the stop count, so nothing is lost while collapsed.
-  const [itineraryOpen, setItineraryOpen] = useState(false);
-  // Which leg groups (by index) are expanded — only meaningful once a trip
-  // has 2+ named legs, in which case every leg starts collapsed too: a
-  // multi-week trip should open to a short list of leg headers, not a wall
-  // of every stop in every leg at once.
+// The read-only dot timeline — shared by the past-trip recap and the
+// upcoming-trip view (which now only *displays* the itinerary this way;
+// editing happens in EditItineraryModal, not inline). Legs with 2+ named
+// groups collapse behind a toggle showing each leg's day count, so a long
+// multi-leg trip opens to a short list of legs rather than every stop in
+// every leg at once. A single-leg (or no-leg) trip always renders flat.
+function ItineraryTimeline({ itinerary }) {
   const [openLegs, setOpenLegs] = useState({});
-  const len = lengthDays(trip);
-  const budget = money(trip.budget);
-
   const legGroups = groupByLeg(itinerary);
   const namedLegCount = legGroups.filter((g) => g.leg).length;
   const legsCollapsible = namedLegCount >= 2;
@@ -194,6 +187,118 @@ function TripRecap({ trip, itinerary, onEdit }) {
   function toggleLeg(gi) {
     setOpenLegs((prev) => ({ ...prev, [gi]: !prev[gi] }));
   }
+
+  return (
+    <div className={styles.timeline}>
+      {legGroups.map((group, gi) => {
+        const open = !legsCollapsible || !!openLegs[gi];
+        return (
+          <div className={styles.legBlock} key={gi}>
+            {group.leg &&
+              (legsCollapsible ? (
+                <button
+                  type="button"
+                  className={styles.legToggle}
+                  aria-expanded={open}
+                  onClick={() => toggleLeg(gi)}
+                >
+                  <span className={styles.legIcon}>
+                    <StopIcon kind={milestoneIcon(group.leg)} />
+                  </span>
+                  <span className={styles.legName}>{group.leg}</span>
+                  <span className={styles.legPill}>
+                    {group.items.length}{' '}
+                    {group.items.length === 1 ? 'day' : 'days'}
+                  </span>
+                  <span
+                    className={styles.legChevron}
+                    data-open={open || undefined}
+                  >
+                    <ChevronIcon />
+                  </span>
+                </button>
+              ) : (
+                <div className={styles.legHead}>
+                  <span className={styles.legIcon}>
+                    <StopIcon kind={milestoneIcon(group.leg)} />
+                  </span>
+                  <span className={styles.legName}>{group.leg}</span>
+                  <span className={styles.legPill}>
+                    {group.items.length}{' '}
+                    {group.items.length === 1 ? 'day' : 'days'}
+                  </span>
+                </div>
+              ))}
+            {open &&
+              group.items.map(({ day, index }, ri) => {
+                const kind = stopKind(day);
+                const dotKind =
+                  kind === 'sea'
+                    ? 'wave'
+                    : kind === 'milestone'
+                      ? milestoneIcon(`${day.title} ${day.notes}`)
+                      : 'pin';
+                const badge = dateBadge(
+                  day.date,
+                  index > 0 ? itinerary[index - 1].date : null
+                );
+                const isLast = ri === group.items.length - 1;
+                return (
+                  <div className={styles.row} key={index}>
+                    <div className={styles.rail}>
+                      <div
+                        className={[
+                          styles.dot,
+                          kind === 'sea' ? styles.dotSea : '',
+                          kind === 'milestone' ? styles.dotMilestone : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                      >
+                        <StopIcon kind={dotKind} />
+                      </div>
+                      {!isLast && <div className={styles.line} />}
+                    </div>
+                    <div className={styles.dateCol}>
+                      <span className={styles.wk}>{badge.wk}</span>
+                      <span className={styles.dnum}>{badge.dnum}</span>
+                      {badge.showMonth && (
+                        <span className={styles.mon}>{badge.mon}</span>
+                      )}
+                    </div>
+                    <div className={styles.body}>
+                      <div className={styles.titleRow}>
+                        <span className={styles.title}>
+                          {day.title || '(untitled)'}
+                        </span>
+                        {day.location && (
+                          <span className={styles.loc}>
+                            <StopIcon kind="pin" />
+                            {day.location}
+                          </span>
+                        )}
+                      </div>
+                      {day.notes && <p className={styles.notes}>{day.notes}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Read-only journal view for a trip that's already happened — the itinerary
+// and trip facts as a recap rather than an editable form.
+function TripRecap({ trip, itinerary, onEdit }) {
+  // Collapsed by default — a long cruise's day-by-day recap otherwise pushes
+  // straight past the trip stats on open. The stat strip above already shows
+  // the stop count, so nothing is lost while collapsed.
+  const [itineraryOpen, setItineraryOpen] = useState(false);
+  const len = lengthDays(trip);
+  const budget = money(trip.budget);
 
   return (
     <>
@@ -255,110 +360,145 @@ function TripRecap({ trip, itinerary, onEdit }) {
         {itinerary.length === 0 && (
           <p className={styles.itineraryEmpty}>No stops were logged.</p>
         )}
-        {itineraryOpen && (
-          <div className={styles.timeline}>
-            {legGroups.map((group, gi) => {
-              const open = !legsCollapsible || !!openLegs[gi];
-              return (
-                <div className={styles.legBlock} key={gi}>
-                  {group.leg &&
-                    (legsCollapsible ? (
-                      <button
-                        type="button"
-                        className={styles.legToggle}
-                        aria-expanded={open}
-                        onClick={() => toggleLeg(gi)}
-                      >
-                        <span className={styles.legIcon}>
-                          <StopIcon kind={milestoneIcon(group.leg)} />
-                        </span>
-                        <span className={styles.legName}>{group.leg}</span>
-                        <span className={styles.legPill}>
-                          {group.items.length}{' '}
-                          {group.items.length === 1 ? 'day' : 'days'}
-                        </span>
-                        <span
-                          className={styles.legChevron}
-                          data-open={open || undefined}
-                        >
-                          <ChevronIcon />
-                        </span>
-                      </button>
-                    ) : (
-                      <div className={styles.legHead}>
-                        <span className={styles.legIcon}>
-                          <StopIcon kind={milestoneIcon(group.leg)} />
-                        </span>
-                        <span className={styles.legName}>{group.leg}</span>
-                        <span className={styles.legPill}>
-                          {group.items.length}{' '}
-                          {group.items.length === 1 ? 'day' : 'days'}
-                        </span>
-                      </div>
-                    ))}
-                  {open &&
-                    group.items.map(({ day, index }, ri) => {
-                      const kind = stopKind(day);
-                      const dotKind =
-                        kind === 'sea'
-                          ? 'wave'
-                          : kind === 'milestone'
-                            ? milestoneIcon(`${day.title} ${day.notes}`)
-                            : 'pin';
-                      const badge = dateBadge(
-                        day.date,
-                        index > 0 ? itinerary[index - 1].date : null
-                      );
-                      const isLast = ri === group.items.length - 1;
-                      return (
-                        <div className={styles.row} key={index}>
-                          <div className={styles.rail}>
-                            <div
-                              className={[
-                                styles.dot,
-                                kind === 'sea' ? styles.dotSea : '',
-                                kind === 'milestone' ? styles.dotMilestone : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
-                            >
-                              <StopIcon kind={dotKind} />
-                            </div>
-                            {!isLast && <div className={styles.line} />}
-                          </div>
-                          <div className={styles.dateCol}>
-                            <span className={styles.wk}>{badge.wk}</span>
-                            <span className={styles.dnum}>{badge.dnum}</span>
-                            {badge.showMonth && (
-                              <span className={styles.mon}>{badge.mon}</span>
-                            )}
-                          </div>
-                          <div className={styles.body}>
-                            <div className={styles.titleRow}>
-                              <span className={styles.title}>
-                                {day.title || '(untitled)'}
-                              </span>
-                              {day.location && (
-                                <span className={styles.loc}>
-                                  <StopIcon kind="pin" />
-                                  {day.location}
-                                </span>
-                              )}
-                            </div>
-                            {day.notes && (
-                              <p className={styles.notes}>{day.notes}</p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {itineraryOpen && <ItineraryTimeline itinerary={itinerary} />}
       </div>
     </>
+  );
+}
+
+// Editable itinerary, moved into a popup so the upcoming-trip page shows the
+// same read-only timeline as a past trip's recap by default — the input
+// grid (one row of 5 fields per stop) is exactly what made the always-open
+// version an eyesore. Operates on the parent's itinerary state directly
+// (same updateDay/addDay/removeDay used by the old inline form); "Done"
+// just closes the popup; nothing here persists until the page's own
+// "Save changes" button is clicked, same as before.
+function EditItineraryModal({
+  itinerary,
+  onUpdateDay,
+  onAddDay,
+  onRemoveDay,
+  onImport,
+  onClose,
+}) {
+  return (
+    <div className={styles.scrim} onClick={onClose} role="presentation">
+      <div
+        className={`${styles.modal} ${styles.modalWide}`}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Edit itinerary"
+      >
+        <div className={styles.modalHead}>
+          <p className={styles.modalTitle}>Edit itinerary</p>
+          <button
+            className={styles.modalClose}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {itinerary.length === 0 && (
+          <p className={styles.itineraryEmpty}>No stops added yet.</p>
+        )}
+        {itinerary.map((day, i) => {
+          // A leg header is shown whenever a new non-empty leg group begins, so
+          // a multi-part journey (Philippines → Taiwan → Japan cruise) reads as
+          // grouped segments in the editor.
+          const leg = (day.leg || '').trim();
+          const prevLeg = i > 0 ? (itinerary[i - 1].leg || '').trim() : '';
+          const showLegHeader = leg && leg !== prevLeg;
+          return (
+            <div key={i} className={styles.stopBlock}>
+              {showLegHeader && <p className={styles.legHeader}>{leg}</p>}
+              <div className={styles.dayRow}>
+                <label className={styles.field}>
+                  <span>Date</span>
+                  <input
+                    type="date"
+                    value={day.date}
+                    onChange={(e) => onUpdateDay(i, 'date', e.target.value)}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Title</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Juneau — whale watching"
+                    value={day.title}
+                    onChange={(e) => onUpdateDay(i, 'title', e.target.value)}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Location (maps this stop)</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Cartagena, Colombia"
+                    value={day.location || ''}
+                    onChange={(e) => onUpdateDay(i, 'location', e.target.value)}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Leg (optional group)</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Japan cruise"
+                    value={day.leg || ''}
+                    onChange={(e) => onUpdateDay(i, 'leg', e.target.value)}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Notes</span>
+                  <input
+                    type="text"
+                    value={day.notes}
+                    onChange={(e) => onUpdateDay(i, 'notes', e.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={styles.removeDayButton}
+                  onClick={() => onRemoveDay(i)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          className={styles.addDayButton}
+          onClick={onAddDay}
+        >
+          + Add stop
+        </button>
+        <p className={styles.importNote} style={{ marginTop: 14 }}>
+          Give a stop a <strong>Location</strong> to place it on the world map —
+          a cruise's ports each map as their own dot. Use <strong>Leg</strong>{' '}
+          to group a multi-part journey. Nothing saves until you click “Save
+          changes” on the trip page.
+        </p>
+        <div className={styles.modalActions}>
+          <button
+            type="button"
+            className={styles.modalPrimary}
+            onClick={onClose}
+          >
+            Done
+          </button>
+          <button
+            type="button"
+            className={styles.modalGhost}
+            onClick={onImport}
+          >
+            Import from Gmail
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -746,6 +886,10 @@ export default function TripDetailPage() {
   // itinerary (e.g. a cruise imported from Gmail) otherwise pushes the save/
   // delete actions and every other section down the page on open.
   const [itineraryOpen, setItineraryOpen] = useState(false);
+  // The itinerary is edited in a popup now (EditItineraryModal), not inline —
+  // the upcoming-trip page shows the same read-only timeline as a past trip's
+  // recap by default.
+  const [editItineraryOpen, setEditItineraryOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/trips/${id}`)
@@ -1001,127 +1145,31 @@ export default function TripDetailPage() {
           <div className={styles.section}>
             <div className={styles.recapHead}>
               <h2 className={styles.sectionTitle}>Itinerary</h2>
-              {itinerary.length > 0 && (
+              <div className={styles.itineraryHeadActions}>
+                {itinerary.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.editButton}
+                    onClick={() => setItineraryOpen((v) => !v)}
+                  >
+                    {itineraryOpen
+                      ? 'Hide itinerary'
+                      : `Show itinerary (${itinerary.length})`}
+                  </button>
+                )}
                 <button
                   type="button"
                   className={styles.editButton}
-                  onClick={() => setItineraryOpen((v) => !v)}
+                  onClick={() => setEditItineraryOpen(true)}
                 >
-                  {itineraryOpen
-                    ? 'Hide itinerary'
-                    : `Show itinerary (${itinerary.length})`}
+                  Edit itinerary
                 </button>
-              )}
+              </div>
             </div>
             {itinerary.length === 0 && (
               <p className={styles.itineraryEmpty}>No stops added yet.</p>
             )}
-            {(itineraryOpen || itinerary.length === 0) && (
-              <>
-                {itinerary.map((day, i) => {
-                  // A leg header is shown whenever a new non-empty leg group begins, so
-                  // a multi-part journey (Philippines → Taiwan → Japan cruise) reads as
-                  // grouped segments in the editor.
-                  const leg = (day.leg || '').trim();
-                  const prevLeg =
-                    i > 0 ? (itinerary[i - 1].leg || '').trim() : '';
-                  const showLegHeader = leg && leg !== prevLeg;
-                  return (
-                    <div key={i} className={styles.stopBlock}>
-                      {showLegHeader && (
-                        <p className={styles.legHeader}>{leg}</p>
-                      )}
-                      <div className={styles.dayRow}>
-                        <label className={styles.field}>
-                          <span>Date</span>
-                          <input
-                            type="date"
-                            value={day.date}
-                            onChange={(e) =>
-                              updateDay(i, 'date', e.target.value)
-                            }
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          <span>Title</span>
-                          <input
-                            type="text"
-                            placeholder="e.g. Juneau — whale watching"
-                            value={day.title}
-                            onChange={(e) =>
-                              updateDay(i, 'title', e.target.value)
-                            }
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          <span>Location (maps this stop)</span>
-                          <input
-                            type="text"
-                            placeholder="e.g. Cartagena, Colombia"
-                            value={day.location || ''}
-                            onChange={(e) =>
-                              updateDay(i, 'location', e.target.value)
-                            }
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          <span>Leg (optional group)</span>
-                          <input
-                            type="text"
-                            placeholder="e.g. Japan cruise"
-                            value={day.leg || ''}
-                            onChange={(e) =>
-                              updateDay(i, 'leg', e.target.value)
-                            }
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          <span>Notes</span>
-                          <input
-                            type="text"
-                            value={day.notes}
-                            onChange={(e) =>
-                              updateDay(i, 'notes', e.target.value)
-                            }
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          className={styles.removeDayButton}
-                          onClick={() => removeDay(i)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <button
-                  type="button"
-                  className={styles.addDayButton}
-                  onClick={addDay}
-                >
-                  + Add stop
-                </button>
-                <p className={styles.importNote} style={{ marginTop: 14 }}>
-                  Give a stop a <strong>Location</strong> to place it on the
-                  world map — a cruise's ports each map as their own dot. Use{' '}
-                  <strong>Leg</strong> to group a multi-part journey. Or pull
-                  the itinerary from a booking or confirmation email — pick the
-                  email, review the parsed stops, then add them here. Nothing
-                  saves until you click “Save changes”.
-                </p>
-              </>
-            )}
-            <div className={styles.actions} style={{ marginTop: 10 }}>
-              <button
-                type="button"
-                className={styles.saveButton}
-                onClick={() => setImportOpen(true)}
-              >
-                Import from Gmail
-              </button>
-            </div>
+            {itineraryOpen && <ItineraryTimeline itinerary={itinerary} />}
           </div>
         </>
       )}
@@ -1143,6 +1191,17 @@ export default function TripDetailPage() {
         <h2 className={styles.sectionTitle}>Prep checklist</h2>
         <TripChecklists tripId={id} />
       </div>
+
+      {editItineraryOpen && (
+        <EditItineraryModal
+          itinerary={itinerary}
+          onUpdateDay={updateDay}
+          onAddDay={addDay}
+          onRemoveDay={removeDay}
+          onImport={() => setImportOpen(true)}
+          onClose={() => setEditItineraryOpen(false)}
+        />
+      )}
 
       {importOpen && (
         <ImportModal
