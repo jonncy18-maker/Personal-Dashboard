@@ -12,6 +12,7 @@ import {
   IdeasIcon,
   EmailIcon,
   MileageIcon,
+  HealthIcon,
 } from './icons';
 import { useHomeSummary } from '../lib/useHomeSummary';
 import { buildAgenda } from '../lib/agenda';
@@ -24,6 +25,7 @@ const NAV = [
   { href: '/ai-projects', label: 'AI Projects', icon: ProjectsIcon },
   { href: '/travel', label: 'Travel', icon: TravelIcon },
   { href: '/car', label: 'Car', icon: MileageIcon },
+  { href: '/health', label: 'Health', icon: HealthIcon },
   { href: '/schedules', label: 'Schedules', icon: SchedulesIcon },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { href: '/language', label: 'Language', icon: LanguageIcon },

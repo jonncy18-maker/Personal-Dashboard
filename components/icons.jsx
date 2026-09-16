@@ -108,6 +108,15 @@ export function MileageIcon(props) {
   );
 }
 
+export function HealthIcon(props) {
+  return (
+    <Svg {...props}>
+      <path d="M12 20.5c-4.2-2.6-7-5.8-7-9.2A3.9 3.9 0 0 1 12 8.6a3.9 3.9 0 0 1 7 2.7c0 3.4-2.8 6.6-7 9.2z" />
+      <path d="M4.2 12.2h2.6l1.3-2.4 1.7 4.3 1.5-3 1 1.1h2.4" />
+    </Svg>
+  );
+}
+
 export function MenuIcon(props) {
   return (
     <Svg {...props}>

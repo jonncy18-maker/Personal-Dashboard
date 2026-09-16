@@ -7,6 +7,7 @@ import {
   IdeasIcon,
   EmailIcon,
   MileageIcon,
+  HealthIcon,
 } from './icons';
 
 export const DOMAIN_META = {
@@ -34,6 +35,13 @@ export const DOMAIN_META = {
     icon: MileageIcon,
     color: 'var(--dom-mileage)',
     soft: 'var(--dom-mileage-soft)',
+  },
+  health: {
+    label: 'Health',
+    href: '/health/diet',
+    icon: HealthIcon,
+    color: 'var(--dom-health)',
+    soft: 'var(--dom-health-soft)',
   },
   schedules: {
     label: 'Schedules',

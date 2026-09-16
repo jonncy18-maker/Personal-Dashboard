@@ -270,7 +270,8 @@
 .cardSchedules::before,
 .cardLanguage::before,
 .cardIdeas::before,
-.cardEmail::before {
+.cardEmail::before,
+.cardHealth::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -311,6 +312,10 @@
 .cardEmail {
   --hue-tl: 109 83 209; /* violet */
   --hue-br: 183 79 191; /* magenta */
+}
+.cardHealth {
+  --hue-tl: 200 68 107; /* berry */
+  --hue-br: 209 83 140; /* rose */
 }
 
 .cardTravel {
