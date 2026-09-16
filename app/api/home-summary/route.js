@@ -5,6 +5,7 @@ import { fetchCalendarEvents } from '../../../lib/calendar-events';
 import { yearOf, ptoSummary, netPtoLeft } from '../../../lib/pto';
 import { mileageSummary, monthlyForecast } from '../../../lib/mileage';
 import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
+import { computeTarget, dayTotals, todayYMD } from '../../../lib/health';
 
 // Maintenance's tables are read separately from the main Promise.all, and a
 // failure here degrades to "no maintenance line" instead of taking the whole
@@ -28,6 +29,58 @@ async function loadMaintenanceRows(sql) {
     return { items: [], records: [] };
   }
 }
+// Health reads outside the main batch for the same reason maintenance does —
+// migration 028 lands with the deploy, not before it, so these three tables
+// may not exist for the window between merge and `npm run migrate`.
+async function loadHealthDay(sql, todayStr) {
+  try {
+    const [profileRows, weightRows, entries] = await Promise.all([
+      sql`SELECT * FROM health_profile WHERE id = 1`,
+      sql`SELECT reading_date, weight_lb FROM health_weight_readings
+          WHERE reading_date <= ${todayStr}
+          ORDER BY reading_date DESC LIMIT 1`,
+      sql`SELECT meal, calories, source FROM health_intake_entries
+          WHERE entry_date = ${todayStr}`,
+    ]);
+    const profileRow = profileRows[0];
+    const profile = profileRow
+      ? {
+          ...profileRow,
+          birth_date: dateOnly(profileRow.birth_date),
+          goal_date: dateOnly(profileRow.goal_date),
+          height_in: num(profileRow.height_in),
+          activity_multiplier: num(profileRow.activity_multiplier),
+          goal_weight_lb: num(profileRow.goal_weight_lb),
+          floor_pct: num(profileRow.floor_pct),
+        }
+      : null;
+    const latestWeight = weightRows[0]
+      ? {
+          reading_date: dateOnly(weightRows[0].reading_date),
+          weight_lb: num(weightRows[0].weight_lb),
+        }
+      : null;
+
+    const target = computeTarget({ profile, latestWeight, todayStr });
+    const totals = dayTotals(entries);
+    return {
+      target: target.target,
+      consumed: totals.total,
+      // The card must never show a bare figure without this pair: `estimated`
+      // drives the tilde, `meals_logged` / `entry_count` drive the
+      // completeness line that stops an unlogged day reading as a good one.
+      estimated: totals.estimated,
+      meals_logged: totals.mealsLogged,
+      entry_count: totals.entryCount,
+      remaining: target.target == null ? null : target.target - totals.total,
+      weight_lb: target.weightLb,
+    };
+  } catch (err) {
+    console.error('[home-summary] health read failed:', err);
+    return null;
+  }
+}
+
 import { collapseMergedTrips } from '../../../lib/trip-merge';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -129,6 +182,8 @@ export const GET = route(async () => {
     sql`SELECT id, reading_date, odometer FROM mileage_readings ORDER BY reading_date ASC`,
     sql`SELECT id, active, impact_1yr, impact_2yr, impact_3yr FROM mileage_scenarios`,
   ]);
+
+  const health = await loadHealthDay(sql, todayYMD());
 
   const { items: maintenanceItemRows, records: maintenanceRecordRows } =
     await loadMaintenanceRows(sql);
@@ -260,6 +315,7 @@ export const GET = route(async () => {
     // Not wired yet — a real count needs a live Gmail call, which the rest of
     // this app deliberately avoids doing on every page load (see CLAUDE.md
     // §7 and the Unsplash/Vercel "never per page load" precedent).
+    health,
     email: { important_count: null, note: null },
     // To-do's flagged from the Email module — snapshot fields only, no Gmail
     // call. Rendered as the hero's "To-do's" block beside "Up next".

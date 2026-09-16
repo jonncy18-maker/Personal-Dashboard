@@ -106,6 +106,7 @@ const CARD_VARIANT = {
   language: styles.cardLanguage,
   ideas: styles.cardIdeas,
   email: styles.cardEmail,
+  health: styles.cardHealth,
 };
 
 function fmtMiles(n) {
@@ -285,6 +286,47 @@ export default function DomainGrid({ summary }) {
                 {serviceDueText(summary.mileage.nextService)}
               </span>
             </p>
+          )}
+        </Card>
+
+        <Card domain="health" pill="Today">
+          {summary.health?.remaining == null ? (
+            <p className={styles.detail}>Set your goal to see a daily target</p>
+          ) : (
+            <>
+              <div className={styles.metric}>
+                <span
+                  className={`${styles.metricNum} tabular`}
+                  style={
+                    summary.health.remaining < 0
+                      ? { color: 'var(--warn)' }
+                      : undefined
+                  }
+                >
+                  {summary.health.estimated ? '~' : ''}
+                  {Math.abs(
+                    Math.round(summary.health.remaining)
+                  ).toLocaleString()}
+                </span>
+                <span className={styles.metricUnit}>
+                  {summary.health.remaining < 0 ? 'over' : 'left'}
+                </span>
+              </div>
+              {/* The completeness line is load-bearing, not decoration: without
+                  it a day with nothing logged renders the full target as if it
+                  were a day eaten well. */}
+              <p className={styles.detail}>
+                {summary.health.entry_count === 0
+                  ? 'Nothing logged today'
+                  : `${summary.health.meals_logged} of 4 meals logged`}
+                {summary.health.weight_lb != null && (
+                  <>
+                    {' · '}
+                    <strong>{summary.health.weight_lb} lb</strong>
+                  </>
+                )}
+              </p>
+            </>
           )}
         </Card>
 
