@@ -145,7 +145,7 @@ These are the rules where a violation is a real incident, not a style disagreeme
 
 ## 8. Cross-Cutting Rules
 
-**No auth — and don't add it back.** Single-user private app. The blueprint's same-origin Neon Auth pattern does not apply here. If access needs gating, do it at the Vercel project level, not by reintroducing an auth layer.
+**No auth — and don't add it back.** Single-user private app. The blueprint's same-origin Neon Auth pattern does not apply here. If access needs gating, do it at the Vercel project level, not by reintroducing an auth layer. **As of 2026-09-17, it isn't gated there either** — Vercel Authentication was turned off deliberately (ROADMAP.md's Health MCP entries) so claude.ai's OAuth connector could reach `/api/mcp/health`; that wall was blocking every automated caller, not just unwanted ones. The app is now reachable by anyone with its `.vercel.app` URL, no password, by design — `HEALTH_MCP_TOKEN` and its OAuth wrapper still gate the MCP write tools specifically. Don't silently re-enable Vercel Authentication to "fix" this; it would re-break the connector the same way.
 
 **Schedules vs Idea Board — the boundary is the due date, not topic.** Idea Board = no due date, "someday/maybe." Schedules = has a due date, actionable now. Kept as **separate tables** deliberately (`ideas` has no date column; `schedules.due_date` is `NOT NULL`). Do not merge them into one table with an optional date.
 
