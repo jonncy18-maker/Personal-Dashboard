@@ -69,6 +69,18 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-17 (cont'd 6) — Health entries become editable everywhere, not just deletable
+
+Reviewing the app-wide MCP PR's preview, John hit a real gap: no way to fix a typo or a wrong calorie figure on a logged food entry without deleting and re-adding it. Turned out the backend already supported this (`PATCH /api/health/intake/[id]`, with its re-tier-a-hand-edited-label rule intact) — `/health/diet` had just never grown an edit affordance, only delete.
+
+**`/health/diet` (the page):** added a pencil button next to delete on each entry, opening an inline edit form (description/calories/source, reusing `AddEntryForm`'s field shape). The client only sends `source` in the PATCH when the dropdown was actually touched — sending the unchanged value explicitly would have silently skipped the API's own re-tier rule (a calorie edit with no explicit new source auto-downgrades a `label` row to `estimated`).
+
+**Then John asked for the same capability everywhere Claude can already touch Health** — the in-app Assistant and both MCP servers. Added `update_intake_entry`/`delete_intake_entry` to `lib/health-mcp-tools.js` (now five tools, not three), mirroring the API route's PATCH/DELETE logic exactly including the re-tier rule, so all four surfaces (page, in-app Assistant, Health MCP, app-wide MCP) enforce the identical honesty mechanism from one implementation.
+
+**That surfaced a bigger, pre-existing gap while fixing the smaller one: the in-app AI Assistant had zero Health tools at all**, not just missing edit/delete — `lib/assistant.js`'s `CATALOG` never had a Health section, so John's in-app chat couldn't read or log anything Health-related, let alone edit it. Fixed by merging `HEALTH_TOOLS` into `TOOLS` and adding a Health branch to `executeTool` that dispatches straight to `callHealthTool` (direct DB, via `lib/health-mcp-tools.js`) instead of a same-origin fetch — the one deliberate, documented exception to CLAUDE.md §7.5's "calls this app's own api routes" rule, called out in `lib/assistant.js`'s header comment so a future session doesn't read it as a violation. This one change gave the in-app Assistant full Health parity for free and, since `/api/mcp/app` already imports `TOOLS`/`executeTool` unchanged, let that route's `callTool` collapse from a hand-rolled Health/non-Health branch back down to a single `executeTool` call — one dispatch point instead of two.
+
+**Verified:** `npm run build` compiles clean. **Not yet verified:** the edit UI and the new MCP tools against live data — same standing caveat as the rest of this run of entries.
+
 ## 2026-09-17 (cont'd 5) — App-wide MCP server: the whole dashboard over claude.ai, not just Health
 
 Once the Health MCP connector actually worked end to end, John asked for the obvious next step: an MCP server covering the whole app, not just Health. Scoped it in two questions rather than assuming: reuse the in-app AI Assistant's existing allowlisted catalog (`lib/assistant.js`) rather than inventing a broader one, and ship it as one unified server rather than a second standalone one alongside Health's. Both confirmed.
