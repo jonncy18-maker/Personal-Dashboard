@@ -1,5 +1,6 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { computeTarget, dayTotals, todayYMD } from '../../../../lib/health';
+import { withBypass } from '../../../../lib/health-oauth';
 
 // MCP server for Health › Diet — the PRIMARY capture path (see ROADMAP.md's
 // 2026-09-16 entry). Claude logs food and weight here over a subscription that
@@ -267,12 +268,15 @@ export async function POST(request) {
     // what lets it discover the /authorize, /token and /register endpoints
     // below on its own, instead of needing them hardcoded.
     const { origin } = new URL(request.url);
+    const resourceMetadataUrl = withBypass(
+      `${origin}/.well-known/oauth-protected-resource/api/mcp/health`
+    );
     return Response.json(
       { error: 'unauthorized' },
       {
         status: 401,
         headers: {
-          'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/api/mcp/health"`,
+          'WWW-Authenticate': `Bearer resource_metadata="${resourceMetadataUrl}"`,
         },
       }
     );
