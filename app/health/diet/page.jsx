@@ -26,6 +26,16 @@ const SOURCE_CLASS = {
   estimated: styles.badgeEstimated,
 };
 
+const MISSING_LABELS = {
+  profile: 'your profile',
+  sex: 'sex',
+  height: 'height',
+  age: 'birth date or age',
+  weight: 'a weigh-in',
+  goal_weight: 'a goal weight',
+  goal_date: 'a goal date',
+};
+
 const RING_RADIUS = 70;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -102,7 +112,9 @@ function TargetProvenance({ target, profile }) {
     );
   }
   if (target?.bmr == null) {
-    const missing = (target?.missing || []).join(', ');
+    const missing = (target?.missing || [])
+      .map((key) => MISSING_LABELS[key] || key)
+      .join(', ');
     return (
       <p className={styles.provenance}>
         No target yet — still needs {missing || 'your body stats'}.
@@ -128,6 +140,194 @@ function TargetProvenance({ target, profile }) {
       ) : null}
       Tilde (~) marks a figure containing estimates.
     </p>
+  );
+}
+
+// Height is stored as total inches (matches TargetProvenance's own feet/inches
+// split above) but entered as separate feet/inches fields — nobody thinks in
+// raw inches when typing their own height.
+function heightToFeetInches(heightIn) {
+  if (heightIn == null) return { feet: '', inches: '' };
+  return {
+    feet: String(Math.floor(heightIn / 12)),
+    inches: String(Math.round(heightIn % 12)),
+  };
+}
+
+function ProfileForm({ profile, onSave }) {
+  const [form, setForm] = useState(() => ({
+    sex: profile?.sex || '',
+    birth_date: profile?.birth_date || '',
+    age_years: profile?.age_years ?? '',
+    ...heightToFeetInches(profile?.height_in),
+    activity_multiplier: profile?.activity_multiplier ?? 1.75,
+    goal_weight_lb: profile?.goal_weight_lb ?? '',
+    goal_date: profile?.goal_date || '',
+    floor_pct:
+      profile?.floor_pct != null ? Math.round(profile.floor_pct * 100) : 60,
+    manual_floor_cal: profile?.manual_floor_cal ?? '',
+    manual_target_cal: profile?.manual_target_cal ?? '',
+  }));
+  const [busy, setBusy] = useState(false);
+
+  function set(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    const feet = form.feet === '' ? null : Number(form.feet);
+    const inches = form.inches === '' ? 0 : Number(form.inches);
+    const height_in = feet == null ? '' : feet * 12 + inches;
+    await onSave({
+      sex: form.sex === '' ? '' : form.sex,
+      birth_date: form.birth_date,
+      age_years:
+        form.birth_date !== '' || form.age_years === ''
+          ? ''
+          : Number(form.age_years),
+      height_in,
+      activity_multiplier:
+        form.activity_multiplier === '' ? '' : Number(form.activity_multiplier),
+      goal_weight_lb:
+        form.goal_weight_lb === '' ? '' : Number(form.goal_weight_lb),
+      goal_date: form.goal_date,
+      floor_pct: form.floor_pct === '' ? '' : Number(form.floor_pct) / 100,
+      manual_floor_cal:
+        form.manual_floor_cal === '' ? '' : Number(form.manual_floor_cal),
+      manual_target_cal:
+        form.manual_target_cal === '' ? '' : Number(form.manual_target_cal),
+    });
+    setBusy(false);
+  }
+
+  return (
+    <form className={styles.profileForm} onSubmit={submit}>
+      <div className={styles.profileGrid}>
+        <label className={styles.field}>
+          <span>Sex</span>
+          <select
+            className={styles.select}
+            value={form.sex}
+            onChange={(e) => set('sex', e.target.value)}
+          >
+            <option value="">—</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </label>
+        <label className={styles.field}>
+          <span>Birth date (preferred)</span>
+          <input
+            className={styles.input}
+            type="date"
+            value={form.birth_date}
+            onChange={(e) => set('birth_date', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>…or age, if not</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="0"
+            value={form.age_years}
+            onChange={(e) => set('age_years', e.target.value)}
+            disabled={form.birth_date !== ''}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Height</span>
+          <div className={styles.formRow}>
+            <input
+              className={styles.inputNum}
+              type="number"
+              min="0"
+              placeholder="ft"
+              value={form.feet}
+              onChange={(e) => set('feet', e.target.value)}
+            />
+            <input
+              className={styles.inputNum}
+              type="number"
+              min="0"
+              max="11"
+              placeholder="in"
+              value={form.inches}
+              onChange={(e) => set('inches', e.target.value)}
+            />
+          </div>
+        </label>
+        <label className={styles.field}>
+          <span>Activity multiplier</span>
+          <input
+            className={styles.input}
+            type="number"
+            step="0.05"
+            min="1"
+            value={form.activity_multiplier}
+            onChange={(e) => set('activity_multiplier', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Safe floor (% of maintenance)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="1"
+            max="100"
+            value={form.floor_pct}
+            onChange={(e) => set('floor_pct', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Goal weight (lb)</span>
+          <input
+            className={styles.input}
+            type="number"
+            step="0.1"
+            min="0"
+            value={form.goal_weight_lb}
+            onChange={(e) => set('goal_weight_lb', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Goal date</span>
+          <input
+            className={styles.input}
+            type="date"
+            value={form.goal_date}
+            onChange={(e) => set('goal_date', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Manual floor override (cal)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="0"
+            placeholder="e.g. from a doctor"
+            value={form.manual_floor_cal}
+            onChange={(e) => set('manual_floor_cal', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Manual target override (cal)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="0"
+            placeholder="stops the formula entirely"
+            value={form.manual_target_cal}
+            onChange={(e) => set('manual_target_cal', e.target.value)}
+          />
+        </label>
+      </div>
+      <button className={styles.saveBtn} type="submit" disabled={busy}>
+        {busy ? 'Saving…' : 'Save profile'}
+      </button>
+    </form>
   );
 }
 
@@ -304,10 +504,23 @@ export default function DietPage() {
   const [day, setDay] = useState(null);
   const [weightInput, setWeightInput] = useState('');
   const [saveError, setSaveError] = useState(null);
+  const [editingProfile, setEditingProfile] = useState(false);
 
   useEffect(() => {
     if (data) setDay(data);
   }, [data]);
+
+  // Open the profile editor by itself the first time there is nothing to
+  // compute a target from — otherwise "no target yet" is a dead end with no
+  // visible way to fix it. Only checked once, on first load.
+  const [checkedProfile, setCheckedProfile] = useState(false);
+  useEffect(() => {
+    if (!data || checkedProfile) return;
+    setCheckedProfile(true);
+    if (data.profile?.sex == null && data.profile?.height_in == null) {
+      setEditingProfile(true);
+    }
+  }, [data, checkedProfile]);
 
   const byMeal = useMemo(() => {
     const grouped = Object.fromEntries(MEALS.map((m) => [m.value, []]));
@@ -363,6 +576,22 @@ export default function DietPage() {
     }
   }
 
+  async function saveProfile(patch) {
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/health', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setEditingProfile(false);
+      reload();
+    } catch {
+      setSaveError('Could not save your profile.');
+    }
+  }
+
   if (loading && !day) return <p className={styles.loading}>Loading…</p>;
   if (error && !day) return <p className={styles.loadError}>{error}</p>;
   if (!day) return null;
@@ -380,7 +609,24 @@ export default function DietPage() {
             <p className={styles.pageSub}>{absoluteDate(day.date)}</p>
           </div>
         </div>
+        <button
+          className={styles.editProfileBtn}
+          onClick={() => setEditingProfile((v) => !v)}
+        >
+          {editingProfile ? 'Close' : 'Edit profile'}
+        </button>
       </div>
+
+      {editingProfile ? (
+        <section className={styles.profileCard}>
+          <h3 className={styles.cardTitle}>Your profile</h3>
+          <p className={styles.profileHint}>
+            Feeds the Mifflin–St Jeor target below. Nothing here is shared or
+            used anywhere else in the app.
+          </p>
+          <ProfileForm profile={profile} onSave={saveProfile} />
+        </section>
+      ) : null}
 
       {saveError ? <p className={styles.loadError}>{saveError}</p> : null}
 
