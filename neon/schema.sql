@@ -21,7 +21,8 @@
 --                      022_mileage_travel_exclusions, 023_trip_merge,
 --                      024_pto_banked_shortfall, 025_mileage_scenario_timing,
 --                      026_car_maintenance, 027_trip_history_scan,
---                      028_health_diet, 029_health_mcp_oauth
+--                      028_health_diet, 029_health_mcp_oauth,
+--                      030_health_steps
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -653,10 +654,14 @@ INSERT INTO health_profile (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 -- than appending), which is what makes the upsert in the API safe. Gaps are
 -- expected and are never interpolated: John weighs sporadically, so a missing
 -- week is a missing week, not a value to invent.
+-- weight_lb is nullable (migration 030): a steps-only day is a real row with
+-- no weight in it. `steps` is a display/log-only metric, deliberately never
+-- fed into any calorie math — see that migration's comment.
 CREATE TABLE IF NOT EXISTS health_weight_readings (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   reading_date  date NOT NULL UNIQUE,
-  weight_lb     numeric(5, 1) NOT NULL,
+  weight_lb     numeric(5, 1),
+  steps         integer CHECK (steps >= 0),
   note          text,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()

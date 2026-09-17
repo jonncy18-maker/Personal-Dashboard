@@ -37,7 +37,7 @@ async function loadHealthDay(sql, todayStr) {
     const [profileRows, weightRows, entries] = await Promise.all([
       sql`SELECT * FROM health_profile WHERE id = 1`,
       sql`SELECT reading_date, weight_lb FROM health_weight_readings
-          WHERE reading_date <= ${todayStr}
+          WHERE reading_date <= ${todayStr} AND weight_lb IS NOT NULL
           ORDER BY reading_date DESC LIMIT 1`,
       sql`SELECT meal, calories, source FROM health_intake_entries
           WHERE entry_date = ${todayStr}`,

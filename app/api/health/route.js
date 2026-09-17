@@ -10,7 +10,11 @@ import { computeTarget, dayTotals, todayYMD } from '../../../lib/health';
 // CLAUDE.md §7.8 — NUMERIC columns arrive from the Neon driver as strings and
 // the arithmetic in lib/health.js would silently concatenate them.
 
-const TREND_DAYS = 90;
+// Wide enough to cover "year to date" and a custom range spanning a couple
+// of years without another round trip; the client slices it down to
+// whatever window (This Month / YTD / custom) is actually being viewed.
+// Cheap for one user's dated rows either way.
+const TREND_DAYS = 3650;
 
 function shapeProfile(row) {
   if (!row) return null;
@@ -30,6 +34,7 @@ function shapeReading(row) {
     ...row,
     reading_date: dateOnly(row.reading_date),
     weight_lb: num(row.weight_lb),
+    steps: row.steps == null ? null : Number(row.steps),
   };
 }
 
@@ -44,16 +49,26 @@ export const GET = route(async (request) => {
   const profile = shapeProfile(profileRow);
 
   const [latestRow] = await sql`
-    SELECT id, reading_date, weight_lb, note
+    SELECT id, reading_date, weight_lb, steps, note
     FROM health_weight_readings
-    WHERE reading_date <= ${todayStr}
+    WHERE reading_date <= ${todayStr} AND weight_lb IS NOT NULL
     ORDER BY reading_date DESC
     LIMIT 1
   `;
   const latestWeight = latestRow ? shapeReading(latestRow) : null;
 
+  // The viewed day's own steps, distinct from latestWeight above: weight
+  // forward-fills (the most recent reading stands in until a newer one
+  // arrives, since it's the target's input), but steps are a per-day fact —
+  // no reading for today does not mean "assume yesterday's step count."
+  const [todayStepsRow] = await sql`
+    SELECT steps FROM health_weight_readings WHERE reading_date = ${todayStr}
+  `;
+  const todaySteps =
+    todayStepsRow?.steps == null ? null : Number(todayStepsRow.steps);
+
   const trendRows = await sql`
-    SELECT id, reading_date, weight_lb, note
+    SELECT id, reading_date, weight_lb, steps, note
     FROM health_weight_readings
     ORDER BY reading_date DESC
     LIMIT ${TREND_DAYS}
@@ -87,6 +102,7 @@ export const GET = route(async (request) => {
     remaining,
     entries,
     latestWeight,
+    todaySteps,
     trend: trendRows.map(shapeReading).reverse(),
   });
 });

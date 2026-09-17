@@ -46,6 +46,46 @@
   color: var(--ink-muted);
   font-weight: 600;
 }
+.dateNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+.dateNav .pageSub {
+  margin: 0;
+  min-width: 150px;
+  text-align: center;
+}
+.dateNavBtn {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--ink-muted);
+  cursor: pointer;
+  flex: none;
+}
+.dateNavBtn:hover:not(:disabled) {
+  border-color: var(--dom-health);
+  color: var(--dom-health);
+}
+.dateNavBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.dateNavToday {
+  background: none;
+  border: none;
+  color: var(--dom-health);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+}
 
 .editProfileBtn {
   background: var(--surface-sunken);
@@ -461,6 +501,77 @@
 }
 
 /* ── weight ─────────────────────────────────────────────── */
+.tabRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.tabBtn,
+.tabActive {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tabBtn {
+  color: var(--ink-muted);
+}
+.tabActive {
+  color: #fff;
+  background: var(--dom-health);
+  border-color: var(--dom-health);
+}
+.todayStatsRow {
+  display: flex;
+  gap: 28px;
+  margin-bottom: 4px;
+}
+.trendFilterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.trendFilterTabs {
+  display: flex;
+  gap: 6px;
+}
+.trendFilterBtn,
+.trendFilterActive {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.trendFilterBtn {
+  color: var(--ink-muted);
+}
+.trendFilterActive {
+  color: var(--dom-health);
+  border-color: var(--dom-health);
+  background: var(--warn-soft);
+}
+.trendCustomRange {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.trendCustomRange .input {
+  padding: 6px 8px;
+  font-size: 12px;
+  min-height: 32px;
+  width: auto;
+}
 .weightNow {
   display: flex;
   align-items: baseline;
