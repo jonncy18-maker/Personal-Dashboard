@@ -100,6 +100,34 @@ function BudgetRing({ consumed, target, estimated }) {
   );
 }
 
+// The activity-multiplier clause of the provenance line — separate component
+// since it branches three ways (manual, steps-derived, steps-pending) and
+// each needs its own honest phrasing rather than a bare number.
+function ActivityProvenance({ target }) {
+  if (target?.activityProvenance === 'steps_trailing') {
+    return (
+      <>
+        ×{target.activityMultiplier} ({target.activityLabel}, avg{' '}
+        {Math.round(target.activityAvgSteps).toLocaleString()} steps/day over{' '}
+        {target.activityWindowDays} days)
+      </>
+    );
+  }
+  if (target?.activityProvenance === 'steps_trailing_pending') {
+    const need = Math.max(
+      0,
+      (target.activityMinDaysNeeded ?? 0) - (target.activityDaysLogged ?? 0)
+    );
+    return (
+      <>
+        ×{target.activityMultiplier} manual (not enough step data yet — need{' '}
+        {need} more logged day{need === 1 ? '' : 's'})
+      </>
+    );
+  }
+  return <>×{target?.activityMultiplier}</>;
+}
+
 function TargetProvenance({ target, profile }) {
   if (target?.provenance === 'manual') {
     return (
@@ -127,7 +155,8 @@ function TargetProvenance({ target, profile }) {
       Mifflin–St Jeor · {target.weightLb} lb
       {height == null ? '' : `, ${feet}′${inches}″`}
       {target.age == null ? '' : `, ${target.age}`}
-      {profile?.sex ? `, ${profile.sex}` : ''} · ×{profile?.activity_multiplier}
+      {profile?.sex ? `, ${profile.sex}` : ''} ·{' '}
+      <ActivityProvenance target={target} />
       <br />
       {target.weightAgeDays != null && target.weightAgeDays > 0 ? (
         <>
@@ -158,6 +187,8 @@ function ProfileForm({ profile, onSave }) {
     age_years: profile?.age_years ?? '',
     ...heightToFeetInches(profile?.height_in),
     activity_multiplier: profile?.activity_multiplier ?? 1.75,
+    activity_source: profile?.activity_source || 'manual',
+    activity_trailing_days: profile?.activity_trailing_days ?? 14,
     goal_weight_lb: profile?.goal_weight_lb ?? '',
     goal_date: profile?.goal_date || '',
     floor_pct:
@@ -187,6 +218,11 @@ function ProfileForm({ profile, onSave }) {
       height_in,
       activity_multiplier:
         form.activity_multiplier === '' ? '' : Number(form.activity_multiplier),
+      activity_source: form.activity_source,
+      activity_trailing_days:
+        form.activity_trailing_days === ''
+          ? ''
+          : Number(form.activity_trailing_days),
       goal_weight_lb:
         form.goal_weight_lb === '' ? '' : Number(form.goal_weight_lb),
       goal_date: form.goal_date,
@@ -257,7 +293,34 @@ function ProfileForm({ profile, onSave }) {
           </div>
         </label>
         <label className={styles.field}>
-          <span>Activity multiplier</span>
+          <span>Activity multiplier source</span>
+          <select
+            className={styles.select}
+            value={form.activity_source}
+            onChange={(e) => set('activity_source', e.target.value)}
+          >
+            <option value="manual">Manual</option>
+            <option value="steps_trailing">From trailing steps</option>
+          </select>
+        </label>
+        {form.activity_source === 'steps_trailing' ? (
+          <label className={styles.field}>
+            <span>Trailing window (days)</span>
+            <input
+              className={styles.input}
+              type="number"
+              min="1"
+              value={form.activity_trailing_days}
+              onChange={(e) => set('activity_trailing_days', e.target.value)}
+            />
+          </label>
+        ) : null}
+        <label className={styles.field}>
+          <span>
+            {form.activity_source === 'steps_trailing'
+              ? 'Fallback activity multiplier'
+              : 'Activity multiplier'}
+          </span>
           <input
             className={styles.input}
             type="number"

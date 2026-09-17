@@ -22,7 +22,7 @@
 --                      024_pto_banked_shortfall, 025_mileage_scenario_timing,
 --                      026_car_maintenance, 027_trip_history_scan,
 --                      028_health_diet, 029_health_mcp_oauth,
---                      030_health_steps
+--                      030_health_steps, 031_health_activity_source
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -628,6 +628,14 @@ CREATE TABLE IF NOT EXISTS health_profile (
   age_years            integer,
   height_in            numeric(4, 1),
   activity_multiplier  numeric(3, 2) NOT NULL DEFAULT 1.75,
+  -- 'manual' (default): activity_multiplier above is used as-is. 'steps_trailing':
+  -- the multiplier is derived from a trailing average of logged steps
+  -- (migration 031) once activity_trailing_days has enough logged days;
+  -- until then activity_multiplier is the fallback. Never credits steps back
+  -- intraday — see lib/health.js's computeTarget.
+  activity_source      text NOT NULL DEFAULT 'manual'
+                       CHECK (activity_source IN ('manual', 'steps_trailing')),
+  activity_trailing_days integer NOT NULL DEFAULT 14 CHECK (activity_trailing_days > 0),
   goal_weight_lb       numeric(5, 1),
   goal_date            date,
   -- The safe floor the daily target may never fall below, as a fraction of
