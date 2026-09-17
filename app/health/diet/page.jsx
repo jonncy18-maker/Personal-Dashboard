@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useResource } from '../../../lib/useResource';
 import { absoluteDate } from '../../../lib/format';
+import { todayYMD, addDays } from '../../../lib/health';
 import styles from './page.module.css';
 
 const MEALS = [
@@ -51,7 +52,7 @@ function withTilde(n, estimated) {
 
 // What keeps an unlogged day from reading as a good day.
 function completenessLabel(totals) {
-  if (!totals || totals.entryCount === 0) return 'Nothing logged today';
+  if (!totals || totals.entryCount === 0) return 'Nothing logged';
   const meals = totals.mealsLogged;
   return `${meals} of 4 meal${meals === 1 ? '' : 's'} logged`;
 }
@@ -92,11 +93,7 @@ function BudgetRing({ consumed, target, estimated }) {
           {remaining == null ? '—' : withTilde(Math.abs(remaining), estimated)}
         </div>
         <div className={styles.ringCaption}>
-          {remaining == null
-            ? 'no target yet'
-            : over
-              ? 'over today'
-              : 'left today'}
+          {remaining == null ? 'no target yet' : over ? 'over' : 'left'}
         </div>
       </div>
     </div>
@@ -490,10 +487,65 @@ function EditEntryForm({ entry, onSave, onCancel }) {
   );
 }
 
+const TREND_RANGES = [
+  { value: 'month', label: 'This month' },
+  { value: 'ytd', label: 'Year to date' },
+  { value: 'custom', label: 'Custom' },
+];
+
+function TrendFilterBar({
+  range,
+  onRange,
+  customFrom,
+  customTo,
+  onCustomFrom,
+  onCustomTo,
+}) {
+  return (
+    <div className={styles.trendFilterBar}>
+      <div className={styles.trendFilterTabs}>
+        {TREND_RANGES.map((r) => (
+          <button
+            key={r.value}
+            type="button"
+            className={
+              range === r.value
+                ? styles.trendFilterActive
+                : styles.trendFilterBtn
+            }
+            onClick={() => onRange(r.value)}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+      {range === 'custom' ? (
+        <div className={styles.trendCustomRange}>
+          <input
+            className={styles.input}
+            type="date"
+            value={customFrom}
+            onChange={(e) => onCustomFrom(e.target.value)}
+            aria-label="From date"
+          />
+          <span>–</span>
+          <input
+            className={styles.input}
+            type="date"
+            value={customTo}
+            onChange={(e) => onCustomTo(e.target.value)}
+            aria-label="To date"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function WeightTrend({ trend, goalWeight }) {
   const points = trend || [];
   if (points.length === 0) {
-    return <p className={styles.empty}>No weigh-ins logged yet.</p>;
+    return <p className={styles.empty}>No weigh-ins in this range.</p>;
   }
 
   const weights = points.map((p) => p.weight_lb);
@@ -575,19 +627,35 @@ function WeightTrend({ trend, goalWeight }) {
 }
 
 export default function DietPage() {
-  const { data, error, loading, reload } = useResource('/api/health', {
-    errorMessage: 'Could not load your diet data.',
-  });
+  const [viewDate, setViewDate] = useState(() => todayYMD());
+  const isToday = viewDate === todayYMD();
+  const { data, error, loading, reload } = useResource(
+    `/api/health?date=${viewDate}`,
+    { errorMessage: 'Could not load your diet data.' }
+  );
 
   const [day, setDay] = useState(null);
   const [weightInput, setWeightInput] = useState('');
+  const [stepsInput, setStepsInput] = useState('');
   const [saveError, setSaveError] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState(null);
+  const [weightTab, setWeightTab] = useState('today');
+  const [trendRange, setTrendRange] = useState('month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
 
   useEffect(() => {
     if (data) setDay(data);
   }, [data]);
+
+  // The date being browsed is its own thing from the data that arrives for
+  // it — clear stale weight/steps drafts when it changes so a half-typed
+  // figure for yesterday doesn't silently get submitted against today.
+  useEffect(() => {
+    setWeightInput('');
+    setStepsInput('');
+  }, [viewDate]);
 
   // Open the profile editor by itself the first time there is nothing to
   // compute a target from — otherwise "no target yet" is a dead end with no
@@ -609,13 +677,33 @@ export default function DietPage() {
     return grouped;
   }, [day]);
 
+  // Bare 'YYYY-MM-DD' strings sort/compare correctly with plain </>, so a
+  // window is just two boundary strings — no Date-object off-by-one risk
+  // (see lib/health.js's own header comment on why dates here stay strings).
+  const filteredTrend = useMemo(() => {
+    const trend = day?.trend || [];
+    if (trend.length === 0) return [];
+    const today = todayYMD();
+    let from;
+    let to = today;
+    if (trendRange === 'month') {
+      from = `${today.slice(0, 7)}-01`;
+    } else if (trendRange === 'ytd') {
+      from = `${today.slice(0, 4)}-01-01`;
+    } else {
+      from = customFrom || trend[0].reading_date;
+      to = customTo || today;
+    }
+    return trend.filter((r) => r.reading_date >= from && r.reading_date <= to);
+  }, [day, trendRange, customFrom, customTo]);
+
   async function addEntry(payload) {
     setSaveError(null);
     try {
       const res = await fetch('/api/health/intake', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, entry_date: viewDate }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       reload();
@@ -662,13 +750,37 @@ export default function DietPage() {
       const res = await fetch('/api/health/weight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weight_lb: Number(weightInput) }),
+        body: JSON.stringify({
+          weight_lb: Number(weightInput),
+          reading_date: viewDate,
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setWeightInput('');
       reload();
     } catch {
       setSaveError('Could not save that weigh-in.');
+    }
+  }
+
+  async function saveSteps(event) {
+    event.preventDefault();
+    if (stepsInput === '') return;
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/health/weight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          steps: Number(stepsInput),
+          reading_date: viewDate,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setStepsInput('');
+      reload();
+    } catch {
+      setSaveError('Could not save that step count.');
     }
   }
 
@@ -702,7 +814,35 @@ export default function DietPage() {
           <div>
             <p className={styles.eyebrow}>Health</p>
             <h1 className={styles.pageTitle}>Diet</h1>
-            <p className={styles.pageSub}>{absoluteDate(day.date)}</p>
+            <div className={styles.dateNav}>
+              <button
+                className={styles.dateNavBtn}
+                onClick={() => setViewDate((d) => addDays(d, -1))}
+                aria-label="Previous day"
+              >
+                ‹
+              </button>
+              <p className={styles.pageSub}>
+                {absoluteDate(day.date)}
+                {isToday ? ' · Today' : ''}
+              </p>
+              <button
+                className={styles.dateNavBtn}
+                onClick={() => setViewDate((d) => addDays(d, 1))}
+                disabled={isToday}
+                aria-label="Next day"
+              >
+                ›
+              </button>
+              {isToday ? null : (
+                <button
+                  className={styles.dateNavToday}
+                  onClick={() => setViewDate(todayYMD())}
+                >
+                  Today
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <button
@@ -733,7 +873,9 @@ export default function DietPage() {
           estimated={estimated}
         />
         <div className={styles.heroBody}>
-          <p className={styles.heroEyebrow}>Today&rsquo;s budget</p>
+          <p className={styles.heroEyebrow}>
+            {isToday ? 'Today’s budget' : 'Budget'}
+          </p>
           <h2 className={styles.heroTitle}>
             {withTilde(totals.total, estimated)} of {cal(target.target)} logged
           </h2>
@@ -855,40 +997,116 @@ export default function DietPage() {
 
         <section className={styles.card}>
           <div className={styles.cardHead}>
-            <h3 className={styles.cardTitle}>Weight</h3>
+            <h3 className={styles.cardTitle}>Weight &amp; steps</h3>
             <span className={styles.cardMeta}>
               {day.trend.length} reading{day.trend.length === 1 ? '' : 's'}
             </span>
           </div>
 
-          <div className={styles.weightNow}>
-            <span className={`${styles.weightNum} tabular`}>
-              {day.latestWeight ? day.latestWeight.weight_lb : '—'}
-            </span>
-            <span className={styles.weightUnit}>lb</span>
+          <div className={styles.tabRow}>
+            <button
+              className={
+                weightTab === 'today' ? styles.tabActive : styles.tabBtn
+              }
+              onClick={() => setWeightTab('today')}
+            >
+              Today
+            </button>
+            <button
+              className={
+                weightTab === 'trend' ? styles.tabActive : styles.tabBtn
+              }
+              onClick={() => setWeightTab('trend')}
+            >
+              Trend
+            </button>
           </div>
 
-          <WeightTrend trend={day.trend} goalWeight={profile?.goal_weight_lb} />
+          {weightTab === 'today' ? (
+            <>
+              <div className={styles.todayStatsRow}>
+                <div>
+                  <div className={styles.weightNow}>
+                    <span className={`${styles.weightNum} tabular`}>
+                      {day.latestWeight ? day.latestWeight.weight_lb : '—'}
+                    </span>
+                    <span className={styles.weightUnit}>lb</span>
+                  </div>
+                  <div className={styles.figureLabel}>
+                    Latest weight
+                    {day.latestWeight
+                      ? ` · ${absoluteDate(day.latestWeight.reading_date)}`
+                      : ''}
+                  </div>
+                </div>
+                <div>
+                  <div className={styles.weightNow}>
+                    <span className={`${styles.weightNum} tabular`}>
+                      {day.todaySteps != null
+                        ? day.todaySteps.toLocaleString()
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className={styles.figureLabel}>
+                    Steps {isToday ? '' : `· ${absoluteDate(day.date)}`}
+                  </div>
+                </div>
+              </div>
 
-          <p className={styles.note}>
-            Points sit where they fall. Gaps stay gaps — nothing is
-            interpolated.
-          </p>
-
-          <form className={styles.weightForm} onSubmit={saveWeight}>
-            <input
-              className={styles.inputNum}
-              type="number"
-              step="0.1"
-              min="0"
-              placeholder="Today's weight"
-              value={weightInput}
-              onChange={(e) => setWeightInput(e.target.value)}
-            />
-            <button className={styles.saveBtn} type="submit">
-              Log weight
-            </button>
-          </form>
+              <form className={styles.weightForm} onSubmit={saveWeight}>
+                <input
+                  className={styles.inputNum}
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="Weight (lb)"
+                  value={weightInput}
+                  onChange={(e) => setWeightInput(e.target.value)}
+                />
+                <button className={styles.saveBtn} type="submit">
+                  Log weight
+                </button>
+              </form>
+              <form className={styles.weightForm} onSubmit={saveSteps}>
+                <input
+                  className={styles.inputNum}
+                  type="number"
+                  step="1"
+                  min="0"
+                  placeholder="Steps"
+                  value={stepsInput}
+                  onChange={(e) => setStepsInput(e.target.value)}
+                />
+                <button className={styles.saveBtn} type="submit">
+                  Log steps
+                </button>
+              </form>
+              {!isToday ? (
+                <p className={styles.note}>
+                  Logging for {absoluteDate(day.date)}, not today.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <TrendFilterBar
+                range={trendRange}
+                onRange={setTrendRange}
+                customFrom={customFrom}
+                customTo={customTo}
+                onCustomFrom={setCustomFrom}
+                onCustomTo={setCustomTo}
+              />
+              <WeightTrend
+                trend={filteredTrend}
+                goalWeight={profile?.goal_weight_lb}
+              />
+              <p className={styles.note}>
+                Points sit where they fall. Gaps stay gaps — nothing is
+                interpolated.
+              </p>
+            </>
+          )}
         </section>
       </div>
     </div>
