@@ -68,6 +68,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-17 (cont'd 3) — Health MCP: the bypass secret can't sit on the issuer field
+
+John set `HEALTH_MCP_TOKEN`, redeployed, and retried with the bypass secret on the connector URL. Real progress this time — Vercel's runtime logs showed the request actually reaching `/api/mcp/health` (401, as expected) and then `.well-known/oauth-protected-resource/api/mcp/health` (200) — the bypass genuinely got past the wall for both. But the trail went cold right there: no request ever followed for `.well-known/oauth-authorization-server/api/mcp/health` or `/register`, and claude.ai reported the same "couldn't register" error.
+
+**Cause:** `protectedResourceMetadata()`'s `authorization_servers` field had the bypass query string stapled onto it. RFC 9728 requires that field to be a clean issuer identifier — no query string, no fragment — so a spec-following client almost certainly rejected it as malformed and silently gave up before ever trying the next hop, rather than erroring loudly.
+
+**Fix:** `authorization_servers` is back to a bare URL. The bet now is on Vercel's bypass **cookie** rather than a second query param: the 401 response's `WWW-Authenticate` pointer already requests `x-vercel-set-bypass-cookie=true`, so by the time the client reads the protected-resource document, Vercel should have set a bypass cookie on that HTTP session — which, if the client's fetcher preserves cookies across the sequence of calls it makes while setting up one connector, should carry it past the wall for the `.well-known/oauth-authorization-server` fetch too, with no query param needed there since none is allowed. This is the same honest unknown as before: it depends on cookie-jar behavior in claude.ai's backend that we can't inspect from here.
+
+**Unresolved if this doesn't work either:** the wall has now proven it will happily let clean, un-bypassed requests through if a valid bypass cookie is present, but we have no way to confirm from here whether it actually followed through. Next diagnostic step if this fails is the same Vercel runtime-log check — did `.well-known/oauth-authorization-server/api/mcp/health` get hit at all — which tells us definitively whether it's a cookie problem (client never sent one) or something else entirely.
+
 ## 2026-09-17 (cont'd 2) — Health MCP: Vercel's own auth wall was the real blocker
 
 John retried the connector after the OAuth wrapper merged and hit the identical error. Checked Vercel's runtime logs across every `/api/mcp/health*` and `/.well-known/*` path for the prior two hours — **zero requests**, even though the production deployment had the new routes. The actual cause: this Vercel project has **Vercel Authentication** (its own login wall, separate from `HEALTH_MCP_TOKEN`) turned on for every `*.vercel.app` URL — confirmed via `get_project_deployment_protection` (`ssoProtection.enabled: true`, `all_except_custom_domains`). That wall intercepts every request at Vercel's edge before it ever reaches app code, so claude.ai's OAuth calls (and, it turns out, any automated caller at all) never got past it.
