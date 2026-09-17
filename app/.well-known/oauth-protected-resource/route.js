@@ -1,11 +1,8 @@
-import { protectedResourceMetadata } from '../../../lib/health-oauth';
+import { createProtectedResourceMetadataHandler } from '../../../lib/mcp-server';
 
-// Root-level fallback for MCP clients that check the origin's well-known
-// path without the resource's own path suffix. Only one resource exists in
-// this app today, so this and the path-suffixed version return the same
-// thing — add a real dispatch here if a second OAuth-gated resource ever
-// shows up.
-export async function GET(request) {
-  const { origin } = new URL(request.url);
-  return Response.json(protectedResourceMetadata(origin));
-}
+// Root-level fallback for an MCP client that checks the origin's well-known
+// path without a resource-specific suffix. Points at the app-wide server
+// (app/api/mcp/app) since that's the more general of the two MCP resources
+// this app exposes — Health's own path-scoped metadata at
+// .well-known/oauth-protected-resource/api/mcp/health is unaffected.
+export const GET = createProtectedResourceMetadataHandler('/api/mcp/app');

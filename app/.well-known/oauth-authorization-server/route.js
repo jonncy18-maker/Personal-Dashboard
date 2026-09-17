@@ -1,8 +1,5 @@
-import { authorizationServerMetadata } from '../../../lib/health-oauth';
+import { createAuthorizationServerMetadataHandler } from '../../../lib/mcp-server';
 
 // Root-level fallback — see the sibling oauth-protected-resource/route.js
-// comment for why this duplicates the path-suffixed version.
-export async function GET(request) {
-  const { origin } = new URL(request.url);
-  return Response.json(authorizationServerMetadata(origin));
-}
+// comment for why this points at the app-wide server.
+export const GET = createAuthorizationServerMetadataHandler('/api/mcp/app');
