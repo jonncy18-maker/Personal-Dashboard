@@ -21,7 +21,7 @@
 --                      022_mileage_travel_exclusions, 023_trip_merge,
 --                      024_pto_banked_shortfall, 025_mileage_scenario_timing,
 --                      026_car_maintenance, 027_trip_history_scan,
---                      028_health_diet
+--                      028_health_diet, 029_health_mcp_oauth
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -704,3 +704,17 @@ CREATE TRIGGER health_intake_entries_set_updated_at
 
 CREATE INDEX IF NOT EXISTS health_intake_entries_date_idx
   ON health_intake_entries (entry_date DESC);
+
+-- OAuth handshake for the Health MCP server (see migration 029). The
+-- access/refresh token this hands back IS HEALTH_MCP_TOKEN itself — this
+-- table only holds short-lived, single-use authorization codes so the code
+-- issued by /authorize can be redeemed at /token from a different serverless
+-- invocation.
+CREATE TABLE IF NOT EXISTS health_mcp_auth_codes (
+  code                   text PRIMARY KEY,
+  code_challenge         text,
+  code_challenge_method  text NOT NULL DEFAULT 'S256',
+  redirect_uri           text NOT NULL,
+  expires_at             timestamptz NOT NULL,
+  created_at             timestamptz NOT NULL DEFAULT now()
+);
