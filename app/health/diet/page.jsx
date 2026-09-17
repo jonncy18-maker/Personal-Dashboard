@@ -412,6 +412,84 @@ function AddEntryForm({ meal, onAdd }) {
   );
 }
 
+function EditEntryForm({ entry, onSave, onCancel }) {
+  const [description, setDescription] = useState(entry.description);
+  const [calories, setCalories] = useState(String(entry.calories));
+  const [source, setSource] = useState(entry.source);
+  const [busy, setBusy] = useState(false);
+
+  const sourceTouched = source !== entry.source;
+  const willReTier =
+    !sourceTouched &&
+    entry.source === 'label' &&
+    Number(calories) !== entry.calories;
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!description.trim() || calories === '') return;
+    setBusy(true);
+    const payload = {
+      description: description.trim(),
+      calories: Number(calories),
+    };
+    // Only send `source` when John actually changed it — otherwise the API's
+    // own re-tier-a-hand-edited-label rule (app/api/health/intake/[id])
+    // decides, the same as if this were a fresh calorie edit from anywhere
+    // else. Always sending the unchanged dropdown value would silently skip
+    // that rule and let a retyped number keep a badge it no longer earns.
+    if (sourceTouched) payload.source = source;
+    const ok = await onSave(payload);
+    setBusy(false);
+    if (ok) onCancel();
+  }
+
+  return (
+    <form className={styles.form} onSubmit={submit}>
+      <input
+        className={styles.input}
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        autoFocus
+      />
+      <div className={styles.formRow}>
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          value={calories}
+          onChange={(e) => setCalories(e.target.value)}
+        />
+        <select
+          className={styles.select}
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          aria-label="Where the number came from"
+        >
+          {SOURCES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label} — {s.hint}
+            </option>
+          ))}
+        </select>
+      </div>
+      {willReTier ? (
+        <p className={styles.reTierNote}>
+          Changing the number moves this to Estimated — a hand-typed figure
+          isn&rsquo;t a transcription anymore.
+        </p>
+      ) : null}
+      <div className={styles.formRow}>
+        <button className={styles.saveBtn} type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+        <button className={styles.cancelBtn} type="button" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function WeightTrend({ trend, goalWeight }) {
   const points = trend || [];
   if (points.length === 0) {
@@ -505,6 +583,7 @@ export default function DietPage() {
   const [weightInput, setWeightInput] = useState('');
   const [saveError, setSaveError] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState(null);
 
   useEffect(() => {
     if (data) setDay(data);
@@ -543,6 +622,23 @@ export default function DietPage() {
       return true;
     } catch {
       setSaveError('Could not save that entry.');
+      return false;
+    }
+  }
+
+  async function updateEntry(id, payload) {
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/health/intake/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+      return true;
+    } catch {
+      setSaveError('Could not save that change.');
       return false;
     }
   }
@@ -708,33 +804,49 @@ export default function DietPage() {
                     </span>
                   ) : null}
                 </div>
-                {rows.map((entry) => (
-                  <div key={entry.id} className={styles.entry}>
-                    <div className={styles.entryMain}>
-                      <span className={styles.entryDesc}>
-                        {entry.description}
+                {rows.map((entry) =>
+                  editingEntryId === entry.id ? (
+                    <EditEntryForm
+                      key={entry.id}
+                      entry={entry}
+                      onSave={(payload) => updateEntry(entry.id, payload)}
+                      onCancel={() => setEditingEntryId(null)}
+                    />
+                  ) : (
+                    <div key={entry.id} className={styles.entry}>
+                      <div className={styles.entryMain}>
+                        <span className={styles.entryDesc}>
+                          {entry.description}
+                        </span>
+                        <span
+                          className={`${styles.badge} ${SOURCE_CLASS[entry.source]}`}
+                        >
+                          {entry.source}
+                        </span>
+                        {entry.logged_via === 'mcp' ? (
+                          <span className={styles.viaBadge}>via Claude</span>
+                        ) : null}
+                      </div>
+                      <span className={`${styles.entryCal} tabular`}>
+                        {withTilde(entry.calories, entry.source !== 'label')}
                       </span>
-                      <span
-                        className={`${styles.badge} ${SOURCE_CLASS[entry.source]}`}
+                      <button
+                        className={styles.editBtn}
+                        onClick={() => setEditingEntryId(entry.id)}
+                        aria-label={`Edit ${entry.description}`}
                       >
-                        {entry.source}
-                      </span>
-                      {entry.logged_via === 'mcp' ? (
-                        <span className={styles.viaBadge}>via Claude</span>
-                      ) : null}
+                        ✎
+                      </button>
+                      <button
+                        className={styles.deleteBtn}
+                        onClick={() => deleteEntry(entry.id)}
+                        aria-label={`Delete ${entry.description}`}
+                      >
+                        ×
+                      </button>
                     </div>
-                    <span className={`${styles.entryCal} tabular`}>
-                      {withTilde(entry.calories, entry.source !== 'label')}
-                    </span>
-                    <button
-                      className={styles.deleteBtn}
-                      onClick={() => deleteEntry(entry.id)}
-                      aria-label={`Delete ${entry.description}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                  )
+                )}
                 <AddEntryForm meal={meal.value} onAdd={addEntry} />
               </div>
             );
