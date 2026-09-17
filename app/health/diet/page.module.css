@@ -350,6 +350,19 @@
   color: var(--ink-faint);
   flex: none;
 }
+.editBtn {
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  flex: none;
+}
+.editBtn:hover {
+  color: var(--dom-health);
+}
 .deleteBtn {
   background: none;
   border: none;
@@ -362,6 +375,12 @@
 }
 .deleteBtn:hover {
   color: var(--critical);
+}
+.reTierNote {
+  margin: -2px 0 0;
+  font-size: 11.5px;
+  color: var(--warn);
+  line-height: 1.4;
 }
 
 /* ── forms ──────────────────────────────────────────────── */

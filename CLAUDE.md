@@ -95,6 +95,7 @@ GOOGLE_REFRESH_TOKEN=
 GITHUB_TOKEN=              # OPTIONAL — raises GitHub rate limit + unlocks private repos (AI Projects)
 GOOGLE_MAPS_API_KEY=       # Geocoding API — Travel map/country stats + Car places/trips/legs
 HEALTH_MCP_TOKEN=          # Bearer token gating the Health MCP server's write tools (fails closed)
+APP_MCP_TOKEN=             # Bearer token gating the app-wide MCP server (/api/mcp/app) — same fail-closed shape
 
 # Client-side (public-prefixed)
 NEXT_PUBLIC_APP_URL=       # Same-origin base URL
@@ -138,7 +139,7 @@ These are the rules where a violation is a real incident, not a style disagreeme
 2. **Gmail access is read-only, full stop.** No code path may call a Gmail write/archive/delete/modify endpoint — "hiding" an email only sets a local flag. Hard boundary, not a revisitable default.
 3. **No fabricated metrics.** A metric comes from real data or a field John maintains, never a hardcoded number — if there's no data source, it does not appear.
 4. **No AI import ever auto-saves.** Every AI import shows a preview for John to confirm/edit before saving — Travel itinerary, French hours, Schedules screenshot, all of them.
-5. **The AI Assistant's tools are an explicit allowlisted catalog of this app's OWN api routes, called over same-origin fetch.** Never give it a direct DB handle, a raw-fetch tool, or a third-party API call.
+5. **The AI Assistant's tools are an explicit allowlisted catalog of this app's OWN api routes, called over same-origin fetch.** Never give it a direct DB handle, a raw-fetch tool, or a third-party API call. **The app-wide MCP server (`/api/mcp/app`, added 2026-09-17) reuses this exact catalog** rather than exposing a second, looser one — a claude.ai connection through it can do exactly what the in-app Assistant chat can do, no more. Extend the catalog once in `lib/assistant.js` and both surfaces pick it up.
 6. **No env var carrying a secret gets a `NEXT_PUBLIC_` prefix**, and anything that touches the Vercel API, Neon connection, Google APIs, or Anthropic API goes through a server-side route handler (`app/api/*`) — the browser never calls any of these directly.
 7. **Applied migrations are immutable** — never edit one; every change is a new numbered file in `neon/migrations/`.
 8. **Coerce `NUMERIC`/`DECIMAL` columns with `num()`** from `lib/db.js` at the API boundary, never in a component.
