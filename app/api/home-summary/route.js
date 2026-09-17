@@ -34,11 +34,17 @@ async function loadMaintenanceRows(sql) {
 // may not exist for the window between merge and `npm run migrate`.
 async function loadHealthDay(sql, todayStr) {
   try {
-    const [profileRows, weightRows, entries] = await Promise.all([
+    const [profileRows, weightRows, stepsRowsRaw, entries] = await Promise.all([
       sql`SELECT * FROM health_profile WHERE id = 1`,
       sql`SELECT reading_date, weight_lb FROM health_weight_readings
           WHERE reading_date <= ${todayStr} AND weight_lb IS NOT NULL
           ORDER BY reading_date DESC LIMIT 1`,
+      // Only needed when activity_source = 'steps_trailing' below, but this
+      // read is cheap and keeping it unconditional avoids a second
+      // profile-dependent round trip inside the same try/catch.
+      sql`SELECT reading_date, steps FROM health_weight_readings
+          WHERE steps IS NOT NULL
+          ORDER BY reading_date DESC LIMIT 60`,
       sql`SELECT meal, calories, source FROM health_intake_entries
           WHERE entry_date = ${todayStr}`,
     ]);
@@ -50,6 +56,7 @@ async function loadHealthDay(sql, todayStr) {
           goal_date: dateOnly(profileRow.goal_date),
           height_in: num(profileRow.height_in),
           activity_multiplier: num(profileRow.activity_multiplier),
+          activity_trailing_days: num(profileRow.activity_trailing_days),
           goal_weight_lb: num(profileRow.goal_weight_lb),
           floor_pct: num(profileRow.floor_pct),
         }
@@ -60,8 +67,17 @@ async function loadHealthDay(sql, todayStr) {
           weight_lb: num(weightRows[0].weight_lb),
         }
       : null;
+    const stepsRows = stepsRowsRaw.map((r) => ({
+      reading_date: dateOnly(r.reading_date),
+      steps: num(r.steps),
+    }));
 
-    const target = computeTarget({ profile, latestWeight, todayStr });
+    const target = computeTarget({
+      profile,
+      latestWeight,
+      todayStr,
+      stepsRows,
+    });
     const totals = dayTotals(entries);
     return {
       target: target.target,

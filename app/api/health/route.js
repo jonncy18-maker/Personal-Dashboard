@@ -24,6 +24,7 @@ function shapeProfile(row) {
     goal_date: dateOnly(row.goal_date),
     height_in: num(row.height_in),
     activity_multiplier: num(row.activity_multiplier),
+    activity_trailing_days: num(row.activity_trailing_days),
     goal_weight_lb: num(row.goal_weight_lb),
     floor_pct: num(row.floor_pct),
   };
@@ -73,6 +74,7 @@ export const GET = route(async (request) => {
     ORDER BY reading_date DESC
     LIMIT ${TREND_DAYS}
   `;
+  const shapedTrend = trendRows.map(shapeReading);
 
   const entryRows = await sql`
     SELECT id, entry_date, meal, description, calories, source,
@@ -86,7 +88,15 @@ export const GET = route(async (request) => {
     entry_date: dateOnly(row.entry_date),
   }));
 
-  const target = computeTarget({ profile, latestWeight, todayStr });
+  // shapedTrend already carries every logged {reading_date, steps} row (well
+  // past any reasonable trailing window) — reused here instead of a second
+  // query. computeTarget's own trailingStepsAverage does the windowing.
+  const target = computeTarget({
+    profile,
+    latestWeight,
+    todayStr,
+    stepsRows: shapedTrend,
+  });
   const totals = dayTotals(entries);
 
   // `remaining` is only meaningful next to the completeness signal the client
@@ -103,7 +113,7 @@ export const GET = route(async (request) => {
     entries,
     latestWeight,
     todaySteps,
-    trend: trendRows.map(shapeReading).reverse(),
+    trend: [...shapedTrend].reverse(),
   });
 });
 
@@ -113,12 +123,16 @@ const PROFILE_FIELDS = [
   'age_years',
   'height_in',
   'activity_multiplier',
+  'activity_source',
+  'activity_trailing_days',
   'goal_weight_lb',
   'goal_date',
   'floor_pct',
   'manual_floor_cal',
   'manual_target_cal',
 ];
+
+const ACTIVITY_SOURCES = ['manual', 'steps_trailing'];
 
 export const PATCH = route(async (request) => {
   const body = await request.json();
@@ -132,6 +146,21 @@ export const PATCH = route(async (request) => {
   }
   if (patch.sex != null && !['male', 'female'].includes(patch.sex)) {
     return Response.json({ error: 'invalid sex' }, { status: 400 });
+  }
+  // activity_source/activity_trailing_days are NOT NULL at the DB level
+  // (schema default 'manual' / 14) — an empty string means "reset to that
+  // default", never "clear to null", unlike every other nullable field above.
+  if ('activity_source' in patch) {
+    patch.activity_source = patch.activity_source || 'manual';
+    if (!ACTIVITY_SOURCES.includes(patch.activity_source)) {
+      return Response.json(
+        { error: 'invalid activity_source' },
+        { status: 400 }
+      );
+    }
+  }
+  if ('activity_trailing_days' in patch) {
+    patch.activity_trailing_days = patch.activity_trailing_days || 14;
   }
 
   // Read-merge-write rather than ten conditional SQL fragments: a field the
@@ -152,6 +181,8 @@ export const PATCH = route(async (request) => {
         age_years           = ${next.age_years},
         height_in           = ${next.height_in},
         activity_multiplier = ${next.activity_multiplier},
+        activity_source     = ${next.activity_source},
+        activity_trailing_days = ${next.activity_trailing_days},
         goal_weight_lb      = ${next.goal_weight_lb},
         goal_date           = ${dateOnly(next.goal_date)},
         floor_pct           = ${next.floor_pct},
