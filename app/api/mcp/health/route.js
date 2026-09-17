@@ -20,6 +20,16 @@ import { computeTarget, dayTotals, todayYMD } from '../../../../lib/health';
 // (initialize / tools/list / tools/call) hand-rolled rather than pulling in
 // @modelcontextprotocol/sdk, keeping the dependency surface as lean as the
 // rest of this stack.
+//
+// OAuth WRAPPER (2026-09-17): claude.ai's hosted "Add custom connector" flow
+// requires OAuth 2.1 + dynamic client registration to reach a remote MCP
+// server at all — a bare bearer header isn't an option there (Claude Code's
+// MCP config still takes one directly and can skip all of this). The
+// sibling authorize/token/register routes plus the two
+// .well-known/oauth-*-server(/api/mcp/health) metadata routes exist only to
+// satisfy that flow. They do not add a second credential: the access/refresh
+// token they ultimately hand back IS this route's own HEALTH_MCP_TOKEN, so
+// the check right below never changes. See lib/health-oauth.js.
 
 const PROTOCOL_VERSION = '2025-06-18';
 
@@ -253,7 +263,19 @@ export async function POST(request) {
     return Response.json({ error: 'server not configured' }, { status: 503 });
   }
   if (request.headers.get('authorization') !== `Bearer ${secret}`) {
-    return Response.json({ error: 'unauthorized' }, { status: 401 });
+    // RFC 9728: pointing an OAuth client at its resource metadata here is
+    // what lets it discover the /authorize, /token and /register endpoints
+    // below on its own, instead of needing them hardcoded.
+    const { origin } = new URL(request.url);
+    return Response.json(
+      { error: 'unauthorized' },
+      {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/api/mcp/health"`,
+        },
+      }
+    );
   }
 
   let body;
