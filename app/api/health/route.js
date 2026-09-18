@@ -77,8 +77,8 @@ export const GET = route(async (request) => {
   const shapedTrend = trendRows.map(shapeReading);
 
   const entryRows = await sql`
-    SELECT id, entry_date, meal, description, calories, source,
-           source_detail, logged_via, created_at
+    SELECT id, entry_date, meal, description, calories, protein_g, carbs_g,
+           fat_g, source, source_detail, logged_via, created_at
     FROM health_intake_entries
     WHERE entry_date = ${todayStr}
     ORDER BY created_at ASC
@@ -86,6 +86,9 @@ export const GET = route(async (request) => {
   const entries = entryRows.map((row) => ({
     ...row,
     entry_date: dateOnly(row.entry_date),
+    protein_g: num(row.protein_g),
+    carbs_g: num(row.carbs_g),
+    fat_g: num(row.fat_g),
   }));
 
   // shapedTrend already carries every logged {reading_date, steps} row (well
@@ -104,6 +107,22 @@ export const GET = route(async (request) => {
   // an unlogged day is the one way this domain can lie.
   const remaining = target.target == null ? null : target.target - totals.total;
 
+  // Favorites are date-independent templates — fetched alongside the day
+  // view (not a separate round trip) since the page renders them next to
+  // every day's Add form regardless of which date is being viewed.
+  const favoriteRows = await sql`
+    SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g,
+           source, source_detail
+    FROM health_favorite_meals
+    ORDER BY created_at ASC
+  `;
+  const favorites = favoriteRows.map((row) => ({
+    ...row,
+    protein_g: num(row.protein_g),
+    carbs_g: num(row.carbs_g),
+    fat_g: num(row.fat_g),
+  }));
+
   return Response.json({
     date: todayStr,
     profile,
@@ -111,6 +130,7 @@ export const GET = route(async (request) => {
     totals,
     remaining,
     entries,
+    favorites,
     latestWeight,
     todaySteps,
     trend: [...shapedTrend].reverse(),

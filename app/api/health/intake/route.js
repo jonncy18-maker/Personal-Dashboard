@@ -1,4 +1,4 @@
-import { getDb, dateOnly } from '../../../../lib/db';
+import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
 import { todayYMD } from '../../../../lib/health';
 
@@ -11,7 +11,24 @@ const SOURCES = ['label', 'recall', 'estimated'];
 const LOGGED_VIA = ['app', 'mcp'];
 
 function shape(row) {
-  return { ...row, entry_date: dateOnly(row.entry_date) };
+  return {
+    ...row,
+    entry_date: dateOnly(row.entry_date),
+    protein_g: num(row.protein_g),
+    carbs_g: num(row.carbs_g),
+    fat_g: num(row.fat_g),
+  };
+}
+
+// A macro field is optional at every boundary (unlike calories) — omitted or
+// blank means "not logged", never zero. Returns undefined for "not passed at
+// all" vs null for "explicitly cleared", and throws a plain string for the
+// route to turn into a 400 when a value was given but isn't a valid number.
+function parseMacro(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) throw new Error('invalid');
+  return n;
 }
 
 export const GET = route(async (request) => {
@@ -21,15 +38,17 @@ export const GET = route(async (request) => {
 
   const rows = date
     ? await sql`
-        SELECT id, entry_date, meal, description, calories, source,
-               source_detail, logged_via, created_at, updated_at
+        SELECT id, entry_date, meal, description, calories, protein_g,
+               carbs_g, fat_g, source, source_detail, logged_via, created_at,
+               updated_at
         FROM health_intake_entries
         WHERE entry_date = ${date}
         ORDER BY created_at ASC
       `
     : await sql`
-        SELECT id, entry_date, meal, description, calories, source,
-               source_detail, logged_via, created_at, updated_at
+        SELECT id, entry_date, meal, description, calories, protein_g,
+               carbs_g, fat_g, source, source_detail, logged_via, created_at,
+               updated_at
         FROM health_intake_entries
         ORDER BY entry_date DESC, created_at ASC
         LIMIT 500
@@ -74,6 +93,20 @@ export const POST = route(async (request) => {
     );
   }
 
+  let proteinG;
+  let carbsG;
+  let fatG;
+  try {
+    proteinG = parseMacro(body.protein_g);
+    carbsG = parseMacro(body.carbs_g);
+    fatG = parseMacro(body.fat_g);
+  } catch {
+    return Response.json(
+      { error: 'protein_g/carbs_g/fat_g must be non-negative numbers' },
+      { status: 400 }
+    );
+  }
+
   const loggedVia = LOGGED_VIA.includes(body.logged_via)
     ? body.logged_via
     : 'app';
@@ -81,11 +114,13 @@ export const POST = route(async (request) => {
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO health_intake_entries
-      (entry_date, meal, description, calories, source, source_detail, logged_via)
+      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g,
+       source, source_detail, logged_via)
     VALUES (${entryDate}, ${body.meal}, ${description}, ${Math.round(calories)},
+            ${proteinG}, ${carbsG}, ${fatG},
             ${body.source}, ${body.source_detail || null}, ${loggedVia})
-    RETURNING id, entry_date, meal, description, calories, source,
-              source_detail, logged_via, created_at, updated_at
+    RETURNING id, entry_date, meal, description, calories, protein_g, carbs_g,
+              fat_g, source, source_detail, logged_via, created_at, updated_at
   `;
   return Response.json({ entry: shape(row) }, { status: 201 });
 });
