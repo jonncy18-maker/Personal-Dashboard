@@ -73,6 +73,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-18 (cont'd 3) — Trailing net calorie surplus/deficit
+
+John asked for an "accumulated calorie count," which turned out to mean a trailing net surplus/deficit — sum of (consumed − target) over a window — with a filter to move between weekly/monthly/YTD trailing, and days with nothing logged excluded rather than counted as a full deficit.
+
+**What it does.** New `GET /api/health/net?range=week|month|ytd` sums `consumed - target` across the window's logged days only. `week`/`month` are trailing (last 7 / last 30 days including today, not calendar periods); `ytd` is Jan 1 to today. Because the daily target itself can drift (weight changes, a trailing-steps activity multiplier), the route recomputes `computeTarget()` per day in range rather than reusing one number — expensive enough that this is its own lazy-fetched sidebar card (`NetCaloriesCard`) with its own `useResource` call, not folded into the main day payload every page load already pays for.
+
+**The honesty rule carries over from the single-day completeness signal.** A day with zero intake entries is excluded from the sum entirely — not scored as "ate 0, so full deficit that day." The response reports `daysLogged` against the window's real `daysInRange` (e.g. "net −1,240 · 5 of 7 days logged") so a mostly-unlogged window can't misread as a confident total, and bubbles up `estimated` if any counted day's total wasn't all `label`-tier.
+
+**Verification:** spot-checked the grouping SQL and the profile/weight data directly against Neon — 3 logged days in the trailing week, real body-stat profile, sensible target computation. `npm run build` and `npx prettier --write` clean. Not verified in a live browser — no dev server in this sandbox.
+
 ## 2026-09-18 (cont'd 2) — Diet page redesign: timeline over card-grid, after a mockup round
 
 John flagged `/health/diet` as messy — the dark full-width hero banner didn't look good and "Today's meals" (four always-visible meal-bucket sections, each with its own header and Add button even at zero entries) was cluttered. He asked to look at how Travel and Car do minimalism and collapsible sections, so before touching real code this went through a Design-canvas mockup round: five options (A: tidied cards with collapsible sections, B: single-column accordion like Car › Maintenance, C: a chronological timeline with numbers pinned in a sidebar, D: no meal buckets at all — a reverse-chronological chat-style log with a composer bar, E: a dense two-pane table/control-panel). John picked C.

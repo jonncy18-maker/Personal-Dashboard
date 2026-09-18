@@ -1246,6 +1246,61 @@ function RecommendationsCard({ recommendations, onLog, onDelete, onSave }) {
   );
 }
 
+const NET_RANGES = [
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+  { value: 'ytd', label: 'YTD' },
+];
+
+// Trailing net surplus/deficit — its own lazy fetch (not part of the main day
+// resource) since answering it means recomputing the target for every day in
+// the window, not just the one being viewed. A day with nothing logged is
+// excluded server-side rather than counted as a full deficit — see the
+// `/api/health/net` route's own header comment — so `daysLogged` vs
+// `daysInRange` is how this stays honest about how partial the picture is.
+function NetCaloriesCard() {
+  const [range, setRange] = useState('week');
+  const { data } = useResource(`/api/health/net?range=${range}`, {
+    errorMessage: 'Could not load net calories.',
+  });
+
+  return (
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <h3 className={styles.cardTitle}>Net calories</h3>
+      </div>
+      <div className={styles.tabRow}>
+        {NET_RANGES.map((r) => (
+          <button
+            key={r.value}
+            className={range === r.value ? styles.tabActive : styles.tabBtn}
+            onClick={() => setRange(r.value)}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+      {!data || data.daysLogged === 0 ? (
+        <p className={styles.empty}>
+          Not enough logged days yet in this window.
+        </p>
+      ) : (
+        <>
+          <div className={`${styles.netNum} tabular`}>
+            {data.estimated ? '~' : ''}
+            {data.net > 0 ? '+' : ''}
+            {data.net.toLocaleString()}
+          </div>
+          <div className={styles.netCaption}>
+            {data.net > 0 ? 'surplus' : data.net < 0 ? 'deficit' : 'even'} ·{' '}
+            {data.daysLogged} of {data.daysInRange} days logged
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 const TREND_RANGES = [
   { value: 'month', label: 'This month' },
   { value: 'ytd', label: 'Year to date' },
@@ -1804,6 +1859,8 @@ export default function DietPage() {
               <TargetProvenance target={target} profile={profile} />
             )}
           </section>
+
+          <NetCaloriesCard />
 
           <section className={styles.card}>
             <div className={styles.cardHead}>

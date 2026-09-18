@@ -279,6 +279,16 @@
   color: var(--dom-health);
   cursor: pointer;
 }
+.netNum {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.netCaption {
+  font-size: 11px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
 .provenance {
   margin: 10px 0 0;
   font-size: 11.5px;
