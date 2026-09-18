@@ -22,7 +22,8 @@
 --                      024_pto_banked_shortfall, 025_mileage_scenario_timing,
 --                      026_car_maintenance, 027_trip_history_scan,
 --                      028_health_diet, 029_health_mcp_oauth,
---                      030_health_steps, 031_health_activity_source
+--                      030_health_steps, 031_health_activity_source,
+--                      032_health_macros_favorites
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -694,6 +695,10 @@ CREATE INDEX IF NOT EXISTS health_weight_readings_date_idx
 --
 -- `logged_via` records the capture path. Claude-over-MCP is the primary one
 -- by design (see the ROADMAP entry); 'app' is the fallback surface.
+-- protein_g/carbs_g/fat_g (migration 032) are nullable for the same reason
+-- steps is on health_weight_readings: an existing or manually-typed row may
+-- simply not have them, and a NOT NULL default of 0 would misrepresent
+-- "not logged" as "zero grams" — this domain never fabricates a number.
 CREATE TABLE IF NOT EXISTS health_intake_entries (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   entry_date     date NOT NULL,
@@ -701,6 +706,9 @@ CREATE TABLE IF NOT EXISTS health_intake_entries (
                  CHECK (meal IN ('breakfast', 'lunch', 'dinner', 'snack')),
   description    text NOT NULL,
   calories       integer NOT NULL CHECK (calories >= 0),
+  protein_g      numeric(5, 1) CHECK (protein_g >= 0),
+  carbs_g        numeric(5, 1) CHECK (carbs_g >= 0),
+  fat_g          numeric(5, 1) CHECK (fat_g >= 0),
   source         text NOT NULL
                  CHECK (source IN ('label', 'recall', 'estimated')),
   -- Where a `label` came from (a menu, a wrapper, a URL) or what a `recall`
@@ -717,6 +725,29 @@ CREATE TRIGGER health_intake_entries_set_updated_at
 
 CREATE INDEX IF NOT EXISTS health_intake_entries_date_idx
   ON health_intake_entries (entry_date DESC);
+
+-- A reusable template for a meal that repeats verbatim (migration 032) — e.g.
+-- the same breakfast every day. Logging one inserts a fresh
+-- health_intake_entries row copied from these fields; `source` still carries
+-- the same honesty tiers as any other entry, earned by the number itself,
+-- not by being reused.
+CREATE TABLE IF NOT EXISTS health_favorite_meals (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         text NOT NULL,
+  meal         text CHECK (meal IN ('breakfast', 'lunch', 'dinner', 'snack')),
+  description  text NOT NULL,
+  calories     integer NOT NULL CHECK (calories >= 0),
+  protein_g    numeric(5, 1) CHECK (protein_g >= 0),
+  carbs_g      numeric(5, 1) CHECK (carbs_g >= 0),
+  fat_g        numeric(5, 1) CHECK (fat_g >= 0),
+  source       text NOT NULL CHECK (source IN ('label', 'recall', 'estimated')),
+  source_detail text,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+DROP TRIGGER IF EXISTS health_favorite_meals_set_updated_at ON health_favorite_meals;
+CREATE TRIGGER health_favorite_meals_set_updated_at
+  BEFORE UPDATE ON health_favorite_meals FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- OAuth handshake for the Health MCP server (see migration 029). The
 -- access/refresh token this hands back IS HEALTH_MCP_TOKEN itself — this

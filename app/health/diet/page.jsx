@@ -50,6 +50,14 @@ function withTilde(n, estimated) {
   return `${estimated ? '~' : ''}${cal(n)}`;
 }
 
+// A macro total only sums the entries that actually logged it — `complete`
+// (every entry this day has it) decides whether that's the whole day's
+// figure or a partial one, so a partial sum never gets to look complete.
+function macroG(n, complete) {
+  if (n == null) return '—';
+  return `${complete ? '' : '~'}${Math.round(n)}g`;
+}
+
 // What keeps an unlogged day from reading as a good day.
 function completenessLabel(totals) {
   if (!totals || totals.entryCount === 0) return 'Nothing logged';
@@ -395,6 +403,9 @@ function AddEntryForm({ meal, onAdd }) {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [calories, setCalories] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
   const [source, setSource] = useState('estimated');
   const [busy, setBusy] = useState(false);
 
@@ -406,12 +417,18 @@ function AddEntryForm({ meal, onAdd }) {
       meal,
       description: description.trim(),
       calories: Number(calories),
+      protein_g: protein === '' ? '' : Number(protein),
+      carbs_g: carbs === '' ? '' : Number(carbs),
+      fat_g: fat === '' ? '' : Number(fat),
       source,
     });
     setBusy(false);
     if (ok) {
       setDescription('');
       setCalories('');
+      setProtein('');
+      setCarbs('');
+      setFat('');
       setSource('estimated');
       setOpen(false);
     }
@@ -457,6 +474,32 @@ function AddEntryForm({ meal, onAdd }) {
         </select>
       </div>
       <div className={styles.formRow}>
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="protein g"
+          value={protein}
+          onChange={(e) => setProtein(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="carbs g"
+          value={carbs}
+          onChange={(e) => setCarbs(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="fat g"
+          value={fat}
+          onChange={(e) => setFat(e.target.value)}
+        />
+      </div>
+      <div className={styles.formRow}>
         <button className={styles.saveBtn} type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save'}
         </button>
@@ -475,6 +518,15 @@ function AddEntryForm({ meal, onAdd }) {
 function EditEntryForm({ entry, onSave, onCancel }) {
   const [description, setDescription] = useState(entry.description);
   const [calories, setCalories] = useState(String(entry.calories));
+  const [protein, setProtein] = useState(
+    entry.protein_g == null ? '' : String(entry.protein_g)
+  );
+  const [carbs, setCarbs] = useState(
+    entry.carbs_g == null ? '' : String(entry.carbs_g)
+  );
+  const [fat, setFat] = useState(
+    entry.fat_g == null ? '' : String(entry.fat_g)
+  );
   const [source, setSource] = useState(entry.source);
   const [busy, setBusy] = useState(false);
 
@@ -491,6 +543,9 @@ function EditEntryForm({ entry, onSave, onCancel }) {
     const payload = {
       description: description.trim(),
       calories: Number(calories),
+      protein_g: protein === '' ? '' : Number(protein),
+      carbs_g: carbs === '' ? '' : Number(carbs),
+      fat_g: fat === '' ? '' : Number(fat),
     };
     // Only send `source` when John actually changed it — otherwise the API's
     // own re-tier-a-hand-edited-label rule (app/api/health/intake/[id])
@@ -532,6 +587,32 @@ function EditEntryForm({ entry, onSave, onCancel }) {
           ))}
         </select>
       </div>
+      <div className={styles.formRow}>
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="protein g"
+          value={protein}
+          onChange={(e) => setProtein(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="carbs g"
+          value={carbs}
+          onChange={(e) => setCarbs(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="fat g"
+          value={fat}
+          onChange={(e) => setFat(e.target.value)}
+        />
+      </div>
       {willReTier ? (
         <p className={styles.reTierNote}>
           Changing the number moves this to Estimated — a hand-typed figure
@@ -547,6 +628,222 @@ function EditEntryForm({ entry, onSave, onCancel }) {
         </button>
       </div>
     </form>
+  );
+}
+
+function FavoriteRow({ favorite, onLog, onDelete }) {
+  const [meal, setMeal] = useState(favorite.meal || 'breakfast');
+  const [busy, setBusy] = useState(false);
+
+  async function log() {
+    setBusy(true);
+    await onLog(favorite.id, meal);
+    setBusy(false);
+  }
+
+  return (
+    <div className={styles.entry}>
+      <div className={styles.entryMain}>
+        <span className={styles.entryDesc}>{favorite.name}</span>
+        <span className={`${styles.badge} ${SOURCE_CLASS[favorite.source]}`}>
+          {favorite.source}
+        </span>
+      </div>
+      <span className={`${styles.entryCal} tabular`}>
+        {withTilde(favorite.calories, favorite.source !== 'label')}
+      </span>
+      {favorite.meal ? null : (
+        <select
+          className={styles.select}
+          value={meal}
+          onChange={(e) => setMeal(e.target.value)}
+          aria-label={`Meal for ${favorite.name}`}
+        >
+          {MEALS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      )}
+      <button className={styles.addBtn} onClick={log} disabled={busy}>
+        + Log
+      </button>
+      <button
+        className={styles.deleteBtn}
+        onClick={() => onDelete(favorite.id)}
+        aria-label={`Delete favorite ${favorite.name}`}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function NewFavoriteForm({ onSave }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [meal, setMeal] = useState('');
+  const [calories, setCalories] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
+  const [source, setSource] = useState('estimated');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!name.trim() || !description.trim() || calories === '') return;
+    setBusy(true);
+    const ok = await onSave({
+      name: name.trim(),
+      description: description.trim(),
+      meal: meal || '',
+      calories: Number(calories),
+      protein_g: protein === '' ? '' : Number(protein),
+      carbs_g: carbs === '' ? '' : Number(carbs),
+      fat_g: fat === '' ? '' : Number(fat),
+      source,
+    });
+    setBusy(false);
+    if (ok) {
+      setName('');
+      setDescription('');
+      setMeal('');
+      setCalories('');
+      setProtein('');
+      setCarbs('');
+      setFat('');
+      setSource('estimated');
+      setOpen(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button className={styles.addBtn} onClick={() => setOpen(true)}>
+        + New favorite
+      </button>
+    );
+  }
+
+  return (
+    <form className={styles.form} onSubmit={submit}>
+      <input
+        className={styles.input}
+        placeholder="Name (e.g. Usual breakfast)"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        autoFocus
+      />
+      <input
+        className={styles.input}
+        placeholder="What it is"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+      />
+      <div className={styles.formRow}>
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="cal"
+          value={calories}
+          onChange={(e) => setCalories(e.target.value)}
+        />
+        <select
+          className={styles.select}
+          value={meal}
+          onChange={(e) => setMeal(e.target.value)}
+          aria-label="Default meal (optional)"
+        >
+          <option value="">Any meal</option>
+          {MEALS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className={styles.select}
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          aria-label="Where the number came from"
+        >
+          {SOURCES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label} — {s.hint}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className={styles.formRow}>
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="protein g"
+          value={protein}
+          onChange={(e) => setProtein(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="carbs g"
+          value={carbs}
+          onChange={(e) => setCarbs(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="fat g"
+          value={fat}
+          onChange={(e) => setFat(e.target.value)}
+        />
+      </div>
+      <div className={styles.formRow}>
+        <button className={styles.saveBtn} type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          className={styles.cancelBtn}
+          type="button"
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function FavoritesCard({ favorites, onLog, onDelete, onSave }) {
+  return (
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <h3 className={styles.cardTitle}>Favorites</h3>
+        <span className={styles.cardMeta}>{favorites.length} saved</span>
+      </div>
+      {favorites.length === 0 ? (
+        <p className={styles.empty}>
+          Save a meal you eat often (like the same breakfast every day) for
+          one-tap re-logging.
+        </p>
+      ) : (
+        favorites.map((f) => (
+          <FavoriteRow
+            key={f.id}
+            favorite={f}
+            onLog={onLog}
+            onDelete={onDelete}
+          />
+        ))
+      )}
+      <NewFavoriteForm onSave={onSave} />
+    </section>
   );
 }
 
@@ -805,6 +1102,51 @@ export default function DietPage() {
     }
   }
 
+  async function saveFavorite(payload) {
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/health/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+      return true;
+    } catch {
+      setSaveError('Could not save that favorite.');
+      return false;
+    }
+  }
+
+  async function logFavorite(id, meal) {
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/health/favorites/${id}/log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meal, entry_date: viewDate }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+    } catch {
+      setSaveError('Could not log that favorite.');
+    }
+  }
+
+  async function deleteFavorite(id) {
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/health/favorites/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+    } catch {
+      setSaveError('Could not delete that favorite.');
+    }
+  }
+
   async function saveWeight(event) {
     event.preventDefault();
     if (weightInput === '') return;
@@ -972,6 +1314,31 @@ export default function DietPage() {
               <div className={styles.figureLabel}>Target</div>
             </div>
           </div>
+
+          {totals.proteinG != null ||
+          totals.carbsG != null ||
+          totals.fatG != null ? (
+            <div className={styles.figures}>
+              <div>
+                <div className={`${styles.figureNum} tabular`}>
+                  {macroG(totals.proteinG, totals.proteinComplete)}
+                </div>
+                <div className={styles.figureLabel}>Protein</div>
+              </div>
+              <div>
+                <div className={`${styles.figureNum} tabular`}>
+                  {macroG(totals.carbsG, totals.carbsComplete)}
+                </div>
+                <div className={styles.figureLabel}>Carbs</div>
+              </div>
+              <div>
+                <div className={`${styles.figureNum} tabular`}>
+                  {macroG(totals.fatG, totals.fatComplete)}
+                </div>
+                <div className={styles.figureLabel}>Fat</div>
+              </div>
+            </div>
+          ) : null}
 
           <TargetProvenance target={target} profile={profile} />
 
@@ -1171,6 +1538,13 @@ export default function DietPage() {
             </>
           )}
         </section>
+
+        <FavoritesCard
+          favorites={day.favorites || []}
+          onLog={logFavorite}
+          onDelete={deleteFavorite}
+          onSave={saveFavorite}
+        />
       </div>
     </div>
   );
