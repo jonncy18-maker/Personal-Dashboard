@@ -35,6 +35,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Provision `HEALTH_MCP_TOKEN` in Vercel (Production _and_ Preview)** — done, and the claude.ai connector confirmed working live 2026-09-17 after the OAuth wrapper + Vercel-wall saga above (see that run of entries for the full story).
 - [ ] **Run `npm run migrate` after the watch-fed activity multiplier PR merges** — migration 031 (`031_health_activity_source.sql`) adds `activity_source`/`activity_trailing_days` to `health_profile`. Already applied live to Neon ahead of merge (2026-09-17); confirmed both columns exist and `schema_migrations` records the file — flagging here only for the record, not as pending work.
 - [ ] **Run `npm run migrate` after the macros/favorites PR merges** — migration 032 (`032_health_macros_favorites.sql`) adds `protein_g`/`carbs_g`/`fat_g` to `health_intake_entries` and creates `health_favorite_meals`. Already applied live to Neon ahead of merge (2026-09-18); confirmed the columns and table exist. Flagging here only for the record, not as pending work.
+- [ ] **Run `npm run migrate` after the recommended-meals PR merges** — migration 033 (`033_health_recommended_meals.sql`) creates `health_recommended_meals`. Already applied live to Neon ahead of merge (2026-09-18); confirmed the table exists. Flagging here only for the record, not as pending work.
 - [ ] **Provision `APP_MCP_TOKEN` in Vercel (Production _and_ Preview)** — the bearer token gating the new app-wide MCP server (`/api/mcp/app`, see the 2026-09-17 "App-wide MCP server" entry). Same fail-closed shape as `HEALTH_MCP_TOKEN`. Once set and deployed, add (or repoint) a claude.ai connector at `https://personal-dashboard-jonncy18.vercel.app/api/mcp/app` — same setup flow as Health's connector, "Register automatically" (DCR) for the OAuth client option.
 - [ ] **Enter the Health profile once** — sex, height, age (or date of birth), activity multiplier, goal weight and goal date. Until then `/health/diet` honestly shows "no target yet" with the missing inputs named, rather than a plausible default. **UI to do this now exists** (see the 2026-09-17 entry below) — click "Edit profile" on `/health/diet`.
 - [ ] **Build the official-source maintenance sync (PR 2).** Deferred 2026-09-13: `tesla.com` is blocked by the dev environment's egress policy, so no parser could be written against observed output. Capture a real fetch from a Preview deploy first, then build fetch → Haiku extract → preview-diff John accepts per row. Must stay a refresh over working data, never a dependency.
@@ -71,6 +72,20 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 - [x] **Tesla lease mileage calculator — scoped 2026-08-26, built 2026-08-26, "usual trips" baseline added 2026-08-26.** New 7th domain (`/mileage`; renamed to `/car` on 2026-09-13 when maintenance joined it). See the 2026-08-26 entries below for the spec, the mockup review, the build, and the follow-up baseline override. No AI anywhere in it. **Run `npm run migrate` after merge** (migrations 017 and 018).
 
 ---
+
+## 2026-09-18 (cont'd) — Recommended meals: Claude-curated nudges, separate from Favorites
+
+Immediately after the macros/favorites build, John asked for a "recommended meals" feature — but was explicit it's a different thing from Favorites: "Favorites are stuff that I usually eat, 'recommended food' is moreso trying to get me to a healthier eating baseline." Scoped over a short back-and-forth before building:
+
+1. Different from favorites, confirmed above.
+2. Recommendations react to **both** a specific day (remaining calories/macros) and a longer horizon (a standing habit-level suggestion) — hence the `horizon` field (`'today'` | `'ongoing'`).
+3. Claude gets full CRUD control of the list, but — John's words — "should confirm with me first... these recommendations will come from Claude chat, and then I'll say, go ahead and push to the app." There's no in-app preview screen for this the way a screenshot import has one; the chat conversation itself is the confirm step, so every write tool's description says outright never to call without John having just agreed in that same conversation.
+4. Its own table, not a variant of favorites.
+5. A manual fallback on the page too (add/log/delete), when asked directly.
+
+**What got built (migration 033):** `health_recommended_meals` — `horizon`, `for_date` (required for `'today'`, forbidden for `'ongoing'`, enforced by a DB CHECK), `title`/`detail`, and the same optional meal-shaped fields as favorites (`meal`/`calories`/`protein_g`/`carbs_g`/`fat_g`) so a habit-level suggestion can be pure text with nothing to log. No `source` tier on the recommendation itself — logging one always tiers the resulting intake entry `'estimated'`, since it's Claude's own number by construction. Five new MCP tools (`list_recommended_meals`/`add_recommended_meal`/`update_recommended_meal`/`delete_recommended_meal`/`log_recommended_meal`) bring the health tool count to fifteen, plus matching API routes (`/api/health/recommendations`, `[id]`, `[id]/log`) and a Recommended card on `/health/diet` mirroring the Favorites card's shape.
+
+**Verification:** migration 033 applied live to Neon ahead of merge; `npm run build` and `npx prettier --write` both clean (aside from the expected no-parser-for-`.sql` warning). Not verified in a live browser — no dev server in this sandbox.
 
 ## 2026-09-18 — Protein/carbs/fat logging and saved favorite meals
 

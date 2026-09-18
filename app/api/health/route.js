@@ -123,6 +123,24 @@ export const GET = route(async (request) => {
     fat_g: num(row.fat_g),
   }));
 
+  // Recommendations: 'today' ones only matter for the viewed date (a nudge
+  // scoped to Monday's remaining macros is stale by Tuesday), 'ongoing' ones
+  // always show regardless of viewed date.
+  const recommendationRows = await sql`
+    SELECT id, horizon, for_date, title, detail, meal, calories, protein_g,
+           carbs_g, fat_g, created_at
+    FROM health_recommended_meals
+    WHERE horizon = 'ongoing' OR for_date = ${todayStr}
+    ORDER BY horizon ASC, created_at DESC
+  `;
+  const recommendations = recommendationRows.map((row) => ({
+    ...row,
+    for_date: dateOnly(row.for_date),
+    protein_g: num(row.protein_g),
+    carbs_g: num(row.carbs_g),
+    fat_g: num(row.fat_g),
+  }));
+
   return Response.json({
     date: todayStr,
     profile,
@@ -131,6 +149,7 @@ export const GET = route(async (request) => {
     remaining,
     entries,
     favorites,
+    recommendations,
     latestWeight,
     todaySteps,
     trend: [...shapedTrend].reverse(),

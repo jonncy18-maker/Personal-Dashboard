@@ -847,6 +847,228 @@ function FavoritesCard({ favorites, onLog, onDelete, onSave }) {
   );
 }
 
+function RecommendationRow({ rec, onLog, onDelete }) {
+  const [meal, setMeal] = useState(rec.meal || 'breakfast');
+  const [busy, setBusy] = useState(false);
+  const loggable = rec.calories != null;
+
+  async function log() {
+    setBusy(true);
+    await onLog(rec.id, meal);
+    setBusy(false);
+  }
+
+  return (
+    <div className={`${styles.entry} ${styles.recEntry}`}>
+      <div className={styles.entryMain}>
+        <span className={styles.entryDesc}>{rec.title}</span>
+        <span className={styles.viaBadge}>
+          {rec.horizon === 'today' ? 'today' : 'ongoing'}
+        </span>
+      </div>
+      <span className={styles.recDetail}>{rec.detail}</span>
+      {loggable ? (
+        <span className={`${styles.entryCal} tabular`}>
+          ~{cal(rec.calories)}
+        </span>
+      ) : null}
+      {loggable && !rec.meal ? (
+        <select
+          className={styles.select}
+          value={meal}
+          onChange={(e) => setMeal(e.target.value)}
+          aria-label={`Meal for ${rec.title}`}
+        >
+          {MEALS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {loggable ? (
+        <button className={styles.addBtn} onClick={log} disabled={busy}>
+          + Log
+        </button>
+      ) : null}
+      <button
+        className={styles.deleteBtn}
+        onClick={() => onDelete(rec.id)}
+        aria-label={`Delete recommendation ${rec.title}`}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function NewRecommendationForm({ onSave }) {
+  const [open, setOpen] = useState(false);
+  const [horizon, setHorizon] = useState('ongoing');
+  const [title, setTitle] = useState('');
+  const [detail, setDetail] = useState('');
+  const [meal, setMeal] = useState('');
+  const [calories, setCalories] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!title.trim() || !detail.trim()) return;
+    setBusy(true);
+    const ok = await onSave({
+      horizon,
+      title: title.trim(),
+      detail: detail.trim(),
+      meal: meal || '',
+      calories: calories === '' ? '' : Number(calories),
+      protein_g: protein === '' ? '' : Number(protein),
+      carbs_g: carbs === '' ? '' : Number(carbs),
+      fat_g: fat === '' ? '' : Number(fat),
+    });
+    setBusy(false);
+    if (ok) {
+      setHorizon('ongoing');
+      setTitle('');
+      setDetail('');
+      setMeal('');
+      setCalories('');
+      setProtein('');
+      setCarbs('');
+      setFat('');
+      setOpen(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button className={styles.addBtn} onClick={() => setOpen(true)}>
+        + New recommendation
+      </button>
+    );
+  }
+
+  return (
+    <form className={styles.form} onSubmit={submit}>
+      <input
+        className={styles.input}
+        placeholder="Title (e.g. Add fiber at breakfast)"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        autoFocus
+      />
+      <input
+        className={styles.input}
+        placeholder="Detail / reasoning"
+        value={detail}
+        onChange={(e) => setDetail(e.target.value)}
+      />
+      <div className={styles.formRow}>
+        <select
+          className={styles.select}
+          value={horizon}
+          onChange={(e) => setHorizon(e.target.value)}
+          aria-label="Horizon"
+        >
+          <option value="ongoing">Ongoing habit</option>
+          <option value="today">Just for today</option>
+        </select>
+        <select
+          className={styles.select}
+          value={meal}
+          onChange={(e) => setMeal(e.target.value)}
+          aria-label="Default meal (optional)"
+        >
+          <option value="">No specific meal</option>
+          {MEALS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className={styles.note}>
+        Leave calories blank for a pure habit suggestion with nothing to log.
+      </p>
+      <div className={styles.formRow}>
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="cal (optional)"
+          value={calories}
+          onChange={(e) => setCalories(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="protein g"
+          value={protein}
+          onChange={(e) => setProtein(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="carbs g"
+          value={carbs}
+          onChange={(e) => setCarbs(e.target.value)}
+        />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          placeholder="fat g"
+          value={fat}
+          onChange={(e) => setFat(e.target.value)}
+        />
+      </div>
+      <div className={styles.formRow}>
+        <button className={styles.saveBtn} type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          className={styles.cancelBtn}
+          type="button"
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function RecommendationsCard({ recommendations, onLog, onDelete, onSave }) {
+  return (
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <h3 className={styles.cardTitle}>Recommended</h3>
+        <span className={styles.cardMeta}>{recommendations.length}</span>
+      </div>
+      {recommendations.length === 0 ? (
+        <p className={styles.empty}>
+          Nudges toward a healthier baseline — from Claude or added here
+          directly. Distinct from Favorites, which are things you already eat.
+        </p>
+      ) : (
+        recommendations.map((r) => (
+          <RecommendationRow
+            key={r.id}
+            rec={r}
+            onLog={onLog}
+            onDelete={onDelete}
+          />
+        ))
+      )}
+      <NewRecommendationForm onSave={onSave} />
+    </section>
+  );
+}
+
 const TREND_RANGES = [
   { value: 'month', label: 'This month' },
   { value: 'ytd', label: 'Year to date' },
@@ -1144,6 +1366,51 @@ export default function DietPage() {
       reload();
     } catch {
       setSaveError('Could not delete that favorite.');
+    }
+  }
+
+  async function saveRecommendation(payload) {
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/health/recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+      return true;
+    } catch {
+      setSaveError('Could not save that recommendation.');
+      return false;
+    }
+  }
+
+  async function logRecommendation(id, meal) {
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/health/recommendations/${id}/log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meal, entry_date: viewDate }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+    } catch {
+      setSaveError('Could not log that recommendation.');
+    }
+  }
+
+  async function deleteRecommendation(id) {
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/health/recommendations/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+    } catch {
+      setSaveError('Could not delete that recommendation.');
     }
   }
 
@@ -1544,6 +1811,13 @@ export default function DietPage() {
           onLog={logFavorite}
           onDelete={deleteFavorite}
           onSave={saveFavorite}
+        />
+
+        <RecommendationsCard
+          recommendations={day.recommendations || []}
+          onLog={logRecommendation}
+          onDelete={deleteRecommendation}
+          onSave={saveRecommendation}
         />
       </div>
     </div>

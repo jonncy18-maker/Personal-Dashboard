@@ -390,6 +390,15 @@
   color: var(--ink-faint);
   flex: none;
 }
+.recEntry {
+  flex-wrap: wrap;
+}
+.recDetail {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  flex: 1 1 100%;
+  order: 3;
+}
 .editBtn {
   background: none;
   border: none;
