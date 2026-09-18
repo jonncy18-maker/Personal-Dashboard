@@ -147,43 +147,57 @@
   }
 }
 
-/* ── today's budget hero ────────────────────────────────── */
-.hero {
-  position: relative;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  padding: 24px 26px;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-card);
-  background: linear-gradient(160deg, #2a0f1a, #3a1526 60%, #2b1020);
-  color: #fdf4f7;
+/* ── day layout: sidebar (numbers) + main panel (timeline) ── */
+.dayLayout {
   display: flex;
-  align-items: center;
-  gap: 34px;
-  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 20px;
 }
+.sidebar {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mainPanel {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .dayLayout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+  }
+}
+
+/* ── ring + macros (sidebar card) ───────────────────────── */
 .ringWrap {
   position: relative;
-  width: 168px;
-  height: 168px;
-  flex: none;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
 }
 .ring {
-  width: 168px;
-  height: 168px;
+  width: 140px;
+  height: 140px;
 }
 .ringTrack {
-  stroke: rgba(255, 255, 255, 0.1);
-  stroke-width: 14;
+  stroke: var(--surface-sunken);
+  stroke-width: 12;
 }
 .ringArc {
-  stroke: #f07aa0;
-  stroke-width: 14;
+  stroke: var(--dom-health);
+  stroke-width: 12;
   stroke-linecap: round;
 }
 .ringArcOver {
   stroke: var(--warn);
-  stroke-width: 14;
+  stroke-width: 12;
   stroke-linecap: round;
 }
 .ringInner {
@@ -195,47 +209,35 @@
   justify-content: center;
 }
 .ringNum {
-  font-size: 38px;
+  font-size: 26px;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.02em;
+  color: var(--ink);
 }
 .ringCaption {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: rgba(253, 244, 247, 0.62);
-  margin-top: 5px;
-}
-.heroBody {
-  flex: 1 1 320px;
-  min-width: 260px;
-}
-.heroEyebrow {
-  margin: 0 0 3px;
   font-size: 10.5px;
-  letter-spacing: 0.09em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-weight: 800;
-  color: #f0a0bc;
+  color: var(--ink-muted);
+  margin-top: 4px;
 }
-.heroTitle {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 800;
+.ringCaptionRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--ink-muted);
 }
 .completeness {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  margin-top: 11px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  padding: 5px 12px 5px 9px;
+  margin-top: 10px;
   font-size: 12px;
   font-weight: 700;
+  color: var(--ink-muted);
 }
 .dotOk,
 .dotWarn {
@@ -250,46 +252,50 @@
 .dotWarn {
   background: var(--warn);
 }
-.figures {
+.macroBar {
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 14px 0 8px;
+  background: var(--surface-sunken);
 }
-.figures > div {
-  flex: 1 1 110px;
-}
-.figureNum {
-  font-size: 19px;
-  font-weight: 800;
-}
-.figureLabel {
+.macroLegend {
+  display: flex;
+  justify-content: space-between;
   font-size: 11px;
-  color: rgba(253, 244, 247, 0.6);
-  margin-top: 2px;
+  color: var(--ink-muted);
+}
+.formulaToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dom-health);
+  cursor: pointer;
 }
 .provenance {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   font-size: 11.5px;
   line-height: 1.55;
-  color: rgba(253, 244, 247, 0.58);
+  color: var(--ink-muted);
   font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 .clamp {
-  margin: 12px 0 0;
-  font-size: 12.5px;
+  margin: 10px 0 0;
+  font-size: 12px;
   line-height: 1.5;
-  color: #f7c9a0;
+  color: var(--warn);
 }
 
 /* ── cards ──────────────────────────────────────────────── */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -315,29 +321,146 @@
   color: var(--ink-muted);
 }
 
-/* ── meals ──────────────────────────────────────────────── */
-.meal {
-  margin-bottom: 10px;
-}
-.mealHead {
+/* ── timeline ───────────────────────────────────────────── */
+.timelineHead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
 }
+.timeline {
+  position: relative;
+  padding-left: 22px;
+}
+.tlRail {
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--border);
+}
+.tlRow {
+  position: relative;
+  padding-bottom: 14px;
+}
+.tlDot {
+  position: absolute;
+  left: -22px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+.tlMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.tlTime {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.tlMealTag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.tlCardRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--surface-sunken);
+  border-radius: 10px;
+  padding: 9px 12px;
+  min-height: 44px;
+}
+.tlDesc {
+  flex: 1 1 auto;
+  font-size: 13.5px;
+  min-width: 120px;
+}
+.tlMacros {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  flex: none;
+}
+
+/* ── meal library: quick-add chips + collapsible manage panel ── */
+.libraryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.manageToggle {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.manageToggle:hover {
+  color: var(--dom-health);
+}
+.chipRow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px 4px;
+}
+.chip {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--ink);
+  flex: none;
+  min-height: 36px;
+}
+.chip:hover {
+  border-color: var(--dom-health);
+  color: var(--dom-health);
+}
+.chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.manageGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 700px) {
+  .manageGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── shared row bits (favorites / recommendations manage list) ── */
 .mealName {
   font-size: 10.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 800;
   color: var(--ink-faint);
-}
-.mealTotal {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-muted);
 }
 .entry {
   display: flex;
@@ -596,6 +719,11 @@
   color: var(--ink-muted);
   font-weight: 600;
 }
+.figureLabel {
+  font-size: 11px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
 .chart {
   width: 100%;
   height: 175px;
@@ -646,10 +774,4 @@
 .weightForm .inputNum {
   flex: 1;
   width: auto;
-}
-
-@media (max-width: 860px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
 }
