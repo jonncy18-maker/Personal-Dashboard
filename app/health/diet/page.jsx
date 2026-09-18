@@ -13,6 +13,16 @@ const MEALS = [
   { value: 'snack', label: 'Snack' },
 ];
 
+// One accent per meal, reused for the timeline's rail dots and tags — lets an
+// entry be identified by meal at a glance without a repeated text label on
+// every row. Colors are the app's own existing tokens, not new ones.
+const MEAL_INFO = {
+  breakfast: { label: 'Breakfast', color: 'var(--dom-health)' },
+  lunch: { label: 'Lunch', color: 'var(--accent)' },
+  dinner: { label: 'Dinner', color: 'var(--good)' },
+  snack: { label: 'Snack', color: 'var(--warn)' },
+};
+
 // The three source tiers, in descending order of how much the number can be
 // trusted. `label` is the only one that does NOT put a tilde on the day total.
 const SOURCES = [
@@ -37,7 +47,7 @@ const MISSING_LABELS = {
   goal_date: 'a goal date',
 };
 
-const RING_RADIUS = 70;
+const RING_RADIUS = 58;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 function cal(n) {
@@ -65,6 +75,28 @@ function completenessLabel(totals) {
   return `${meals} of 4 meal${meals === 1 ? '' : 's'} logged`;
 }
 
+// A wall-clock time is only honest on the day it's actually being read for —
+// on a past day, `created_at` is when the row was backfilled, not when the
+// meal happened, so callers only pass a real Date in for `isToday`.
+function formatTime(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+// A reasonable default meal for a one-tap quick-add chip that has no default
+// of its own — never asked for, always overridable after the fact by editing
+// the resulting entry, so a wrong guess costs nothing.
+function inferMealFromNow() {
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 20) return 'dinner';
+  return 'snack';
+}
+
 function BudgetRing({ consumed, target, estimated }) {
   const pct =
     target && target > 0
@@ -77,23 +109,23 @@ function BudgetRing({ consumed, target, estimated }) {
 
   return (
     <div className={styles.ringWrap}>
-      <svg viewBox="0 0 168 168" className={styles.ring} aria-hidden="true">
+      <svg viewBox="0 0 140 140" className={styles.ring} aria-hidden="true">
         <circle
-          cx="84"
-          cy="84"
+          cx="70"
+          cy="70"
           r={RING_RADIUS}
           className={styles.ringTrack}
           fill="none"
         />
         <circle
-          cx="84"
-          cy="84"
+          cx="70"
+          cy="70"
           r={RING_RADIUS}
           className={over ? styles.ringArcOver : styles.ringArc}
           fill="none"
           strokeDasharray={RING_CIRCUMFERENCE}
           strokeDashoffset={RING_CIRCUMFERENCE * (1 - pct)}
-          transform="rotate(-90 84 84)"
+          transform="rotate(-90 70 70)"
         />
       </svg>
       <div className={styles.ringInner}>
@@ -103,6 +135,65 @@ function BudgetRing({ consumed, target, estimated }) {
         <div className={styles.ringCaption}>
           {remaining == null ? 'no target yet' : over ? 'over' : 'left'}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// A stacked proportional bar only means something when all three macros are
+// actually known for the day — built from a partial set it would imply a
+// split that was never measured, so it only renders when nothing is missing.
+// The legend numbers still show whatever is known, complete or not.
+function MacroBar({
+  proteinG,
+  proteinComplete,
+  carbsG,
+  carbsComplete,
+  fatG,
+  fatComplete,
+}) {
+  if (proteinG == null && carbsG == null && fatG == null) return null;
+  const total = (proteinG || 0) + (carbsG || 0) + (fatG || 0);
+  const canBar =
+    proteinG != null && carbsG != null && fatG != null && total > 0;
+
+  return (
+    <div>
+      {canBar ? (
+        <div className={styles.macroBar}>
+          <div
+            style={{
+              width: `${(proteinG / total) * 100}%`,
+              background: 'var(--dom-health)',
+            }}
+          />
+          <div
+            style={{
+              width: `${(carbsG / total) * 100}%`,
+              background: 'var(--accent)',
+            }}
+          />
+          <div
+            style={{
+              width: `${(fatG / total) * 100}%`,
+              background: 'var(--warn)',
+            }}
+          />
+        </div>
+      ) : null}
+      <div className={styles.macroLegend}>
+        <span>
+          <span style={{ color: 'var(--dom-health)' }}>●</span> Protein{' '}
+          {macroG(proteinG, proteinComplete)}
+        </span>
+        <span>
+          <span style={{ color: 'var(--accent)' }}>●</span> Carbs{' '}
+          {macroG(carbsG, carbsComplete)}
+        </span>
+        <span>
+          <span style={{ color: 'var(--warn)' }}>●</span> Fat{' '}
+          {macroG(fatG, fatComplete)}
+        </span>
       </div>
     </div>
   );
@@ -399,8 +490,12 @@ function ProfileForm({ profile, onSave }) {
   );
 }
 
-function AddEntryForm({ meal, onAdd }) {
+// The timeline's own add form — unlike the old per-meal Add button, this one
+// carries its own meal picker (defaulted from the time of day) since entries
+// are no longer grouped by meal on screen.
+function AddTimelineEntryForm({ onAdd }) {
   const [open, setOpen] = useState(false);
+  const [meal, setMeal] = useState(() => inferMealFromNow());
   const [description, setDescription] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -437,7 +532,7 @@ function AddEntryForm({ meal, onAdd }) {
   if (!open) {
     return (
       <button className={styles.addBtn} onClick={() => setOpen(true)}>
-        + Log {meal}
+        + Log something
       </button>
     );
   }
@@ -452,6 +547,18 @@ function AddEntryForm({ meal, onAdd }) {
         autoFocus
       />
       <div className={styles.formRow}>
+        <select
+          className={styles.select}
+          value={meal}
+          onChange={(e) => setMeal(e.target.value)}
+          aria-label="Meal"
+        >
+          {MEALS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
         <input
           className={styles.inputNum}
           type="number"
@@ -628,6 +735,76 @@ function EditEntryForm({ entry, onSave, onCancel }) {
         </button>
       </div>
     </form>
+  );
+}
+
+// One row on the day's timeline. `time` is null on a past day (see
+// formatTime's header comment) — created_at reflects when the row was
+// entered, not when the meal happened, so a backfilled day never claims a
+// clock time it doesn't actually know.
+function TimelineRow({ entry, time, onEdit, onDelete }) {
+  const info = MEAL_INFO[entry.meal] || MEAL_INFO.snack;
+  const macroText = [
+    entry.protein_g != null ? `${Math.round(entry.protein_g)}p` : null,
+    entry.carbs_g != null ? `${Math.round(entry.carbs_g)}c` : null,
+    entry.fat_g != null ? `${Math.round(entry.fat_g)}f` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <div className={styles.tlRow}>
+      <span className={styles.tlDot} style={{ background: info.color }} />
+      <div className={styles.tlMeta}>
+        {time ? <span className={styles.tlTime}>{time}</span> : null}
+        <span className={styles.tlMealTag} style={{ color: info.color }}>
+          {info.label}
+        </span>
+      </div>
+      <div className={styles.tlCardRow}>
+        <span className={styles.tlDesc}>{entry.description}</span>
+        <span className={`${styles.badge} ${SOURCE_CLASS[entry.source]}`}>
+          {entry.source}
+        </span>
+        {entry.logged_via === 'mcp' ? (
+          <span className={styles.viaBadge}>via Claude</span>
+        ) : null}
+        {macroText ? (
+          <span className={styles.tlMacros}>{macroText}</span>
+        ) : null}
+        <span className={`${styles.entryCal} tabular`}>
+          {withTilde(entry.calories, entry.source !== 'label')}
+        </span>
+        <button
+          className={styles.editBtn}
+          onClick={onEdit}
+          aria-label={`Edit ${entry.description}`}
+        >
+          ✎
+        </button>
+        <button
+          className={styles.deleteBtn}
+          onClick={onDelete}
+          aria-label={`Delete ${entry.description}`}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MealChip({ item, onLog }) {
+  const [busy, setBusy] = useState(false);
+  async function handleClick() {
+    setBusy(true);
+    await onLog(item);
+    setBusy(false);
+  }
+  return (
+    <button className={styles.chip} onClick={handleClick} disabled={busy}>
+      {item.kind === 'favorite' ? '★' : '✦'} {item.label} · {item.calText}
+    </button>
   );
 }
 
@@ -822,7 +999,7 @@ function NewFavoriteForm({ onSave }) {
 
 function FavoritesCard({ favorites, onLog, onDelete, onSave }) {
   return (
-    <section className={styles.card}>
+    <section>
       <div className={styles.cardHead}>
         <h3 className={styles.cardTitle}>Favorites</h3>
         <span className={styles.cardMeta}>{favorites.length} saved</span>
@@ -1044,7 +1221,7 @@ function NewRecommendationForm({ onSave }) {
 
 function RecommendationsCard({ recommendations, onLog, onDelete, onSave }) {
   return (
-    <section className={styles.card}>
+    <section>
       <div className={styles.cardHead}>
         <h3 className={styles.cardTitle}>Recommended</h3>
         <span className={styles.cardMeta}>{recommendations.length}</span>
@@ -1226,6 +1403,8 @@ export default function DietPage() {
   const [trendRange, setTrendRange] = useState('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [formulaOpen, setFormulaOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   useEffect(() => {
     if (data) setDay(data);
@@ -1251,12 +1430,12 @@ export default function DietPage() {
     }
   }, [data, checkedProfile]);
 
-  const byMeal = useMemo(() => {
-    const grouped = Object.fromEntries(MEALS.map((m) => [m.value, []]));
-    for (const entry of day?.entries || []) {
-      if (grouped[entry.meal]) grouped[entry.meal].push(entry);
-    }
-    return grouped;
+  // The day as one chronological list rather than four always-visible meal
+  // buckets — created_at is the log order, oldest first.
+  const sortedEntries = useMemo(() => {
+    return [...(day?.entries || [])].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    );
   }, [day]);
 
   // Bare 'YYYY-MM-DD' strings sort/compare correctly with plain </>, so a
@@ -1278,6 +1457,29 @@ export default function DietPage() {
     }
     return trend.filter((r) => r.reading_date >= from && r.reading_date <= to);
   }, [day, trendRange, customFrom, customTo]);
+
+  // Quick-add chips: favorites (always loggable) plus recommendations that
+  // actually carry a calorie figure — a pure habit suggestion has nothing to
+  // log and only shows up inside "Manage library."
+  const chipItems = useMemo(() => {
+    const favs = (day?.favorites || []).map((f) => ({
+      kind: 'favorite',
+      id: f.id,
+      label: f.name,
+      meal: f.meal,
+      calText: withTilde(f.calories, f.source !== 'label'),
+    }));
+    const recs = (day?.recommendations || [])
+      .filter((r) => r.calories != null)
+      .map((r) => ({
+        kind: 'recommendation',
+        id: r.id,
+        label: r.title,
+        meal: r.meal,
+        calText: `~${cal(r.calories)}`,
+      }));
+    return [...favs, ...recs];
+  }, [day]);
 
   async function addEntry(payload) {
     setSaveError(null);
@@ -1414,6 +1616,12 @@ export default function DietPage() {
     }
   }
 
+  async function logChip(item) {
+    const meal = item.meal || inferMealFromNow();
+    if (item.kind === 'favorite') await logFavorite(item.id, meal);
+    else await logRecommendation(item.id, meal);
+  }
+
   async function saveWeight(event) {
     event.preventDefault();
     if (weightInput === '') return;
@@ -1478,6 +1686,8 @@ export default function DietPage() {
 
   const { target, totals, profile } = day;
   const estimated = totals.estimated;
+  const showFormulaToggle =
+    target.provenance !== 'manual' && target.bmr != null;
 
   return (
     <div className={styles.page}>
@@ -1538,287 +1748,269 @@ export default function DietPage() {
 
       {saveError ? <p className={styles.loadError}>{saveError}</p> : null}
 
-      <section className={styles.hero}>
-        <BudgetRing
-          consumed={totals.total}
-          target={target.target}
-          estimated={estimated}
-        />
-        <div className={styles.heroBody}>
-          <p className={styles.heroEyebrow}>
-            {isToday ? 'Today’s budget' : 'Budget'}
-          </p>
-          <h2 className={styles.heroTitle}>
-            {withTilde(totals.total, estimated)} of {cal(target.target)} logged
-          </h2>
-
-          <div className={styles.completeness}>
-            <span
-              className={
-                totals.entryCount === 0 ? styles.dotWarn : styles.dotOk
-              }
+      <div className={styles.dayLayout}>
+        {/* Sidebar: the day's numbers, pinned so they never scroll away */}
+        <div className={styles.sidebar}>
+          <section className={styles.card}>
+            <BudgetRing
+              consumed={totals.total}
+              target={target.target}
+              estimated={estimated}
             />
-            {completenessLabel(totals)}
-          </div>
+            <div className={styles.ringCaptionRow}>
+              <span>{withTilde(totals.total, estimated)} logged</span>
+              <span>{cal(target.target)} target</span>
+            </div>
+            <div className={styles.completeness}>
+              <span
+                className={
+                  totals.entryCount === 0 ? styles.dotWarn : styles.dotOk
+                }
+              />
+              {completenessLabel(totals)}
+            </div>
 
-          <div className={styles.figures}>
-            <div>
-              <div className={`${styles.figureNum} tabular`}>
-                {cal(target.maintenance)}
-              </div>
-              <div className={styles.figureLabel}>Maintenance</div>
-            </div>
-            <div>
-              <div className={`${styles.figureNum} tabular`}>
-                {target.deficit ? `−${cal(target.deficit)}` : '—'}
-              </div>
-              <div className={styles.figureLabel}>Daily deficit</div>
-            </div>
-            <div>
-              <div className={`${styles.figureNum} tabular`}>
-                {cal(target.target)}
-              </div>
-              <div className={styles.figureLabel}>Target</div>
-            </div>
-          </div>
+            <MacroBar
+              proteinG={totals.proteinG}
+              proteinComplete={totals.proteinComplete}
+              carbsG={totals.carbsG}
+              carbsComplete={totals.carbsComplete}
+              fatG={totals.fatG}
+              fatComplete={totals.fatComplete}
+            />
 
-          {totals.proteinG != null ||
-          totals.carbsG != null ||
-          totals.fatG != null ? (
-            <div className={styles.figures}>
-              <div>
-                <div className={`${styles.figureNum} tabular`}>
-                  {macroG(totals.proteinG, totals.proteinComplete)}
+            {target.clamped ? (
+              <p className={styles.clamp}>
+                Target held at your safe floor of {cal(target.floor)}. At that
+                rate your goal lands around{' '}
+                <strong>{absoluteDate(target.projectedDate)}</strong>, not{' '}
+                {absoluteDate(profile?.goal_date)}.
+              </p>
+            ) : null}
+
+            {showFormulaToggle ? (
+              <>
+                <button
+                  className={styles.formulaToggle}
+                  onClick={() => setFormulaOpen((v) => !v)}
+                >
+                  <span>{formulaOpen ? '▾' : '▸'}</span> Formula &amp; activity
+                </button>
+                {formulaOpen ? (
+                  <TargetProvenance target={target} profile={profile} />
+                ) : null}
+              </>
+            ) : (
+              <TargetProvenance target={target} profile={profile} />
+            )}
+          </section>
+
+          <section className={styles.card}>
+            <div className={styles.cardHead}>
+              <h3 className={styles.cardTitle}>Weight &amp; steps</h3>
+              <span className={styles.cardMeta}>
+                {day.trend.length} reading{day.trend.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <div className={styles.tabRow}>
+              <button
+                className={
+                  weightTab === 'today' ? styles.tabActive : styles.tabBtn
+                }
+                onClick={() => setWeightTab('today')}
+              >
+                Today
+              </button>
+              <button
+                className={
+                  weightTab === 'trend' ? styles.tabActive : styles.tabBtn
+                }
+                onClick={() => setWeightTab('trend')}
+              >
+                Trend
+              </button>
+            </div>
+
+            {weightTab === 'today' ? (
+              <>
+                <div className={styles.todayStatsRow}>
+                  <div>
+                    <div className={styles.weightNow}>
+                      <span className={`${styles.weightNum} tabular`}>
+                        {day.latestWeight ? day.latestWeight.weight_lb : '—'}
+                      </span>
+                      <span className={styles.weightUnit}>lb</span>
+                    </div>
+                    <div className={styles.figureLabel}>
+                      Latest weight
+                      {day.latestWeight
+                        ? ` · ${absoluteDate(day.latestWeight.reading_date)}`
+                        : ''}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={styles.weightNow}>
+                      <span className={`${styles.weightNum} tabular`}>
+                        {day.todaySteps != null
+                          ? day.todaySteps.toLocaleString()
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.figureLabel}>
+                      Steps {isToday ? '' : `· ${absoluteDate(day.date)}`}
+                    </div>
+                  </div>
                 </div>
-                <div className={styles.figureLabel}>Protein</div>
-              </div>
-              <div>
-                <div className={`${styles.figureNum} tabular`}>
-                  {macroG(totals.carbsG, totals.carbsComplete)}
-                </div>
-                <div className={styles.figureLabel}>Carbs</div>
-              </div>
-              <div>
-                <div className={`${styles.figureNum} tabular`}>
-                  {macroG(totals.fatG, totals.fatComplete)}
-                </div>
-                <div className={styles.figureLabel}>Fat</div>
-              </div>
-            </div>
-          ) : null}
 
-          <TargetProvenance target={target} profile={profile} />
-
-          {target.clamped ? (
-            <p className={styles.clamp}>
-              Target held at your safe floor of {cal(target.floor)}. At that
-              rate your goal lands around{' '}
-              <strong>{absoluteDate(target.projectedDate)}</strong>, not{' '}
-              {absoluteDate(profile?.goal_date)}.
-            </p>
-          ) : null}
+                <form className={styles.weightForm} onSubmit={saveWeight}>
+                  <input
+                    className={styles.inputNum}
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="Weight (lb)"
+                    value={weightInput}
+                    onChange={(e) => setWeightInput(e.target.value)}
+                  />
+                  <button className={styles.saveBtn} type="submit">
+                    Log weight
+                  </button>
+                </form>
+                <form className={styles.weightForm} onSubmit={saveSteps}>
+                  <input
+                    className={styles.inputNum}
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="Steps"
+                    value={stepsInput}
+                    onChange={(e) => setStepsInput(e.target.value)}
+                  />
+                  <button className={styles.saveBtn} type="submit">
+                    Log steps
+                  </button>
+                </form>
+                {!isToday ? (
+                  <p className={styles.note}>
+                    Logging for {absoluteDate(day.date)}, not today.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <TrendFilterBar
+                  range={trendRange}
+                  onRange={setTrendRange}
+                  customFrom={customFrom}
+                  customTo={customTo}
+                  onCustomFrom={setCustomFrom}
+                  onCustomTo={setCustomTo}
+                />
+                <WeightTrend
+                  trend={filteredTrend}
+                  goalWeight={profile?.goal_weight_lb}
+                />
+                <p className={styles.note}>
+                  Points sit where they fall. Gaps stay gaps — nothing is
+                  interpolated.
+                </p>
+              </>
+            )}
+          </section>
         </div>
-      </section>
 
-      <div className={styles.grid}>
-        <section className={styles.card}>
-          <div className={styles.cardHead}>
-            <h3 className={styles.cardTitle}>Today&rsquo;s meals</h3>
-            <span className={`${styles.cardMeta} tabular`}>
-              {withTilde(totals.total, estimated)} cal
-            </span>
-          </div>
+        {/* Main panel: the day as a chronological timeline */}
+        <div className={styles.mainPanel}>
+          <section className={styles.card}>
+            <div className={styles.timelineHead}>
+              <h3 className={styles.cardTitle}>Today, in order</h3>
+              <span className={`${styles.cardMeta} tabular`}>
+                {withTilde(totals.total, estimated)} cal · {totals.entryCount}{' '}
+                logged
+              </span>
+            </div>
 
-          {MEALS.map((meal) => {
-            const rows = byMeal[meal.value];
-            const mealTotal = rows.reduce((s, r) => s + r.calories, 0);
-            const mealEstimated = rows.some((r) => r.source !== 'label');
-            return (
-              <div key={meal.value} className={styles.meal}>
-                <div className={styles.mealHead}>
-                  <span className={styles.mealName}>{meal.label}</span>
-                  {rows.length > 0 ? (
-                    <span className={`${styles.mealTotal} tabular`}>
-                      {withTilde(mealTotal, mealEstimated)}
-                    </span>
-                  ) : null}
-                </div>
-                {rows.map((entry) =>
+            {sortedEntries.length === 0 ? (
+              <p className={styles.empty}>Nothing logged yet.</p>
+            ) : (
+              <div className={styles.timeline}>
+                <span className={styles.tlRail} aria-hidden="true" />
+                {sortedEntries.map((entry) =>
                   editingEntryId === entry.id ? (
-                    <EditEntryForm
+                    <div key={entry.id} className={styles.tlRow}>
+                      <span
+                        className={styles.tlDot}
+                        style={{
+                          background: (MEAL_INFO[entry.meal] || MEAL_INFO.snack)
+                            .color,
+                        }}
+                      />
+                      <EditEntryForm
+                        entry={entry}
+                        onSave={(payload) => updateEntry(entry.id, payload)}
+                        onCancel={() => setEditingEntryId(null)}
+                      />
+                    </div>
+                  ) : (
+                    <TimelineRow
                       key={entry.id}
                       entry={entry}
-                      onSave={(payload) => updateEntry(entry.id, payload)}
-                      onCancel={() => setEditingEntryId(null)}
+                      time={isToday ? formatTime(entry.created_at) : null}
+                      onEdit={() => setEditingEntryId(entry.id)}
+                      onDelete={() => deleteEntry(entry.id)}
                     />
-                  ) : (
-                    <div key={entry.id} className={styles.entry}>
-                      <div className={styles.entryMain}>
-                        <span className={styles.entryDesc}>
-                          {entry.description}
-                        </span>
-                        <span
-                          className={`${styles.badge} ${SOURCE_CLASS[entry.source]}`}
-                        >
-                          {entry.source}
-                        </span>
-                        {entry.logged_via === 'mcp' ? (
-                          <span className={styles.viaBadge}>via Claude</span>
-                        ) : null}
-                      </div>
-                      <span className={`${styles.entryCal} tabular`}>
-                        {withTilde(entry.calories, entry.source !== 'label')}
-                      </span>
-                      <button
-                        className={styles.editBtn}
-                        onClick={() => setEditingEntryId(entry.id)}
-                        aria-label={`Edit ${entry.description}`}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        className={styles.deleteBtn}
-                        onClick={() => deleteEntry(entry.id)}
-                        aria-label={`Delete ${entry.description}`}
-                      >
-                        ×
-                      </button>
-                    </div>
                   )
                 )}
-                <AddEntryForm meal={meal.value} onAdd={addEntry} />
               </div>
-            );
-          })}
-        </section>
+            )}
 
-        <section className={styles.card}>
-          <div className={styles.cardHead}>
-            <h3 className={styles.cardTitle}>Weight &amp; steps</h3>
-            <span className={styles.cardMeta}>
-              {day.trend.length} reading{day.trend.length === 1 ? '' : 's'}
-            </span>
-          </div>
+            <AddTimelineEntryForm onAdd={addEntry} />
 
-          <div className={styles.tabRow}>
-            <button
-              className={
-                weightTab === 'today' ? styles.tabActive : styles.tabBtn
-              }
-              onClick={() => setWeightTab('today')}
-            >
-              Today
-            </button>
-            <button
-              className={
-                weightTab === 'trend' ? styles.tabActive : styles.tabBtn
-              }
-              onClick={() => setWeightTab('trend')}
-            >
-              Trend
-            </button>
-          </div>
-
-          {weightTab === 'today' ? (
-            <>
-              <div className={styles.todayStatsRow}>
-                <div>
-                  <div className={styles.weightNow}>
-                    <span className={`${styles.weightNum} tabular`}>
-                      {day.latestWeight ? day.latestWeight.weight_lb : '—'}
-                    </span>
-                    <span className={styles.weightUnit}>lb</span>
-                  </div>
-                  <div className={styles.figureLabel}>
-                    Latest weight
-                    {day.latestWeight
-                      ? ` · ${absoluteDate(day.latestWeight.reading_date)}`
-                      : ''}
-                  </div>
-                </div>
-                <div>
-                  <div className={styles.weightNow}>
-                    <span className={`${styles.weightNum} tabular`}>
-                      {day.todaySteps != null
-                        ? day.todaySteps.toLocaleString()
-                        : '—'}
-                    </span>
-                  </div>
-                  <div className={styles.figureLabel}>
-                    Steps {isToday ? '' : `· ${absoluteDate(day.date)}`}
-                  </div>
-                </div>
-              </div>
-
-              <form className={styles.weightForm} onSubmit={saveWeight}>
-                <input
-                  className={styles.inputNum}
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  placeholder="Weight (lb)"
-                  value={weightInput}
-                  onChange={(e) => setWeightInput(e.target.value)}
-                />
-                <button className={styles.saveBtn} type="submit">
-                  Log weight
-                </button>
-              </form>
-              <form className={styles.weightForm} onSubmit={saveSteps}>
-                <input
-                  className={styles.inputNum}
-                  type="number"
-                  step="1"
-                  min="0"
-                  placeholder="Steps"
-                  value={stepsInput}
-                  onChange={(e) => setStepsInput(e.target.value)}
-                />
-                <button className={styles.saveBtn} type="submit">
-                  Log steps
-                </button>
-              </form>
-              {!isToday ? (
-                <p className={styles.note}>
-                  Logging for {absoluteDate(day.date)}, not today.
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <TrendFilterBar
-                range={trendRange}
-                onRange={setTrendRange}
-                customFrom={customFrom}
-                customTo={customTo}
-                onCustomFrom={setCustomFrom}
-                onCustomTo={setCustomTo}
-              />
-              <WeightTrend
-                trend={filteredTrend}
-                goalWeight={profile?.goal_weight_lb}
-              />
-              <p className={styles.note}>
-                Points sit where they fall. Gaps stay gaps — nothing is
-                interpolated.
+            <div className={styles.libraryHead}>
+              <span className={styles.mealName}>Meal library</span>
+              <button
+                className={styles.manageToggle}
+                onClick={() => setManageOpen((v) => !v)}
+              >
+                {manageOpen ? 'Hide' : 'Manage'}
+              </button>
+            </div>
+            {chipItems.length === 0 ? (
+              <p className={styles.empty}>
+                Save a favorite or ask Claude to suggest something, then it
+                shows up here for one-tap logging.
               </p>
-            </>
-          )}
-        </section>
+            ) : (
+              <div className={styles.chipRow}>
+                {chipItems.map((item) => (
+                  <MealChip
+                    key={`${item.kind}-${item.id}`}
+                    item={item}
+                    onLog={logChip}
+                  />
+                ))}
+              </div>
+            )}
 
-        <FavoritesCard
-          favorites={day.favorites || []}
-          onLog={logFavorite}
-          onDelete={deleteFavorite}
-          onSave={saveFavorite}
-        />
-
-        <RecommendationsCard
-          recommendations={day.recommendations || []}
-          onLog={logRecommendation}
-          onDelete={deleteRecommendation}
-          onSave={saveRecommendation}
-        />
+            {manageOpen ? (
+              <div className={styles.manageGrid}>
+                <FavoritesCard
+                  favorites={day.favorites || []}
+                  onLog={logFavorite}
+                  onDelete={deleteFavorite}
+                  onSave={saveFavorite}
+                />
+                <RecommendationsCard
+                  recommendations={day.recommendations || []}
+                  onLog={logRecommendation}
+                  onDelete={deleteRecommendation}
+                  onSave={saveRecommendation}
+                />
+              </div>
+            ) : null}
+          </section>
+        </div>
       </div>
     </div>
   );
