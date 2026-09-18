@@ -23,7 +23,7 @@
 --                      026_car_maintenance, 027_trip_history_scan,
 --                      028_health_diet, 029_health_mcp_oauth,
 --                      030_health_steps, 031_health_activity_source,
---                      032_health_macros_favorites
+--                      032_health_macros_favorites, 033_health_recommended_meals
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -748,6 +748,41 @@ CREATE TABLE IF NOT EXISTS health_favorite_meals (
 DROP TRIGGER IF EXISTS health_favorite_meals_set_updated_at ON health_favorite_meals;
 CREATE TRIGGER health_favorite_meals_set_updated_at
   BEFORE UPDATE ON health_favorite_meals FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- "Recommended meals" (migration 033) — Claude-curated nudges toward a
+-- healthier baseline, distinct from health_favorite_meals above (things
+-- John already eats and saves himself). 'today' recommendations react to a
+-- specific day's remaining calories/macros (for_date required); 'ongoing'
+-- ones are standing habit-level suggestions with no expiry (for_date null).
+-- No `source` tier — a recommendation isn't logged food yet; logging one
+-- (log_recommended_meal) creates a fresh health_intake_entries row that
+-- gets its own normal source tier at that point. Meal-shaped fields are
+-- nullable since an 'ongoing' habit suggestion may be pure guidance text
+-- with no specific food/calorie count behind it.
+CREATE TABLE IF NOT EXISTS health_recommended_meals (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  horizon      text NOT NULL CHECK (horizon IN ('today', 'ongoing')),
+  for_date     date,
+  title        text NOT NULL,
+  detail       text NOT NULL,
+  meal         text CHECK (meal IN ('breakfast', 'lunch', 'dinner', 'snack')),
+  calories     integer CHECK (calories >= 0),
+  protein_g    numeric(5, 1) CHECK (protein_g >= 0),
+  carbs_g      numeric(5, 1) CHECK (carbs_g >= 0),
+  fat_g        numeric(5, 1) CHECK (fat_g >= 0),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  CHECK (
+    (horizon = 'today' AND for_date IS NOT NULL) OR
+    (horizon = 'ongoing' AND for_date IS NULL)
+  )
+);
+DROP TRIGGER IF EXISTS health_recommended_meals_set_updated_at ON health_recommended_meals;
+CREATE TRIGGER health_recommended_meals_set_updated_at
+  BEFORE UPDATE ON health_recommended_meals FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE INDEX IF NOT EXISTS health_recommended_meals_horizon_idx
+  ON health_recommended_meals (horizon, for_date);
 
 -- OAuth handshake for the Health MCP server (see migration 029). The
 -- access/refresh token this hands back IS HEALTH_MCP_TOKEN itself — this
