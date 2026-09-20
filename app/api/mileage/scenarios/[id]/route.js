@@ -48,12 +48,24 @@ export const PATCH = route(async (request, { params }) => {
       body.one_time_miles !== undefined
         ? Number(body.one_time_miles) || 0
         : existing.one_time_miles;
+    // occurrence_count (migration 034) — total planned trips this scenario
+    // represents; null clears it back to "no realization tracking," which
+    // restores today's flat-landing behavior. realized_count itself is
+    // never editable here — only POST .../realize moves it, one trip at a
+    // time.
+    const occurrenceCount =
+      body.occurrence_count !== undefined
+        ? body.occurrence_count === null
+          ? null
+          : Number(body.occurrence_count) || null
+        : existing.occurrence_count;
 
     const [row] = await sql`
       UPDATE mileage_scenarios SET
         name = ${name}, note = ${note}, active = ${active},
         one_time_start = ${oneTimeStart}, one_time_end = ${oneTimeEnd},
         one_time_miles = ${oneTimeMiles},
+        occurrence_count = ${occurrenceCount},
         updated_at = now()
       WHERE id = ${id}
       RETURNING *

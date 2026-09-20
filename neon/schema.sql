@@ -23,7 +23,8 @@
 --                      026_car_maintenance, 027_trip_history_scan,
 --                      028_health_diet, 029_health_mcp_oauth,
 --                      030_health_steps, 031_health_activity_source,
---                      032_health_macros_favorites, 033_health_recommended_meals
+--                      032_health_macros_favorites, 033_health_recommended_meals,
+--                      034_mileage_scenario_occurrences
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -552,6 +553,16 @@ ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS effective_start date;
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_start date;
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_end date;
 ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS one_time_miles integer;
+
+-- Scenario Realization (migration 034) — occurrence_count is the total
+-- planned trips a one-time scenario represents (nullable; unset scenarios
+-- keep landing at the flat one_time_miles exactly as before). realized_count
+-- tracks how many have actually happened, moved one at a time via the
+-- /realize endpoint. lib/mileage.js scales one_time_miles by the unrealized
+-- fraction once a count is set — see scenarioImpactForCheckpoint.
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS occurrence_count integer;
+ALTER TABLE mileage_scenarios ADD COLUMN IF NOT EXISTS realized_count integer
+  NOT NULL DEFAULT 0;
 
 -- ---------------------------------------------------------------------------
 -- Car maintenance (migration 026) — the /car domain's Maintenance tab.
