@@ -13,6 +13,15 @@ Master personal planning hub consolidating John's AI projects, travel, schedules
 > assume a fixed filename) and weigh suggestions against it, not just generic best
 > practice. Nothing is committed to this repo for this — the Drive folder is the only
 > source of truth, so it's always current.
+>
+> **Response style (this session, working in this repo — not app UI behavior):** when
+> answering a question or giving a conclusion/analysis in conversation, prefer
+> publishing it as a visual artifact before writing the full text explanation.
+> Judgment call on the split, weighted by length: a long or multi-part answer leads
+> with the artifact and a short pointer to it in chat; a short answer (a few
+> sentences) can just be said directly, artifact optional. This governs how Claude
+> Code communicates in this repo — it has nothing to do with how the dashboard app
+> itself is built or how it presents data to John.
 
 - **Repo:** `jonncy18-maker/Personal-Dashboard`
 - **Live URL(s):** _(fill in after first Vercel deploy)_
