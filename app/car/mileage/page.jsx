@@ -7,6 +7,7 @@ import {
   mileageSummary,
   usualLegsWeeklyTotal,
   legFrequencyScenarioImpacts,
+  remainingOneTimeMiles,
   tripDayCount,
   monthlyForecast,
   vehicleLabel,
@@ -420,6 +421,7 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
   const [oneTimeStart, setOneTimeStart] = useState(''); // 'YYYY-MM'
   const [oneTimeEnd, setOneTimeEnd] = useState(''); // 'YYYY-MM'
   const [oneTimeMiles, setOneTimeMiles] = useState('');
+  const [occurrenceCount, setOccurrenceCount] = useState('');
   const [saving, setSaving] = useState(false);
 
   if (!open) {
@@ -466,6 +468,7 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
           one_time_start: `${oneTimeStart}-01`,
           one_time_end: `${oneTimeEnd || oneTimeStart}-01`,
           one_time_miles: Number(oneTimeMiles) || 0,
+          occurrence_count: occurrenceCount ? Number(occurrenceCount) : null,
         });
       } else {
         await onAdd({
@@ -489,6 +492,7 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
       setOneTimeStart('');
       setOneTimeEnd('');
       setOneTimeMiles('');
+      setOccurrenceCount('');
       setOccurrence('recurring');
     } finally {
       setSaving(false);
@@ -615,15 +619,28 @@ function AddScenarioForm({ onAdd, legs, leaseStart }) {
               />
             </label>
           </div>
-          <input
-            type="number"
-            placeholder="Total miles for this event"
-            value={oneTimeMiles}
-            onChange={(e) => setOneTimeMiles(e.target.value)}
-          />
+          <div className={styles.impactRow}>
+            <input
+              type="number"
+              placeholder="Total miles for this event"
+              value={oneTimeMiles}
+              onChange={(e) => setOneTimeMiles(e.target.value)}
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder="Trip count (optional)"
+              value={occurrenceCount}
+              onChange={(e) => setOccurrenceCount(e.target.value)}
+            />
+          </div>
           <p className={styles.scenarioLegendNote}>
             Lands as a one-time add once its month(s) have passed — not spread
-            across the forecast like a recurring scenario.
+            across the forecast like a recurring scenario. Set a trip count to
+            get a "Mark a trip taken" button once one of them actually happens —
+            it'll shrink the forecast add by that trip's share instead of the
+            whole total.
           </p>
         </>
       ) : (
@@ -715,6 +732,9 @@ function EditScenarioForm({ scenario, legs, leaseStart, onSave, onCancel }) {
   const [oneTimeMiles, setOneTimeMiles] = useState(
     scenario.one_time_miles ?? ''
   );
+  const [occurrenceCount, setOccurrenceCount] = useState(
+    scenario.occurrence_count ?? ''
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -741,6 +761,7 @@ function EditScenarioForm({ scenario, legs, leaseStart, onSave, onCancel }) {
           one_time_start: `${oneTimeStart}-01`,
           one_time_end: `${oneTimeEnd || oneTimeStart}-01`,
           one_time_miles: Number(oneTimeMiles) || 0,
+          occurrence_count: occurrenceCount ? Number(occurrenceCount) : null,
         });
       } else if (isLeg) {
         await onSave({
@@ -802,12 +823,29 @@ function EditScenarioForm({ scenario, legs, leaseStart, onSave, onCancel }) {
               />
             </label>
           </div>
-          <input
-            type="number"
-            placeholder="Total miles for this event"
-            value={oneTimeMiles}
-            onChange={(e) => setOneTimeMiles(e.target.value)}
-          />
+          <div className={styles.impactRow}>
+            <input
+              type="number"
+              placeholder="Total miles for this event"
+              value={oneTimeMiles}
+              onChange={(e) => setOneTimeMiles(e.target.value)}
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder="Trip count (optional)"
+              value={occurrenceCount}
+              onChange={(e) => setOccurrenceCount(e.target.value)}
+            />
+          </div>
+          {scenario.realized_count > 0 && (
+            <p className={styles.scenarioLegendNote}>
+              {scenario.realized_count} already marked taken — lowering the trip
+              count below that will clamp it back down next time one is marked
+              or undone.
+            </p>
+          )}
         </>
       ) : isLeg ? (
         <>
@@ -1923,11 +1961,13 @@ function ScenariosBody({
   deleteScenario,
   addScenario,
   updateScenario,
+  realizeScenario,
   usualLegs,
   leaseStart,
 }) {
   const [managing, setManaging] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [realizing, setRealizing] = useState(null);
   const activeScenarios = scenarios.filter((s) => s.active);
   const totalImpact3yr = activeScenarios.reduce(
     (sum, s) => sum + Number(s.impact_3yr || 0),
@@ -2047,18 +2087,87 @@ function ScenariosBody({
                     </div>
                   </div>
                   {s.occurrence === 'one_time' ? (
-                    <p className={styles.scenarioImpact}>
-                      One-time &middot; {fmtMonth(s.one_time_start)}
-                      {s.one_time_end && s.one_time_end !== s.one_time_start
-                        ? `–${fmtMonth(s.one_time_end)}`
-                        : ''}{' '}
-                      &middot; adds{' '}
-                      <strong>
-                        {s.one_time_miles >= 0 ? '+' : ''}
-                        {fmtNum(s.one_time_miles)}
-                      </strong>{' '}
-                      mi once it's passed
-                    </p>
+                    <>
+                      <p className={styles.scenarioImpact}>
+                        One-time &middot; {fmtMonth(s.one_time_start)}
+                        {s.one_time_end && s.one_time_end !== s.one_time_start
+                          ? `–${fmtMonth(s.one_time_end)}`
+                          : ''}{' '}
+                        &middot;{' '}
+                        {s.occurrence_count ? (
+                          <>
+                            <strong>
+                              {remainingOneTimeMiles(s) >= 0 ? '+' : ''}
+                              {fmtNum(remainingOneTimeMiles(s))}
+                            </strong>{' '}
+                            mi still to forecast, once passed
+                          </>
+                        ) : (
+                          <>
+                            adds{' '}
+                            <strong>
+                              {s.one_time_miles >= 0 ? '+' : ''}
+                              {fmtNum(s.one_time_miles)}
+                            </strong>{' '}
+                            mi once it's passed
+                          </>
+                        )}
+                      </p>
+                      {s.occurrence_count > 0 && (
+                        <div className={styles.occurrenceTracker}>
+                          <div className={styles.occurrenceBar}>
+                            <div
+                              className={styles.occurrenceBarFill}
+                              style={{
+                                width: `${Math.min(100, (100 * (s.realized_count || 0)) / s.occurrence_count)}%`,
+                              }}
+                            />
+                          </div>
+                          <div className={styles.occurrenceRow}>
+                            <span className={styles.occurrenceLabel}>
+                              {s.realized_count || 0} of {s.occurrence_count}{' '}
+                              taken
+                            </span>
+                            <span className={styles.scenarioActions}>
+                              {s.realized_count > 0 && (
+                                <button
+                                  type="button"
+                                  className={styles.cancelBtn}
+                                  disabled={realizing === s.id}
+                                  onClick={async () => {
+                                    setRealizing(s.id);
+                                    try {
+                                      await realizeScenario(s.id, -1);
+                                    } finally {
+                                      setRealizing(null);
+                                    }
+                                  }}
+                                >
+                                  Undo
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={
+                                  realizing === s.id ||
+                                  s.realized_count >= s.occurrence_count
+                                }
+                                onClick={async () => {
+                                  setRealizing(s.id);
+                                  try {
+                                    await realizeScenario(s.id, 1);
+                                  } finally {
+                                    setRealizing(null);
+                                  }
+                                }}
+                              >
+                                ✓ Mark a trip taken
+                              </button>
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <p className={styles.scenarioImpact}>
                       {s.leg_id && (
@@ -2826,6 +2935,20 @@ export default function MileagePage() {
     refresh();
   }
 
+  // "Mark a trip taken" / its undo — delta is +1 or -1, never a raw count.
+  async function realizeScenario(id, delta) {
+    const res = await fetch(`/api/mileage/scenarios/${id}/realize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delta }),
+    });
+    const body = await res.json();
+    if (!res.ok)
+      throw new Error(body.error || 'Could not update that trip count');
+    setScenarios((s) => s.map((x) => (x.id === id ? body.scenario : x)));
+    refresh();
+  }
+
   async function addUsualLeg(payload) {
     const res = await fetch('/api/mileage/usual-legs', {
       method: 'POST',
@@ -3036,6 +3159,7 @@ export default function MileagePage() {
         deleteScenario={deleteScenario}
         addScenario={addScenario}
         updateScenario={updateScenario}
+        realizeScenario={realizeScenario}
         usualLegs={usualLegs}
         leaseStart={settings?.lease_start_date}
         trips={trips}

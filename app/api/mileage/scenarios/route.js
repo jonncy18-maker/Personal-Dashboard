@@ -35,13 +35,21 @@ export const POST = route(async (request) => {
     }
     const oneTimeEnd = body.one_time_end || oneTimeStart;
     const oneTimeMiles = Number(body.one_time_miles) || 0;
+    // occurrence_count (migration 034) — optional total trip count for
+    // realization tracking; omitted/blank stays null (today's flat-landing
+    // behavior, no "Mark a trip taken" control on the card).
+    const occurrenceCount = body.occurrence_count
+      ? Number(body.occurrence_count) || null
+      : null;
 
     const [row] = await sql`
       INSERT INTO mileage_scenarios (
-        name, note, occurrence, one_time_start, one_time_end, one_time_miles
+        name, note, occurrence, one_time_start, one_time_end, one_time_miles,
+        occurrence_count
       )
       VALUES (
-        ${name}, ${note}, 'one_time', ${oneTimeStart}, ${oneTimeEnd}, ${oneTimeMiles}
+        ${name}, ${note}, 'one_time', ${oneTimeStart}, ${oneTimeEnd}, ${oneTimeMiles},
+        ${occurrenceCount}
       )
       RETURNING *
     `;
