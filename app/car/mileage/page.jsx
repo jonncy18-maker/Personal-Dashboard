@@ -1961,13 +1961,11 @@ function ScenariosBody({
   deleteScenario,
   addScenario,
   updateScenario,
-  realizeScenario,
   usualLegs,
   leaseStart,
 }) {
   const [managing, setManaging] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [realizing, setRealizing] = useState(null);
   const activeScenarios = scenarios.filter((s) => s.active);
   const totalImpact3yr = activeScenarios.reduce(
     (sum, s) => sum + Number(s.impact_3yr || 0),
@@ -2114,57 +2112,23 @@ function ScenariosBody({
                         )}
                       </p>
                       {s.occurrence_count > 0 && (
-                        <div className={styles.occurrenceTracker}>
-                          <div className={styles.occurrenceBar}>
-                            <div
-                              className={styles.occurrenceBarFill}
-                              style={{
-                                width: `${Math.min(100, (100 * (s.realized_count || 0)) / s.occurrence_count)}%`,
-                              }}
-                            />
-                          </div>
-                          <div className={styles.occurrenceRow}>
-                            <span className={styles.occurrenceLabel}>
-                              {s.realized_count || 0} of {s.occurrence_count}{' '}
-                              taken
-                            </span>
-                            <span className={styles.scenarioActions}>
-                              {s.realized_count > 0 && (
-                                <button
-                                  type="button"
-                                  className={styles.cancelBtn}
-                                  disabled={realizing === s.id}
-                                  onClick={async () => {
-                                    setRealizing(s.id);
-                                    try {
-                                      await realizeScenario(s.id, -1);
-                                    } finally {
-                                      setRealizing(null);
-                                    }
-                                  }}
-                                >
-                                  Undo
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                disabled={
-                                  realizing === s.id ||
-                                  s.realized_count >= s.occurrence_count
-                                }
-                                onClick={async () => {
-                                  setRealizing(s.id);
-                                  try {
-                                    await realizeScenario(s.id, 1);
-                                  } finally {
-                                    setRealizing(null);
-                                  }
-                                }}
-                              >
-                                ✓ Mark a trip taken
-                              </button>
-                            </span>
-                          </div>
+                        <div className={styles.occurrenceChip}>
+                          <span className={styles.occurrenceDots}>
+                            {Array.from({ length: s.occurrence_count }).map(
+                              (_, i) => (
+                                <span
+                                  key={i}
+                                  className={`${styles.occurrenceDot} ${
+                                    i < (s.realized_count || 0)
+                                      ? styles.occurrenceDotOn
+                                      : ''
+                                  }`}
+                                />
+                              )
+                            )}
+                          </span>
+                          {s.realized_count || 0} of {s.occurrence_count} taken
+                          &middot; tracked on the Trip tracker tab
                         </div>
                       )}
                     </>
@@ -2191,6 +2155,85 @@ function ScenariosBody({
         </ManagePopup>
       )}
     </>
+  );
+}
+
+// ─── Trip Tracker — the only place with "mark a trip taken" / undo ────────
+// Split out from Forecast Scenarios (which stays read-only, a dots-and-count
+// chip only) so the forecast list isn't also where you're clicking buttons.
+// One ring tile per active one-time scenario that has an occurrence_count
+// set; a scenario without one never appears here — same "only what you
+// opted into" rule as everywhere else in Mileage.
+function TripTrackerBody({ scenarios, realizeScenario }) {
+  const [realizing, setRealizing] = useState(null);
+  const tracked = scenarios.filter(
+    (s) => s.occurrence === 'one_time' && s.occurrence_count > 0
+  );
+
+  async function bump(id, delta) {
+    setRealizing(id);
+    try {
+      await realizeScenario(id, delta);
+    } finally {
+      setRealizing(null);
+    }
+  }
+
+  if (tracked.length === 0) {
+    return (
+      <p className={styles.detail}>
+        No scenario is tracking individual trips yet — set a "Trip count" when
+        adding or editing a one-time scenario in Forecast Scenarios to get a
+        tile here.
+      </p>
+    );
+  }
+
+  return (
+    <div className={styles.trackerGrid}>
+      {tracked.map((s) => {
+        const count = s.occurrence_count;
+        const done = Math.min(count, s.realized_count || 0);
+        const deg = Math.round((360 * done) / count);
+        return (
+          <div className={styles.trackerTile} key={s.id}>
+            <div
+              className={styles.trackerRing}
+              style={{
+                background: `conic-gradient(var(--dom-mileage) 0deg ${deg}deg, var(--border-strong) ${deg}deg 360deg)`,
+              }}
+            >
+              <span className={styles.trackerRingNum}>
+                {done}/{count}
+              </span>
+            </div>
+            <p className={styles.trackerName}>{s.name}</p>
+            <p className={styles.trackerSub}>
+              {fmtNum(remainingOneTimeMiles(s))} mi left
+            </p>
+            <div className={styles.trackerActions}>
+              <button
+                type="button"
+                disabled={realizing === s.id || done >= count}
+                onClick={() => bump(s.id, 1)}
+              >
+                + Log a trip
+              </button>
+              {done > 0 && (
+                <button
+                  type="button"
+                  className={styles.trackerUndo}
+                  disabled={realizing === s.id}
+                  onClick={() => bump(s.id, -1)}
+                >
+                  Undo
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2717,7 +2760,10 @@ function ForecastChart({ summary, readings, settings, scenarios, exclusions }) {
 }
 
 function DataPanelSection(props) {
-  const [tab, setTab] = useState('pace'); // 'pace' | 'scenarios' | 'trips'
+  const [tab, setTab] = useState('pace'); // 'pace' | 'scenarios' | 'tracker' | 'trips'
+  const trackedCount = props.scenarios.filter(
+    (s) => s.occurrence === 'one_time' && s.occurrence_count > 0
+  ).length;
   return (
     <div className={styles.panel}>
       <div className={styles.dpTabs} role="tablist">
@@ -2736,6 +2782,15 @@ function DataPanelSection(props) {
           Forecast scenarios
           {props.scenarios.length > 0 ? ` (${props.scenarios.length})` : ''}
         </button>
+        {trackedCount > 0 && (
+          <button
+            type="button"
+            className={tab === 'tracker' ? styles.dpTabActive : ''}
+            onClick={() => setTab('tracker')}
+          >
+            Trip tracker ({trackedCount})
+          </button>
+        )}
         <button
           type="button"
           className={tab === 'trips' ? styles.dpTabActive : ''}
@@ -2753,6 +2808,7 @@ function DataPanelSection(props) {
       </div>
       {tab === 'pace' && <PaceBody {...props} />}
       {tab === 'scenarios' && <ScenariosBody {...props} />}
+      {tab === 'tracker' && <TripTrackerBody {...props} />}
       {tab === 'trips' && <TripLogBody {...props} />}
       {tab === 'dashboard' && <ForecastChart {...props} />}
     </div>

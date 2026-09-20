@@ -1,4 +1,4 @@
-import { getDb } from '../../../../../../lib/db';
+import { getDb, scenarioDates } from '../../../../../../lib/db';
 import { route, jsonError } from '../../../../../../lib/route';
 
 // Marks one occurrence of a one-time scenario "taken" (or undoes a misclick
@@ -34,5 +34,5 @@ export const POST = route(async (request, { params }) => {
     WHERE id = ${id}
     RETURNING *
   `;
-  return Response.json({ scenario: row });
+  return Response.json({ scenario: scenarioDates(row) });
 });

@@ -812,32 +812,106 @@
 .scenarioImpact strong {
   color: var(--ink);
 }
-.occurrenceTracker {
+/* Forecast Scenarios card: read-only progress chip only — the actual
+   "mark a trip taken" controls live on the Trip tracker tab (TripTrackerBody
+   below), not here. */
+.occurrenceChip {
   margin-top: 10px;
-}
-.occurrenceBar {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--surface-sunken);
-  overflow: hidden;
-}
-.occurrenceBarFill {
-  height: 100%;
-  background: var(--dom-mileage);
-  border-radius: 999px;
-  transition: width 0.15s ease;
-}
-.occurrenceRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-}
-.occurrenceLabel {
   font-size: 11.5px;
   color: var(--ink-faint);
+}
+.occurrenceDots {
+  display: flex;
+  gap: 3px;
+}
+.occurrenceDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.occurrenceDotOn {
+  background: var(--dom-mileage);
+}
+
+/* Trip tracker tab — ring tiles, one per occurrence-tracked scenario. */
+.trackerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+.trackerTile {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.trackerRing {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.trackerRing::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+}
+.trackerRingNum {
+  position: relative;
+  z-index: 1;
+  font-weight: 750;
+  font-size: 14px;
+}
+.trackerName {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.trackerSub {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.trackerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.trackerActions button {
+  font-size: 12px;
+  font-weight: 650;
+  border-radius: 999px;
+  padding: 7px 13px;
+  border: 1px solid var(--dom-mileage);
+  background: var(--dom-mileage);
+  color: var(--surface);
+}
+.trackerActions button:disabled {
+  opacity: 0.5;
+}
+.trackerUndo {
+  background: transparent !important;
+  color: var(--ink-muted) !important;
+  border-color: var(--border-strong) !important;
 }
 .scenarioActions {
   display: flex;
