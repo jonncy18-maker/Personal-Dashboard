@@ -1,4 +1,4 @@
-import { getDb, num, dateOnly } from '../../../lib/db';
+import { getDb, num, dateOnly, scenarioDates } from '../../../lib/db';
 import { route } from '../../../lib/route';
 import { mileageSummary } from '../../../lib/mileage';
 
@@ -66,7 +66,7 @@ async function loadAll(sql) {
       destination_lng: num(t.destination_lng),
       miles: num(t.miles),
     })),
-    scenarios: scenarioRows,
+    scenarios: scenarioRows.map(scenarioDates),
     usualLegs: usualLegRows.map((l) => ({
       ...l,
       miles: num(l.miles),

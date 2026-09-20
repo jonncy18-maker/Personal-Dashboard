@@ -1,4 +1,4 @@
-import { getDb, dateOnly } from '../../../../../lib/db';
+import { getDb, dateOnly, scenarioDates } from '../../../../../lib/db';
 import { route } from '../../../../../lib/route';
 import { legFrequencyScenarioImpacts } from '../../../../../lib/mileage';
 
@@ -70,7 +70,7 @@ export const PATCH = route(async (request, { params }) => {
       WHERE id = ${id}
       RETURNING *
     `;
-    return Response.json({ scenario: row });
+    return Response.json({ scenario: scenarioDates(row) });
   }
 
   const legId = existing.leg_id;
@@ -138,7 +138,7 @@ export const PATCH = route(async (request, { params }) => {
     WHERE id = ${id}
     RETURNING *
   `;
-  return Response.json({ scenario: row });
+  return Response.json({ scenario: scenarioDates(row) });
 });
 
 export const DELETE = route(async (_request, { params }) => {

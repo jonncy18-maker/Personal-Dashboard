@@ -1,4 +1,4 @@
-import { getDb, dateOnly } from '../../../../lib/db';
+import { getDb, dateOnly, scenarioDates } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
 import { legFrequencyScenarioImpacts } from '../../../../lib/mileage';
 
@@ -53,7 +53,7 @@ export const POST = route(async (request) => {
       )
       RETURNING *
     `;
-    return Response.json({ scenario: row }, { status: 201 });
+    return Response.json({ scenario: scenarioDates(row) }, { status: 201 });
   }
 
   const effectiveStart = body.effective_start || null;
@@ -114,5 +114,5 @@ export const POST = route(async (request) => {
     )
     RETURNING *
   `;
-  return Response.json({ scenario: row }, { status: 201 });
+  return Response.json({ scenario: scenarioDates(row) }, { status: 201 });
 });
