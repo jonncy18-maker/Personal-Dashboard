@@ -752,43 +752,47 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
     .filter(Boolean)
     .join(' · ');
 
+  // The rail dot alone carries which meal this is (see the legend once at
+  // the top of the timeline) — a text tag repeated on every row said the
+  // same thing the color already does, just louder.
   return (
-    <div className={styles.tlRow}>
+    <div className={styles.tlRow} title={info.label}>
       <span className={styles.tlDot} style={{ background: info.color }} />
-      <div className={styles.tlMeta}>
-        {time ? <span className={styles.tlTime}>{time}</span> : null}
-        <span className={styles.tlMealTag} style={{ color: info.color }}>
-          {info.label}
-        </span>
-      </div>
+      {time ? (
+        <div className={styles.tlMeta}>
+          <span className={styles.tlTime}>{time}</span>
+        </div>
+      ) : null}
       <div className={styles.tlCardRow}>
         <span className={styles.tlDesc}>{entry.description}</span>
-        <span className={`${styles.badge} ${SOURCE_CLASS[entry.source]}`}>
-          {entry.source}
-        </span>
         {entry.logged_via === 'mcp' ? (
           <span className={styles.viaBadge}>via Claude</span>
         ) : null}
         {macroText ? (
           <span className={styles.tlMacros}>{macroText}</span>
         ) : null}
-        <span className={`${styles.entryCal} tabular`}>
-          {withTilde(entry.calories, entry.source !== 'label')}
+        <span className={styles.tlRight}>
+          <span className={`${styles.badge} ${SOURCE_CLASS[entry.source]}`}>
+            {entry.source}
+          </span>
+          <span className={`${styles.entryCal} tabular`}>
+            {withTilde(entry.calories, entry.source !== 'label')}
+          </span>
+          <button
+            className={styles.editBtn}
+            onClick={onEdit}
+            aria-label={`Edit ${entry.description}`}
+          >
+            ✎
+          </button>
+          <button
+            className={styles.deleteBtn}
+            onClick={onDelete}
+            aria-label={`Delete ${entry.description}`}
+          >
+            ×
+          </button>
         </span>
-        <button
-          className={styles.editBtn}
-          onClick={onEdit}
-          aria-label={`Edit ${entry.description}`}
-        >
-          ✎
-        </button>
-        <button
-          className={styles.deleteBtn}
-          onClick={onDelete}
-          aria-label={`Delete ${entry.description}`}
-        >
-          ×
-        </button>
       </div>
     </div>
   );
@@ -1987,6 +1991,19 @@ export default function DietPage() {
                 logged
               </span>
             </div>
+            {sortedEntries.length > 0 && (
+              <div className={styles.tlLegend}>
+                {Object.values(MEAL_INFO).map((m) => (
+                  <span key={m.label}>
+                    <span
+                      className={styles.tlLegendDot}
+                      style={{ background: m.color }}
+                    />
+                    {m.label}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {sortedEntries.length === 0 ? (
               <p className={styles.empty}>Nothing logged yet.</p>
