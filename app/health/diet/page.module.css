@@ -404,22 +404,14 @@
   padding: 9px 12px;
   min-height: 44px;
 }
+/* Only rendered when a row is expanded (see TimelineRow's expand toggle) —
+   collapsed rows show just the calorie/macro summary in .tlRight. */
 .tlDesc {
-  flex: 1 1 auto;
+  flex: 1 1 100%;
+  order: -1;
   font-size: 13.5px;
-  min-width: 120px;
-}
-/* Collapsed by default (see TimelineRow's expand toggle) — one truncated
-   line instead of a full multi-sentence description on every row, which is
-   what actually made the timeline feel cluttered. min-width: 0 overrides
-   the base rule above so the flex item can shrink enough for the ellipsis
-   to actually kick in, rather than pushing the row wider. */
-.tlDescCollapsed {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   color: var(--ink-muted);
+  margin-bottom: 2px;
 }
 .tlMacros {
   font-size: 11.5px;

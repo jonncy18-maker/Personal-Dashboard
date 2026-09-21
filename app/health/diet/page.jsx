@@ -765,12 +765,10 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
         </div>
       ) : null}
       <div className={styles.tlCardRow}>
-        <span
-          className={`${styles.tlDesc} ${expanded ? '' : styles.tlDescCollapsed}`}
-        >
-          {entry.description}
-        </span>
-        {entry.logged_via === 'mcp' ? (
+        {expanded ? (
+          <span className={styles.tlDesc}>{entry.description}</span>
+        ) : null}
+        {expanded && entry.logged_via === 'mcp' ? (
           <span className={styles.viaBadge}>via Claude</span>
         ) : null}
         {macroText ? (
