@@ -2166,9 +2166,11 @@ function ScenariosBody({
 // opted into" rule as everywhere else in Mileage.
 function TripTrackerBody({ scenarios, realizeScenario }) {
   const [realizing, setRealizing] = useState(null);
-  const tracked = scenarios.filter(
-    (s) => s.occurrence === 'one_time' && s.occurrence_count > 0
-  );
+  // Sorted by when the scenario actually starts (year/month), not creation
+  // order — a scenario landing sooner reads above one landing years out.
+  const tracked = scenarios
+    .filter((s) => s.occurrence === 'one_time' && s.occurrence_count > 0)
+    .sort((a, b) => (a.one_time_start < b.one_time_start ? -1 : 1));
 
   async function bump(id, delta) {
     setRealizing(id);
@@ -2208,6 +2210,12 @@ function TripTrackerBody({ scenarios, realizeScenario }) {
               </span>
             </div>
             <p className={styles.trackerName}>{s.name}</p>
+            <p className={styles.trackerDate}>
+              {fmtMonth(s.one_time_start)}
+              {s.one_time_end && s.one_time_end !== s.one_time_start
+                ? `–${fmtMonth(s.one_time_end)}`
+                : ''}
+            </p>
             <p className={styles.trackerSub}>
               {fmtNum(remainingOneTimeMiles(s))} mi left
             </p>
