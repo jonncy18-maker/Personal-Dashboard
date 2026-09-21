@@ -776,33 +776,130 @@
   gap: 8px;
   margin-bottom: 10px;
 }
-.scenarioCard {
+/* Grouped-section headers (One-time trips / Recurring changes). */
+.scenarioGroupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.scenarioGroupHead:first-child {
+  margin-top: 0;
+}
+.scenarioGroupLine {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* One row per scenario — a real switch + type badge instead of a checkbox
+   and a plain name, so one-time/route/manual scenarios read apart at a
+   glance. Same toggle/edit/delete handlers as before, just restyled. */
+.scenarioRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
-  transition:
-    border-color 0.12s ease,
-    background 0.12s ease;
+  background: var(--surface-sunken);
 }
-.scenarioCardActive {
-  border-color: var(--dom-mileage);
-  background: var(--dom-mileage-soft);
+.scenarioRowOff {
+  opacity: 0.6;
 }
-.scenarioTop {
+.scenarioSwitch {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  border: none;
+  flex: none;
+  cursor: pointer;
+  padding: 0;
+}
+.scenarioSwitch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: left 0.12s ease;
+}
+.scenarioSwitchOn {
+  background: var(--dom-mileage);
+}
+.scenarioSwitchOn::after {
+  left: 14px;
+}
+.scenarioRowBody {
+  flex: 1;
+  min-width: 0;
+}
+.scenarioRowTop {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
 }
-.scenarioName {
-  margin: 0;
+.scenarioRowName {
   font-size: 13.5px;
-  font-weight: 800;
+  font-weight: 700;
 }
-.scenarioNote {
-  margin: 2px 0 0;
-  font-size: 12px;
+.scenarioBadge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2.5px 7px;
+  border-radius: 999px;
+  flex: none;
+}
+.scenarioBadgeOnetime {
+  background: var(--dom-mileage-soft);
+  color: var(--dom-mileage);
+}
+.scenarioBadgeLeg {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   color: var(--ink-muted);
+}
+.scenarioBadgeManual {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.scenarioRowMeta {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+.scenarioRowImpact {
+  flex: none;
+  text-align: right;
+}
+.scenarioRowImpactNum {
+  display: block;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.scenarioRowImpactMuted {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.scenarioRowImpactUnit {
+  font-size: 9.5px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 .scenarioImpact {
   margin: 8px 0 0;

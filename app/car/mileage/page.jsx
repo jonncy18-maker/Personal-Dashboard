@@ -1967,10 +1967,160 @@ function ScenariosBody({
   const [managing, setManaging] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const activeScenarios = scenarios.filter((s) => s.active);
+  // A one-time scenario's impact never lived in impact_3yr (that column is
+  // recurring-only, hardcoded 0 on a one-time row) — summing it here always
+  // undercounted a one-time-heavy active list. remainingOneTimeMiles() is
+  // the number that column was always supposed to mean for those rows.
   const totalImpact3yr = activeScenarios.reduce(
-    (sum, s) => sum + Number(s.impact_3yr || 0),
+    (sum, s) =>
+      sum +
+      (s.occurrence === 'one_time'
+        ? remainingOneTimeMiles(s)
+        : Number(s.impact_3yr || 0)),
     0
   );
+  const oneTimeScenarios = [...scenarios]
+    .filter((s) => s.occurrence === 'one_time')
+    .sort((a, b) => (a.one_time_start < b.one_time_start ? -1 : 1));
+  const recurringScenarios = scenarios.filter(
+    (s) => s.occurrence !== 'one_time'
+  );
+
+  // One row, shared by both groups below — a type badge (derived from
+  // occurrence/leg_id, no new field) plus a real switch instead of a
+  // checkbox. Editing a row still swaps it for EditScenarioForm in place.
+  function renderRow(s) {
+    if (editingId === s.id) {
+      return (
+        <EditScenarioForm
+          key={s.id}
+          scenario={s}
+          legs={usualLegs}
+          leaseStart={leaseStart}
+          onSave={async (patch) => {
+            await updateScenario(s.id, patch);
+            setEditingId(null);
+          }}
+          onCancel={() => setEditingId(null)}
+        />
+      );
+    }
+    const isOneTime = s.occurrence === 'one_time';
+    const badge = isOneTime ? 'One-time' : s.leg_id ? 'Route' : 'Manual';
+    return (
+      <div
+        className={`${styles.scenarioRow} ${s.active ? '' : styles.scenarioRowOff}`}
+        key={s.id}
+      >
+        <button
+          type="button"
+          role="switch"
+          aria-checked={s.active}
+          aria-label={`${s.active ? 'Exclude' : 'Include'} ${s.name}`}
+          className={`${styles.scenarioSwitch} ${s.active ? styles.scenarioSwitchOn : ''}`}
+          onClick={() => toggleScenario(s.id, !s.active)}
+        />
+        <div className={styles.scenarioRowBody}>
+          <div className={styles.scenarioRowTop}>
+            <span className={styles.scenarioRowName}>{s.name}</span>
+            <span
+              className={`${styles.scenarioBadge} ${
+                isOneTime
+                  ? styles.scenarioBadgeOnetime
+                  : s.leg_id
+                    ? styles.scenarioBadgeLeg
+                    : styles.scenarioBadgeManual
+              }`}
+            >
+              {badge}
+            </span>
+          </div>
+          <div className={styles.scenarioRowMeta}>
+            {isOneTime ? (
+              <>
+                {fmtMonth(s.one_time_start)}
+                {s.one_time_end && s.one_time_end !== s.one_time_start
+                  ? `–${fmtMonth(s.one_time_end)}`
+                  : ''}
+                {s.occurrence_count > 0 && (
+                  <>
+                    {' '}
+                    &middot;{' '}
+                    <span className={styles.occurrenceDots}>
+                      {Array.from({ length: s.occurrence_count }).map(
+                        (_, i) => (
+                          <span
+                            key={i}
+                            className={`${styles.occurrenceDot} ${
+                              i < (s.realized_count || 0)
+                                ? styles.occurrenceDotOn
+                                : ''
+                            }`}
+                          />
+                        )
+                      )}
+                    </span>{' '}
+                    {s.realized_count || 0} of {s.occurrence_count} taken
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                {s.leg_id && <>{s.new_times_per_week}&times;/wk &middot; </>}
+                {s.active ? 'included in forecast' : 'not included'}
+                {s.effective_start && (
+                  <> &middot; starts {fmtMonth(s.effective_start)}</>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        <div className={styles.scenarioRowImpact}>
+          <span
+            className={`tabular ${styles.scenarioRowImpactNum} ${
+              isOneTime ? '' : styles.scenarioRowImpactMuted
+            }`}
+          >
+            {isOneTime
+              ? `${remainingOneTimeMiles(s) >= 0 ? '+' : ''}${fmtNum(remainingOneTimeMiles(s))}`
+              : `${s.impact_3yr >= 0 ? '+' : ''}${fmtNum(s.impact_3yr)}`}
+          </span>
+          <span className={styles.scenarioRowImpactUnit}>
+            {isOneTime ? 'mi' : 'by 3yr'}
+          </span>
+        </div>
+        <div className={styles.scenarioActions}>
+          <button
+            type="button"
+            className={`${styles.rowDelete} ${styles.rowEdit}`}
+            onClick={() => setEditingId(s.id)}
+            aria-label="Edit scenario"
+            title="Edit"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+            </svg>
+          </button>
+          <button
+            className={styles.rowDelete}
+            onClick={() => deleteScenario(s.id)}
+            aria-label="Delete scenario"
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -2018,140 +2168,32 @@ function ScenariosBody({
           subtitle={`${scenarios.length} saved · ${activeScenarios.length} included in the forecast above.`}
           onClose={() => setManaging(false)}
         >
-          <div className={styles.scenarioList}>
-            {scenarios.map((s) =>
-              editingId === s.id ? (
-                <EditScenarioForm
-                  key={s.id}
-                  scenario={s}
-                  legs={usualLegs}
-                  leaseStart={leaseStart}
-                  onSave={async (patch) => {
-                    await updateScenario(s.id, patch);
-                    setEditingId(null);
-                  }}
-                  onCancel={() => setEditingId(null)}
-                />
-              ) : (
-                <div
-                  className={`${styles.scenarioCard} ${s.active ? styles.scenarioCardActive : ''}`}
-                  key={s.id}
-                >
-                  <div className={styles.scenarioTop}>
-                    <div>
-                      <p className={styles.scenarioName}>{s.name}</p>
-                      {s.note && (
-                        <p className={styles.scenarioNote}>{s.note}</p>
-                      )}
-                    </div>
-                    <div className={styles.scenarioActions}>
-                      <label className={styles.toggleLabel}>
-                        <input
-                          type="checkbox"
-                          checked={s.active}
-                          onChange={(e) =>
-                            toggleScenario(s.id, e.target.checked)
-                          }
-                        />
-                        Included
-                      </label>
-                      <button
-                        type="button"
-                        className={`${styles.rowDelete} ${styles.rowEdit}`}
-                        onClick={() => setEditingId(s.id)}
-                        aria-label="Edit scenario"
-                        title="Edit"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
-                        </svg>
-                      </button>
-                      <button
-                        className={styles.rowDelete}
-                        onClick={() => deleteScenario(s.id)}
-                        aria-label="Delete scenario"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  </div>
-                  {s.occurrence === 'one_time' ? (
-                    <>
-                      <p className={styles.scenarioImpact}>
-                        One-time &middot; {fmtMonth(s.one_time_start)}
-                        {s.one_time_end && s.one_time_end !== s.one_time_start
-                          ? `–${fmtMonth(s.one_time_end)}`
-                          : ''}{' '}
-                        &middot;{' '}
-                        {s.occurrence_count ? (
-                          <>
-                            <strong>
-                              {remainingOneTimeMiles(s) >= 0 ? '+' : ''}
-                              {fmtNum(remainingOneTimeMiles(s))}
-                            </strong>{' '}
-                            mi still to forecast, once passed
-                          </>
-                        ) : (
-                          <>
-                            adds{' '}
-                            <strong>
-                              {s.one_time_miles >= 0 ? '+' : ''}
-                              {fmtNum(s.one_time_miles)}
-                            </strong>{' '}
-                            mi once it's passed
-                          </>
-                        )}
-                      </p>
-                      {s.occurrence_count > 0 && (
-                        <div className={styles.occurrenceChip}>
-                          <span className={styles.occurrenceDots}>
-                            {Array.from({ length: s.occurrence_count }).map(
-                              (_, i) => (
-                                <span
-                                  key={i}
-                                  className={`${styles.occurrenceDot} ${
-                                    i < (s.realized_count || 0)
-                                      ? styles.occurrenceDotOn
-                                      : ''
-                                  }`}
-                                />
-                              )
-                            )}
-                          </span>
-                          {s.realized_count || 0} of {s.occurrence_count} taken
-                          &middot; tracked on the Trip tracker tab
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className={styles.scenarioImpact}>
-                      {s.leg_id && (
-                        <>{s.new_times_per_week}&times;/wk &middot; </>
-                      )}
-                      {s.impact_3yr >= 0 ? 'Adds' : 'Removes'}{' '}
-                      <strong>
-                        {s.impact_3yr >= 0 ? '+' : ''}
-                        {fmtNum(s.impact_3yr)}
-                      </strong>{' '}
-                      mi by the 3-year mark
-                      {s.effective_start && (
-                        <> &middot; starts {fmtMonth(s.effective_start)}</>
-                      )}
-                    </p>
-                  )}
-                </div>
-              )
-            )}
-          </div>
+          {oneTimeScenarios.length > 0 && (
+            <>
+              <div className={styles.scenarioGroupHead}>
+                <span>One-time trips</span>
+                <span className={styles.scenarioGroupLine} />
+                <span className="tabular">{oneTimeScenarios.length} saved</span>
+              </div>
+              <div className={styles.scenarioList}>
+                {oneTimeScenarios.map(renderRow)}
+              </div>
+            </>
+          )}
+          {recurringScenarios.length > 0 && (
+            <>
+              <div className={styles.scenarioGroupHead}>
+                <span>Recurring changes</span>
+                <span className={styles.scenarioGroupLine} />
+                <span className="tabular">
+                  {recurringScenarios.length} saved
+                </span>
+              </div>
+              <div className={styles.scenarioList}>
+                {recurringScenarios.map(renderRow)}
+              </div>
+            </>
+          )}
         </ManagePopup>
       )}
     </>
