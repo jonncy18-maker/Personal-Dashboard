@@ -1964,7 +1964,6 @@ function ScenariosBody({
   usualLegs,
   leaseStart,
 }) {
-  const [managing, setManaging] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const activeScenarios = scenarios.filter((s) => s.active);
   // A one-time scenario's impact never lived in impact_3yr (that column is
@@ -2142,14 +2141,6 @@ function ScenariosBody({
             </div>
           </div>
         )}
-        <button
-          type="button"
-          className={styles.editSettingsBtn}
-          onClick={() => setManaging(true)}
-          disabled={scenarios.length === 0}
-        >
-          Manage →
-        </button>
       </div>
       <AddScenarioForm
         onAdd={addScenario}
@@ -2162,12 +2153,10 @@ function ScenariosBody({
         average pace.
       </p>
 
-      {managing && (
-        <ManagePopup
-          title="Forecast scenarios"
-          subtitle={`${scenarios.length} saved · ${activeScenarios.length} included in the forecast above.`}
-          onClose={() => setManaging(false)}
-        >
+      {scenarios.length === 0 ? (
+        <p className={styles.detail}>No scenarios saved yet — add one above.</p>
+      ) : (
+        <>
           {oneTimeScenarios.length > 0 && (
             <>
               <div className={styles.scenarioGroupHead}>
@@ -2194,7 +2183,7 @@ function ScenariosBody({
               </div>
             </>
           )}
-        </ManagePopup>
+        </>
       )}
     </>
   );
