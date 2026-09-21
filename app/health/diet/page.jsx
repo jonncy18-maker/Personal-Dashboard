@@ -743,6 +743,7 @@ function EditEntryForm({ entry, onSave, onCancel }) {
 // entered, not when the meal happened, so a backfilled day never claims a
 // clock time it doesn't actually know.
 function TimelineRow({ entry, time, onEdit, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
   const info = MEAL_INFO[entry.meal] || MEAL_INFO.snack;
   const macroText = [
     entry.protein_g != null ? `${Math.round(entry.protein_g)}p` : null,
@@ -764,7 +765,11 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
         </div>
       ) : null}
       <div className={styles.tlCardRow}>
-        <span className={styles.tlDesc}>{entry.description}</span>
+        <span
+          className={`${styles.tlDesc} ${expanded ? '' : styles.tlDescCollapsed}`}
+        >
+          {entry.description}
+        </span>
         {entry.logged_via === 'mcp' ? (
           <span className={styles.viaBadge}>via Claude</span>
         ) : null}
@@ -791,6 +796,15 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
             aria-label={`Delete ${entry.description}`}
           >
             ×
+          </button>
+          <button
+            type="button"
+            className={styles.expandBtn}
+            onClick={() => setExpanded((e) => !e)}
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Collapse details' : 'Expand details'}
+          >
+            {expanded ? '▾' : '▸'}
           </button>
         </span>
       </div>
