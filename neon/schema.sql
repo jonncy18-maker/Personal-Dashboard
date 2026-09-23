@@ -25,7 +25,8 @@
 --                      030_health_steps, 031_health_activity_source,
 --                      032_health_macros_favorites, 033_health_recommended_meals,
 --                      034_mileage_scenario_occurrences,
---                      035_health_veggie_servings
+--                      035_health_veggie_servings, 036_health_water,
+--                      037_health_drink_fluid
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -663,6 +664,10 @@ CREATE TABLE IF NOT EXISTS health_profile (
   -- maintains, not a constant in code. get_day reports whether it was met.
   veggie_target_servings numeric(3, 1) NOT NULL DEFAULT 2
                        CHECK (veggie_target_servings > 0),
+  -- Optional daily water goal in US fl oz (migration 036). NULL by default:
+  -- no goal was named, and a guessed one would be a fabricated target. With
+  -- no goal the day shows its total with no met/not-met verdict.
+  water_target_oz      numeric(5, 1) CHECK (water_target_oz > 0),
   created_at           timestamptz NOT NULL DEFAULT now(),
   updated_at           timestamptz NOT NULL DEFAULT now()
 );
@@ -730,6 +735,9 @@ CREATE TABLE IF NOT EXISTS health_intake_entries (
   carbs_g        numeric(5, 1) CHECK (carbs_g >= 0),
   fat_g          numeric(5, 1) CHECK (fat_g >= 0),
   veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
+  -- Liquid a drink is made with, US fl oz (migration 037); NULL = not a
+  -- drink. Counted in full toward water, shown apart from plain water.
+  fluid_oz       numeric(5, 1) CHECK (fluid_oz > 0),
   source         text NOT NULL
                  CHECK (source IN ('label', 'recall', 'estimated')),
   -- Where a `label` came from (a menu, a wrapper, a URL) or what a `recall`
@@ -747,6 +755,20 @@ CREATE TRIGGER health_intake_entries_set_updated_at
 CREATE INDEX IF NOT EXISTS health_intake_entries_date_idx
   ON health_intake_entries (entry_date DESC);
 
+-- Water, one row per drink (migration 036). Its own table rather than an
+-- intake row, so a drink never counts toward "N of 4 meals logged". The
+-- day's figure is a SUM; ounces are US fl oz (cups and ml are converted on
+-- the way in).
+CREATE TABLE IF NOT EXISTS health_water_entries (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  entry_date  date NOT NULL,
+  ounces      numeric(5, 1) NOT NULL CHECK (ounces > 0),
+  logged_via  text NOT NULL DEFAULT 'app' CHECK (logged_via IN ('app', 'mcp')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS health_water_entries_date_idx
+  ON health_water_entries (entry_date);
+
 -- A reusable template for a meal that repeats verbatim (migration 032) — e.g.
 -- the same breakfast every day. Logging one inserts a fresh
 -- health_intake_entries row copied from these fields; `source` still carries
@@ -762,6 +784,7 @@ CREATE TABLE IF NOT EXISTS health_favorite_meals (
   carbs_g      numeric(5, 1) CHECK (carbs_g >= 0),
   fat_g        numeric(5, 1) CHECK (fat_g >= 0),
   veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
+  fluid_oz     numeric(5, 1) CHECK (fluid_oz > 0),
   source       text NOT NULL CHECK (source IN ('label', 'recall', 'estimated')),
   source_detail text,
   created_at   timestamptz NOT NULL DEFAULT now(),

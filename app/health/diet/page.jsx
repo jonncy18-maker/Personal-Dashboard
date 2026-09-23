@@ -319,6 +319,7 @@ function ProfileForm({ profile, onSave }) {
       profile?.floor_pct != null ? Math.round(profile.floor_pct * 100) : 60,
     manual_floor_cal: profile?.manual_floor_cal ?? '',
     manual_target_cal: profile?.manual_target_cal ?? '',
+    water_target_oz: profile?.water_target_oz ?? '',
   }));
   const [busy, setBusy] = useState(false);
 
@@ -355,6 +356,8 @@ function ProfileForm({ profile, onSave }) {
         form.manual_floor_cal === '' ? '' : Number(form.manual_floor_cal),
       manual_target_cal:
         form.manual_target_cal === '' ? '' : Number(form.manual_target_cal),
+      water_target_oz:
+        form.water_target_oz === '' ? '' : Number(form.water_target_oz),
     });
     setBusy(false);
   }
@@ -507,6 +510,17 @@ function ProfileForm({ profile, onSave }) {
             onChange={(e) => set('manual_target_cal', e.target.value)}
           />
         </label>
+        <label className={styles.field}>
+          <span>Daily water goal (oz)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="0"
+            placeholder="optional — blank means no goal"
+            value={form.water_target_oz}
+            onChange={(e) => set('water_target_oz', e.target.value)}
+          />
+        </label>
       </div>
       <button className={styles.saveBtn} type="submit" disabled={busy}>
         {busy ? 'Saving…' : 'Save profile'}
@@ -527,6 +541,7 @@ function AddTimelineEntryForm({ onAdd }) {
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [veggies, setVeggies] = useState('');
+  const [fluid, setFluid] = useState('');
   const [source, setSource] = useState('estimated');
   const [busy, setBusy] = useState(false);
 
@@ -542,6 +557,7 @@ function AddTimelineEntryForm({ onAdd }) {
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
       veggie_servings: veggies === '' ? 0 : Number(veggies),
+      fluid_oz: fluid === '' ? '' : Number(fluid),
       source,
     });
     setBusy(false);
@@ -552,6 +568,7 @@ function AddTimelineEntryForm({ onAdd }) {
       setCarbs('');
       setFat('');
       setVeggies('');
+      setFluid('');
       setSource('estimated');
       setOpen(false);
     }
@@ -643,6 +660,16 @@ function AddTimelineEntryForm({ onAdd }) {
           value={veggies}
           onChange={(e) => setVeggies(e.target.value)}
         />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          step="any"
+          placeholder="fluid oz"
+          title="Drinks only (shake, latte): the liquid it's made with — counts toward water"
+          value={fluid}
+          onChange={(e) => setFluid(e.target.value)}
+        />
       </div>
       <div className={styles.formRow}>
         <button className={styles.saveBtn} type="submit" disabled={busy}>
@@ -675,6 +702,9 @@ function EditEntryForm({ entry, onSave, onCancel }) {
   const [veggies, setVeggies] = useState(
     entry.veggie_servings ? String(entry.veggie_servings) : ''
   );
+  const [fluid, setFluid] = useState(
+    entry.fluid_oz == null ? '' : String(entry.fluid_oz)
+  );
   const [source, setSource] = useState(entry.source);
   const [busy, setBusy] = useState(false);
 
@@ -695,6 +725,7 @@ function EditEntryForm({ entry, onSave, onCancel }) {
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
       veggie_servings: veggies === '' ? 0 : Number(veggies),
+      fluid_oz: fluid === '' ? '' : Number(fluid),
     };
     // Only send `source` when John actually changed it — otherwise the API's
     // own re-tier-a-hand-edited-label rule (app/api/health/intake/[id])
@@ -771,6 +802,16 @@ function EditEntryForm({ entry, onSave, onCancel }) {
           value={veggies}
           onChange={(e) => setVeggies(e.target.value)}
         />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          step="any"
+          placeholder="fluid oz"
+          title="Drinks only (shake, latte): the liquid it's made with — counts toward water"
+          value={fluid}
+          onChange={(e) => setFluid(e.target.value)}
+        />
       </div>
       {willReTier ? (
         <p className={styles.reTierNote}>
@@ -802,6 +843,7 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
     entry.carbs_g != null ? `${Math.round(entry.carbs_g)}c` : null,
     entry.fat_g != null ? `${Math.round(entry.fat_g)}f` : null,
     entry.veggie_servings > 0 ? `${entry.veggie_servings} veg` : null,
+    entry.fluid_oz > 0 ? `${entry.fluid_oz} oz fluid` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -1327,6 +1369,161 @@ const NET_RANGES = [
 // excluded server-side rather than counted as a full deficit — see the
 // `/api/health/net` route's own header comment — so `daysLogged` vs
 // `daysInRange` is how this stays honest about how partial the picture is.
+// Water is its own log, one row per drink; the card shows the day's sum.
+// With no goal set it shows the total alone — no bar, no verdict against a
+// number John never chose. A logged time only on today, same rule as the
+// food timeline: on a backfilled day created_at isn't when the drink was.
+function WaterCard({ water, isToday, onLog, onDelete }) {
+  const [amount, setAmount] = useState('');
+  const [unit, setUnit] = useState('oz');
+  const [busy, setBusy] = useState(false);
+  const [showDrinks, setShowDrinks] = useState(false);
+  const w = water || { ounces: 0, cups: 0, drinks: 0, entries: [] };
+
+  async function log(value, u) {
+    setBusy(true);
+    const ok = await onLog(value, u);
+    setBusy(false);
+    return ok;
+  }
+  async function submit(event) {
+    event.preventDefault();
+    if (amount === '') return;
+    if (await log(Number(amount), unit)) setAmount('');
+  }
+
+  const pct = w.target ? Math.min(100, (w.ounces / w.target) * 100) : null;
+  return (
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <h3 className={styles.cardTitle}>Water</h3>
+        <span className={styles.cardMeta}>
+          {w.drinks} drink{w.drinks === 1 ? '' : 's'}
+        </span>
+      </div>
+      <p className={styles.waterTotal}>
+        <strong>{w.ounces}</strong> oz
+        <span className={styles.waterCups}>
+          {' '}
+          · {w.cups} cup{w.cups === 1 ? '' : 's'}
+        </span>
+      </p>
+      {w.fromDrinksOunces > 0 ? (
+        <p className={styles.waterHint}>
+          {w.plainOunces} oz water + {w.fromDrinksOunces} oz from {w.drinkFoods}{' '}
+          drink{w.drinkFoods === 1 ? '' : 's'} logged as food
+        </p>
+      ) : null}
+      {pct != null ? (
+        <div className={styles.waterLine}>
+          <div className={styles.veggieTrack} style={{ flex: 1 }}>
+            <div
+              className={styles.veggieFill}
+              style={{
+                width: `${pct}%`,
+                background: w.met ? 'var(--good)' : 'var(--dom-mileage)',
+              }}
+            />
+          </div>
+          <span>
+            {w.met
+              ? 'Goal met ✓'
+              : `${Math.max(0, Math.round((w.target - w.ounces) * 10) / 10)} oz to ${w.target} oz goal`}
+          </span>
+        </div>
+      ) : (
+        <p className={styles.waterHint}>
+          No daily goal set — add one in Edit profile if you want one.
+        </p>
+      )}
+      <div className={styles.waterActions}>
+        <button
+          type="button"
+          className={styles.chip}
+          disabled={busy}
+          onClick={() => log(8, 'oz')}
+        >
+          + 8 oz cup
+        </button>
+        <button
+          type="button"
+          className={styles.chip}
+          disabled={busy}
+          onClick={() => log(16, 'oz')}
+        >
+          + 16 oz
+        </button>
+      </div>
+      <form className={styles.formRow} onSubmit={submit}>
+        <input
+          id="water-amount"
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          step="any"
+          placeholder="amount"
+          aria-label="Water amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+        <select
+          id="water-unit"
+          className={styles.select}
+          value={unit}
+          onChange={(e) => setUnit(e.target.value)}
+          aria-label="Unit"
+        >
+          <option value="oz">oz</option>
+          <option value="cup">cups (8 oz)</option>
+          <option value="ml">ml</option>
+        </select>
+        <button className={styles.saveBtn} type="submit" disabled={busy}>
+          Log
+        </button>
+      </form>
+      {w.drinks > 0 ? (
+        <>
+          <button
+            type="button"
+            className={styles.formulaToggle}
+            onClick={() => setShowDrinks((v) => !v)}
+          >
+            <span>{showDrinks ? '▾' : '▸'}</span> Drinks logged
+          </button>
+          {showDrinks ? (
+            <ul className={styles.waterList}>
+              {w.entries.map((e) => (
+                <li key={e.id}>
+                  <span>
+                    {e.ounces} oz
+                    {isToday && e.created_at ? (
+                      <span className={styles.waterCups}>
+                        {' '}
+                        · {formatTime(e.created_at)}
+                      </span>
+                    ) : null}
+                    {e.logged_via === 'mcp' ? (
+                      <span className={styles.waterCups}> · via Claude</span>
+                    ) : null}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.cancelBtn}
+                    onClick={() => onDelete(e.id)}
+                    aria-label={`Remove ${e.ounces} oz`}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 function NetCaloriesCard() {
   const [range, setRange] = useState('week');
   const { data } = useResource(`/api/health/net?range=${range}`, {
@@ -1788,6 +1985,34 @@ export default function DietPage() {
     }
   }
 
+  async function logWater(amount, unit) {
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/health/water', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, unit, entry_date: viewDate }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+      return true;
+    } catch {
+      setSaveError('Could not log that water.');
+      return false;
+    }
+  }
+
+  async function deleteWater(id) {
+    setSaveError(null);
+    try {
+      const res = await fetch(`/api/health/water/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reload();
+    } catch {
+      setSaveError('Could not remove that drink.');
+    }
+  }
+
   async function saveProfile(patch) {
     setSaveError(null);
     try {
@@ -1929,6 +2154,13 @@ export default function DietPage() {
               <TargetProvenance target={target} profile={profile} />
             )}
           </section>
+
+          <WaterCard
+            water={day.water}
+            isToday={isToday}
+            onLog={logWater}
+            onDelete={deleteWater}
+          />
 
           <NetCaloriesCard />
 

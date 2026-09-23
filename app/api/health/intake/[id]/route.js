@@ -1,6 +1,6 @@
 import { getDb, num, dateOnly } from '../../../../../lib/db';
 import { route } from '../../../../../lib/route';
-import { parseVeggieServings } from '../../../../../lib/health';
+import { parseVeggieServings, parseFluidOz } from '../../../../../lib/health';
 
 // Correcting or removing a single intake entry. Editing a calorie figure by
 // hand makes it John's own number, so a PATCH that touches `calories` without
@@ -78,6 +78,16 @@ export const PATCH = route(async (request, { params }) => {
     );
   }
 
+  // Nullable (migration 037): omitted keeps the stored value, blank clears.
+  const fluidOz =
+    'fluid_oz' in body ? parseFluidOz(body.fluid_oz) : num(current.fluid_oz);
+  if (fluidOz === undefined) {
+    return Response.json(
+      { error: 'fluid_oz must be a positive number' },
+      { status: 400 }
+    );
+  }
+
   const [row] = await sql`
     UPDATE health_intake_entries
     SET meal          = ${body.meal ?? current.meal},
@@ -87,11 +97,12 @@ export const PATCH = route(async (request, { params }) => {
         carbs_g       = ${carbsG},
         fat_g         = ${fatG},
         veggie_servings = ${veggieServings},
+        fluid_oz      = ${fluidOz},
         source        = ${source},
         source_detail = ${body.source_detail ?? current.source_detail}
     WHERE id = ${id}
     RETURNING id, entry_date, meal, description, calories, protein_g,
-              carbs_g, fat_g, veggie_servings, source, source_detail, logged_via, created_at,
+              carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via, created_at,
               updated_at
   `;
   return Response.json({
@@ -102,6 +113,7 @@ export const PATCH = route(async (request, { params }) => {
       carbs_g: num(row.carbs_g),
       fat_g: num(row.fat_g),
       veggie_servings: num(row.veggie_servings),
+      fluid_oz: num(row.fluid_oz),
     },
   });
 });

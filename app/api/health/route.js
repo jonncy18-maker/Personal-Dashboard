@@ -4,6 +4,7 @@ import {
   computeTarget,
   dayTotals,
   veggieProgress,
+  waterProgress,
   todayYMD,
 } from '../../../lib/health';
 
@@ -33,6 +34,7 @@ function shapeProfile(row) {
     goal_weight_lb: num(row.goal_weight_lb),
     floor_pct: num(row.floor_pct),
     veggie_target_servings: num(row.veggie_target_servings),
+    water_target_oz: num(row.water_target_oz),
   };
 }
 
@@ -84,7 +86,7 @@ export const GET = route(async (request) => {
 
   const entryRows = await sql`
     SELECT id, entry_date, meal, description, calories, protein_g, carbs_g,
-           fat_g, veggie_servings, source, source_detail, logged_via, created_at
+           fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via, created_at
     FROM health_intake_entries
     WHERE entry_date = ${todayStr}
     ORDER BY created_at ASC
@@ -96,6 +98,7 @@ export const GET = route(async (request) => {
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
     veggie_servings: num(row.veggie_servings),
+    fluid_oz: num(row.fluid_oz),
   }));
 
   // shapedTrend already carries every logged {reading_date, steps} row (well
@@ -108,6 +111,20 @@ export const GET = route(async (request) => {
     stepsRows: shapedTrend,
   });
   const totals = dayTotals(entries);
+  const waterRows = await sql`
+    SELECT id, ounces, logged_via, created_at
+    FROM health_water_entries
+    WHERE entry_date = ${todayStr}
+    ORDER BY created_at ASC
+  `;
+  const waterEntries = waterRows.map((row) => ({
+    ...row,
+    ounces: num(row.ounces),
+  }));
+  const water = {
+    ...waterProgress(waterEntries, profile?.water_target_oz ?? null, entries),
+    entries: waterEntries,
+  };
   const veggies = veggieProgress(
     totals.veggieServings,
     profile?.veggie_target_servings ?? null
@@ -123,7 +140,7 @@ export const GET = route(async (request) => {
   // every day's Add form regardless of which date is being viewed.
   const favoriteRows = await sql`
     SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g,
-           veggie_servings, source, source_detail
+           veggie_servings, fluid_oz, source, source_detail
     FROM health_favorite_meals
     ORDER BY created_at ASC
   `;
@@ -133,6 +150,7 @@ export const GET = route(async (request) => {
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
     veggie_servings: num(row.veggie_servings),
+    fluid_oz: num(row.fluid_oz),
   }));
 
   // Recommendations: 'today' ones only matter for the viewed date (a nudge
@@ -159,6 +177,7 @@ export const GET = route(async (request) => {
     target,
     totals,
     veggies,
+    water,
     remaining,
     entries,
     favorites,
@@ -183,6 +202,7 @@ const PROFILE_FIELDS = [
   'manual_floor_cal',
   'manual_target_cal',
   'veggie_target_servings',
+  'water_target_oz',
 ];
 
 const ACTIVITY_SOURCES = ['manual', 'steps_trailing'];
@@ -226,6 +246,17 @@ export const PATCH = route(async (request) => {
     }
     patch.veggie_target_servings = n;
   }
+  // Nullable (migration 036): blank clears the goal rather than resetting it.
+  if (patch.water_target_oz != null) {
+    const n = Number(patch.water_target_oz);
+    if (!Number.isFinite(n) || n <= 0 || n > 999) {
+      return Response.json(
+        { error: 'water_target_oz must be a positive number' },
+        { status: 400 }
+      );
+    }
+    patch.water_target_oz = n;
+  }
 
   // Read-merge-write rather than ten conditional SQL fragments: a field the
   // caller omitted must keep its stored value, while a field sent as null must
@@ -252,7 +283,8 @@ export const PATCH = route(async (request) => {
         floor_pct           = ${next.floor_pct},
         manual_floor_cal    = ${next.manual_floor_cal},
         manual_target_cal   = ${next.manual_target_cal},
-        veggie_target_servings = ${next.veggie_target_servings}
+        veggie_target_servings = ${next.veggie_target_servings},
+        water_target_oz     = ${next.water_target_oz}
     WHERE id = 1
     RETURNING *
   `;
