@@ -74,6 +74,30 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-23 (cont'd) — Launch intro rebuilt: "Eight domains, extended", and the overlap fixed
+
+John reported overlapping text in the app-launch intro. **Root cause:** the subtitle ("PERSONAL OS") and the horizon line were placed with `top: calc(42vh + 1.05em)`, where `em` was meant to be the wordmark's `--intro-size` (up to 112px) — but that variable was defined only on the wordmark's element, and the subtitle lived in a sibling layer, so it never received it. The `em` fell back to about 16px and drew the subtitle through the letters. Confirmed with a screenshot of the running intro before changing anything.
+
+**Direction chosen from a round of mockups** (a playable artifact with four options, then an extended version of the one John picked, at 1× speed): one dot per sidebar row (the eight domains plus Calendar), each in its domain colour, spirals in from beyond the viewport and forms a ring around the wordmark. The ring connects and names its domains, each dot pings once clockwise, then the wordmark and subtitle fly into the sidebar's brand slot and every dot arcs to its own row, handing over to that row's icon and label as it lands. ~3.35 s, still once per tab session, still skipped entirely under reduced motion, still decided before first paint in `app/layout.jsx`.
+
+**The rule the new `components/IntroSplash.jsx` is built around: no text ever crosses other text.** How each case is kept:
+
+- **Wordmark vs subtitle:** rows of one flex column (the subtitle's place comes from the wordmark's real height), and `--intro-size` now lives on the root. In flight each part goes to its own measured target on the same duration and easing, so the gap between them stays positive the whole way.
+- **Names vs ring and wordmark:** names sit outside the ring, and the ring radius has a floor so its edges' nearest approach (R·cos(180°/n)) clears the text block. All names are gone before the wordmark leaves, since its path runs out past the ring's upper-left side.
+- **Sidebar labels:** each stays hidden until its own dot lands. Dots come into their row level from the right, so a dot only ever passes over its own (still hidden) label.
+- **Page content:** the cover is now two halves clipped at the sidebar's edge. The sidebar half clears at the hand-off so the dots have somewhere visible to land. The page half, and the `data-intro='handoff'` release of the app's own entrance animations, waits until every dot is inside the sidebar. Holding Home's animations alone would not have been enough: the intro plays on whatever route first loads, and most pages have no entrance animation to hold.
+- **No sidebar (<900px):** no names, and the ring disperses outward. The page waits until the wordmark has bowed out and the dots have faded.
+
+The dots are read from the rendered sidebar (`data-nav-href` on each row, `data-brand-sub` on the subtitle, both new), so the intro can never list a row the sidebar doesn't have; only a route → domain-colour map lives in the component. Motion moved from CSS keyframes to the Web Animations API because the ring, the dot paths and the landing points are all measured at runtime. The CSS holds each animated element's starting state, so the server-rendered frame never shows a finished wordmark that then vanishes and replays.
+
+**Verification:** an automated check sampled the whole timeline every 25 ms (137 frames) at 1440×900, 1024×768 and 390×844 in dark, plus 1440×900 in light, and tested every pair of visible text boxes (wordmark, subtitle, ring names, revealed sidebar labels, uncovered page) for intersection: **zero overlaps at every size**. It uses effective opacity (the product up the ancestor chain), and asserts the wordmark, subtitle and names are actually visible at the hold. The check caught three real bugs before merge:
+
+- the cover halves' classes were missing from the stylesheet, so both lookups found the same element;
+- a stacking change put the covers above the ring and wordmark;
+- on phone the page un-covered while the wordmark was still fading.
+
+Key frames were also reviewed by eye at each size. **Not visually tested:** the collapsed sidebar rail. The code handles it (the mark flies to the "J" slot, the subtitle fades, labels are skipped), but no frame was captured.
+
 ## 2026-09-23 — Veggie servings on Health › Diet; a Tesla source probe for the maintenance sync
 
 **Veggie servings (migration 035).** John asked, from a food-logging chat, for vegetable-serving tracking: a per-entry `veggie_servings` field (1 serving ≈ 1 cup raw / ½ cup cooked, USDA guidance), accepted by `log_food`/`update_intake_entry`, a daily `veggie_servings_total` from `get_day`, and a flag for hitting a 2-serving baseline "configurable later". Fiber grams deliberately not built. Decisions:

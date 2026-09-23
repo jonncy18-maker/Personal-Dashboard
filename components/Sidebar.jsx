@@ -49,7 +49,9 @@ export default function Sidebar({ collapsed, drawerOpen, onCloseDrawer }) {
           <span className={styles.brandScript} data-brand-mark>
             {isCollapsed ? 'J' : 'John'}
           </span>
-          <span className={`${styles.brandSub} mono`}>Personal OS</span>
+          <span className={`${styles.brandSub} mono`} data-brand-sub>
+            Personal OS
+          </span>
         </div>
 
         <nav className={styles.nav} aria-label="Domains">
@@ -60,6 +62,7 @@ export default function Sidebar({ collapsed, drawerOpen, onCloseDrawer }) {
               <Link
                 key={href}
                 href={href}
+                data-nav-href={href}
                 className={`${styles.navItem}${active ? ` ${styles.navItemActive}` : ''}`}
                 onClick={onCloseDrawer}
               >
