@@ -1,6 +1,10 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { todayYMD, parseVeggieServings } from '../../../../lib/health';
+import {
+  todayYMD,
+  parseVeggieServings,
+  parseFluidOz,
+} from '../../../../lib/health';
 
 // Intake entries. `source` is required and never defaulted: it is the whole
 // honesty mechanism (see the ROADMAP entry and .claude/skills/health), and a
@@ -18,6 +22,7 @@ function shape(row) {
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
     veggie_servings: num(row.veggie_servings),
+    fluid_oz: num(row.fluid_oz),
   };
 }
 
@@ -40,7 +45,7 @@ export const GET = route(async (request) => {
   const rows = date
     ? await sql`
         SELECT id, entry_date, meal, description, calories, protein_g,
-               carbs_g, fat_g, veggie_servings, source, source_detail, logged_via,
+               carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
                created_at,
                updated_at
         FROM health_intake_entries
@@ -49,7 +54,7 @@ export const GET = route(async (request) => {
       `
     : await sql`
         SELECT id, entry_date, meal, description, calories, protein_g,
-               carbs_g, fat_g, veggie_servings, source, source_detail, logged_via,
+               carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
                created_at,
                updated_at
         FROM health_intake_entries
@@ -118,6 +123,14 @@ export const POST = route(async (request) => {
     );
   }
 
+  const fluidOz = parseFluidOz(body.fluid_oz);
+  if (fluidOz === undefined) {
+    return Response.json(
+      { error: 'fluid_oz must be a positive number' },
+      { status: 400 }
+    );
+  }
+
   const loggedVia = LOGGED_VIA.includes(body.logged_via)
     ? body.logged_via
     : 'app';
@@ -126,12 +139,12 @@ export const POST = route(async (request) => {
   const [row] = await sql`
     INSERT INTO health_intake_entries
       (entry_date, meal, description, calories, protein_g, carbs_g, fat_g,
-       veggie_servings, source, source_detail, logged_via)
+       veggie_servings, fluid_oz, source, source_detail, logged_via)
     VALUES (${entryDate}, ${body.meal}, ${description}, ${Math.round(calories)},
-            ${proteinG}, ${carbsG}, ${fatG}, ${veggieServings},
+            ${proteinG}, ${carbsG}, ${fatG}, ${veggieServings}, ${fluidOz},
             ${body.source}, ${body.source_detail || null}, ${loggedVia})
     RETURNING id, entry_date, meal, description, calories, protein_g, carbs_g,
-              fat_g, veggie_servings, source, source_detail, logged_via,
+              fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
               created_at, updated_at
   `;
   return Response.json({ entry: shape(row) }, { status: 201 });

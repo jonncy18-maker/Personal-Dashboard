@@ -25,7 +25,8 @@
 --                      030_health_steps, 031_health_activity_source,
 --                      032_health_macros_favorites, 033_health_recommended_meals,
 --                      034_mileage_scenario_occurrences,
---                      035_health_veggie_servings, 036_health_water
+--                      035_health_veggie_servings, 036_health_water,
+--                      037_health_drink_fluid
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -734,6 +735,9 @@ CREATE TABLE IF NOT EXISTS health_intake_entries (
   carbs_g        numeric(5, 1) CHECK (carbs_g >= 0),
   fat_g          numeric(5, 1) CHECK (fat_g >= 0),
   veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
+  -- Liquid a drink is made with, US fl oz (migration 037); NULL = not a
+  -- drink. Counted in full toward water, shown apart from plain water.
+  fluid_oz       numeric(5, 1) CHECK (fluid_oz > 0),
   source         text NOT NULL
                  CHECK (source IN ('label', 'recall', 'estimated')),
   -- Where a `label` came from (a menu, a wrapper, a URL) or what a `recall`
@@ -780,6 +784,7 @@ CREATE TABLE IF NOT EXISTS health_favorite_meals (
   carbs_g      numeric(5, 1) CHECK (carbs_g >= 0),
   fat_g        numeric(5, 1) CHECK (fat_g >= 0),
   veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
+  fluid_oz     numeric(5, 1) CHECK (fluid_oz > 0),
   source       text NOT NULL CHECK (source IN ('label', 'recall', 'estimated')),
   source_detail text,
   created_at   timestamptz NOT NULL DEFAULT now(),

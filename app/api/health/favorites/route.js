@@ -1,6 +1,6 @@
 import { getDb, num } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { parseVeggieServings } from '../../../../lib/health';
+import { parseVeggieServings, parseFluidOz } from '../../../../lib/health';
 
 // Saved meal templates for something that repeats verbatim (e.g. the same
 // breakfast every day) — see .claude/skills/health. Logging one is a
@@ -18,6 +18,7 @@ function shape(row) {
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
     veggie_servings: num(row.veggie_servings),
+    fluid_oz: num(row.fluid_oz),
   };
 }
 
@@ -32,7 +33,7 @@ export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
     SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g,
-           veggie_servings, source, source_detail, created_at
+           veggie_servings, fluid_oz, source, source_detail, created_at
     FROM health_favorite_meals
     ORDER BY created_at ASC
   `;
@@ -89,16 +90,25 @@ export const POST = route(async (request) => {
     );
   }
 
+  const fluidOz = parseFluidOz(body.fluid_oz);
+  if (fluidOz === undefined) {
+    return Response.json(
+      { error: 'fluid_oz must be a positive number' },
+      { status: 400 }
+    );
+  }
+
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO health_favorite_meals
       (name, meal, description, calories, protein_g, carbs_g, fat_g,
-       veggie_servings, source, source_detail)
+       veggie_servings, fluid_oz, source, source_detail)
     VALUES (${name}, ${body.meal || null}, ${description},
             ${Math.round(calories)}, ${proteinG}, ${carbsG}, ${fatG},
-            ${veggieServings}, ${body.source}, ${body.source_detail || null})
+            ${veggieServings}, ${fluidOz}, ${body.source},
+            ${body.source_detail || null})
     RETURNING id, name, meal, description, calories, protein_g, carbs_g,
-              fat_g, veggie_servings, source, source_detail, created_at
+              fat_g, veggie_servings, fluid_oz, source, source_detail, created_at
   `;
   return Response.json({ favorite: shape(row) }, { status: 201 });
 });

@@ -86,7 +86,7 @@ export const GET = route(async (request) => {
 
   const entryRows = await sql`
     SELECT id, entry_date, meal, description, calories, protein_g, carbs_g,
-           fat_g, veggie_servings, source, source_detail, logged_via, created_at
+           fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via, created_at
     FROM health_intake_entries
     WHERE entry_date = ${todayStr}
     ORDER BY created_at ASC
@@ -98,6 +98,7 @@ export const GET = route(async (request) => {
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
     veggie_servings: num(row.veggie_servings),
+    fluid_oz: num(row.fluid_oz),
   }));
 
   // shapedTrend already carries every logged {reading_date, steps} row (well
@@ -121,7 +122,7 @@ export const GET = route(async (request) => {
     ounces: num(row.ounces),
   }));
   const water = {
-    ...waterProgress(waterEntries, profile?.water_target_oz ?? null),
+    ...waterProgress(waterEntries, profile?.water_target_oz ?? null, entries),
     entries: waterEntries,
   };
   const veggies = veggieProgress(
@@ -139,7 +140,7 @@ export const GET = route(async (request) => {
   // every day's Add form regardless of which date is being viewed.
   const favoriteRows = await sql`
     SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g,
-           veggie_servings, source, source_detail
+           veggie_servings, fluid_oz, source, source_detail
     FROM health_favorite_meals
     ORDER BY created_at ASC
   `;
@@ -149,6 +150,7 @@ export const GET = route(async (request) => {
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
     veggie_servings: num(row.veggie_servings),
+    fluid_oz: num(row.fluid_oz),
   }));
 
   // Recommendations: 'today' ones only matter for the viewed date (a nudge

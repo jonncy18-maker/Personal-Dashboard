@@ -541,6 +541,7 @@ function AddTimelineEntryForm({ onAdd }) {
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [veggies, setVeggies] = useState('');
+  const [fluid, setFluid] = useState('');
   const [source, setSource] = useState('estimated');
   const [busy, setBusy] = useState(false);
 
@@ -556,6 +557,7 @@ function AddTimelineEntryForm({ onAdd }) {
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
       veggie_servings: veggies === '' ? 0 : Number(veggies),
+      fluid_oz: fluid === '' ? '' : Number(fluid),
       source,
     });
     setBusy(false);
@@ -566,6 +568,7 @@ function AddTimelineEntryForm({ onAdd }) {
       setCarbs('');
       setFat('');
       setVeggies('');
+      setFluid('');
       setSource('estimated');
       setOpen(false);
     }
@@ -657,6 +660,16 @@ function AddTimelineEntryForm({ onAdd }) {
           value={veggies}
           onChange={(e) => setVeggies(e.target.value)}
         />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          step="any"
+          placeholder="fluid oz"
+          title="Drinks only (shake, latte): the liquid it's made with — counts toward water"
+          value={fluid}
+          onChange={(e) => setFluid(e.target.value)}
+        />
       </div>
       <div className={styles.formRow}>
         <button className={styles.saveBtn} type="submit" disabled={busy}>
@@ -689,6 +702,9 @@ function EditEntryForm({ entry, onSave, onCancel }) {
   const [veggies, setVeggies] = useState(
     entry.veggie_servings ? String(entry.veggie_servings) : ''
   );
+  const [fluid, setFluid] = useState(
+    entry.fluid_oz == null ? '' : String(entry.fluid_oz)
+  );
   const [source, setSource] = useState(entry.source);
   const [busy, setBusy] = useState(false);
 
@@ -709,6 +725,7 @@ function EditEntryForm({ entry, onSave, onCancel }) {
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
       veggie_servings: veggies === '' ? 0 : Number(veggies),
+      fluid_oz: fluid === '' ? '' : Number(fluid),
     };
     // Only send `source` when John actually changed it — otherwise the API's
     // own re-tier-a-hand-edited-label rule (app/api/health/intake/[id])
@@ -785,6 +802,16 @@ function EditEntryForm({ entry, onSave, onCancel }) {
           value={veggies}
           onChange={(e) => setVeggies(e.target.value)}
         />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          step="any"
+          placeholder="fluid oz"
+          title="Drinks only (shake, latte): the liquid it's made with — counts toward water"
+          value={fluid}
+          onChange={(e) => setFluid(e.target.value)}
+        />
       </div>
       {willReTier ? (
         <p className={styles.reTierNote}>
@@ -816,6 +843,7 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
     entry.carbs_g != null ? `${Math.round(entry.carbs_g)}c` : null,
     entry.fat_g != null ? `${Math.round(entry.fat_g)}f` : null,
     entry.veggie_servings > 0 ? `${entry.veggie_servings} veg` : null,
+    entry.fluid_oz > 0 ? `${entry.fluid_oz} oz fluid` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -1380,6 +1408,12 @@ function WaterCard({ water, isToday, onLog, onDelete }) {
           · {w.cups} cup{w.cups === 1 ? '' : 's'}
         </span>
       </p>
+      {w.fromDrinksOunces > 0 ? (
+        <p className={styles.waterHint}>
+          {w.plainOunces} oz water + {w.fromDrinksOunces} oz from {w.drinkFoods}{' '}
+          drink{w.drinkFoods === 1 ? '' : 's'} logged as food
+        </p>
+      ) : null}
       {pct != null ? (
         <div className={styles.waterLine}>
           <div className={styles.veggieTrack} style={{ flex: 1 }}>
