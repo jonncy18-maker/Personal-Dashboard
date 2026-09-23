@@ -192,17 +192,20 @@ body {
    While the splash covers the app, the app's own entrance animations are
    held at their first frame — otherwise Home's fade-up would burn through
    behind the cover and the dashboard would be sitting there fully arrived
-   when the splash cleared. They release on the 'handoff' phase, so the
-   cascade plays into view as the cover dissolves.
+   when the splash cleared. They release on the 'handoff' phase — which
+   the splash only enters once the flying wordmark and every domain dot are
+   inside the sidebar, so nothing on the page is visible while something
+   moves across it.
 
-   The real sidebar mark stays hidden for BOTH phases: the flying wordmark
-   is still in transit during the hand-off, and revealing its destination
-   early would show the same mark twice. It appears when the attribute goes
-   away and the splash unmounts, in the same tick. */
+   The real sidebar lockup (mark + subtitle) stays hidden for BOTH phases:
+   the flying copy settles exactly on top of it, and revealing it early
+   would show the same text twice. It appears when the attribute goes away
+   and the splash unmounts, in the same tick. */
 html[data-intro='running'] [data-app-root] * {
   animation-play-state: paused;
 }
-html[data-intro] [data-brand-mark] {
+html[data-intro] [data-brand-mark],
+html[data-intro] [data-brand-sub] {
   opacity: 0;
 }
 
