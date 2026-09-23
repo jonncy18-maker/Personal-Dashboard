@@ -266,6 +266,24 @@
   font-size: 11px;
   color: var(--ink-muted);
 }
+.veggieLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.veggieTrack {
+  flex: 0 0 56px;
+  height: 5px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+.veggieFill {
+  height: 100%;
+}
 .formulaToggle {
   display: flex;
   align-items: center;
