@@ -1,5 +1,6 @@
 import { getDb, num, dateOnly } from '../../../../../lib/db';
 import { route } from '../../../../../lib/route';
+import { parseVeggieServings } from '../../../../../lib/health';
 
 // Correcting or removing a single intake entry. Editing a calorie figure by
 // hand makes it John's own number, so a PATCH that touches `calories` without
@@ -64,6 +65,19 @@ export const PATCH = route(async (request, { params }) => {
     );
   }
 
+  // Same "only touch what's named" rule; blank/null resets to 0 since the
+  // column is NOT NULL DEFAULT 0.
+  const veggieServings =
+    'veggie_servings' in body
+      ? parseVeggieServings(body.veggie_servings)
+      : num(current.veggie_servings);
+  if (veggieServings === undefined) {
+    return Response.json(
+      { error: 'veggie_servings must be a non-negative number' },
+      { status: 400 }
+    );
+  }
+
   const [row] = await sql`
     UPDATE health_intake_entries
     SET meal          = ${body.meal ?? current.meal},
@@ -72,11 +86,12 @@ export const PATCH = route(async (request, { params }) => {
         protein_g     = ${proteinG},
         carbs_g       = ${carbsG},
         fat_g         = ${fatG},
+        veggie_servings = ${veggieServings},
         source        = ${source},
         source_detail = ${body.source_detail ?? current.source_detail}
     WHERE id = ${id}
     RETURNING id, entry_date, meal, description, calories, protein_g,
-              carbs_g, fat_g, source, source_detail, logged_via, created_at,
+              carbs_g, fat_g, veggie_servings, source, source_detail, logged_via, created_at,
               updated_at
   `;
   return Response.json({
@@ -86,6 +101,7 @@ export const PATCH = route(async (request, { params }) => {
       protein_g: num(row.protein_g),
       carbs_g: num(row.carbs_g),
       fat_g: num(row.fat_g),
+      veggie_servings: num(row.veggie_servings),
     },
   });
 });

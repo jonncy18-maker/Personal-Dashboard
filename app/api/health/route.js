@@ -1,6 +1,11 @@
 import { getDb, num, dateOnly } from '../../../lib/db';
 import { route } from '../../../lib/route';
-import { computeTarget, dayTotals, todayYMD } from '../../../lib/health';
+import {
+  computeTarget,
+  dayTotals,
+  veggieProgress,
+  todayYMD,
+} from '../../../lib/health';
 
 // Health › Diet — the profile plus the computed day view in one read, so the
 // page never has to assemble the target from three round trips (and so the
@@ -27,6 +32,7 @@ function shapeProfile(row) {
     activity_trailing_days: num(row.activity_trailing_days),
     goal_weight_lb: num(row.goal_weight_lb),
     floor_pct: num(row.floor_pct),
+    veggie_target_servings: num(row.veggie_target_servings),
   };
 }
 
@@ -78,7 +84,7 @@ export const GET = route(async (request) => {
 
   const entryRows = await sql`
     SELECT id, entry_date, meal, description, calories, protein_g, carbs_g,
-           fat_g, source, source_detail, logged_via, created_at
+           fat_g, veggie_servings, source, source_detail, logged_via, created_at
     FROM health_intake_entries
     WHERE entry_date = ${todayStr}
     ORDER BY created_at ASC
@@ -89,6 +95,7 @@ export const GET = route(async (request) => {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    veggie_servings: num(row.veggie_servings),
   }));
 
   // shapedTrend already carries every logged {reading_date, steps} row (well
@@ -101,6 +108,10 @@ export const GET = route(async (request) => {
     stepsRows: shapedTrend,
   });
   const totals = dayTotals(entries);
+  const veggies = veggieProgress(
+    totals.veggieServings,
+    profile?.veggie_target_servings ?? null
+  );
 
   // `remaining` is only meaningful next to the completeness signal the client
   // renders from `totals` — see the ROADMAP entry: a big friendly number after
@@ -112,7 +123,7 @@ export const GET = route(async (request) => {
   // every day's Add form regardless of which date is being viewed.
   const favoriteRows = await sql`
     SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g,
-           source, source_detail
+           veggie_servings, source, source_detail
     FROM health_favorite_meals
     ORDER BY created_at ASC
   `;
@@ -121,6 +132,7 @@ export const GET = route(async (request) => {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    veggie_servings: num(row.veggie_servings),
   }));
 
   // Recommendations: 'today' ones only matter for the viewed date (a nudge
@@ -146,6 +158,7 @@ export const GET = route(async (request) => {
     profile,
     target,
     totals,
+    veggies,
     remaining,
     entries,
     favorites,
@@ -169,6 +182,7 @@ const PROFILE_FIELDS = [
   'floor_pct',
   'manual_floor_cal',
   'manual_target_cal',
+  'veggie_target_servings',
 ];
 
 const ACTIVITY_SOURCES = ['manual', 'steps_trailing'];
@@ -201,6 +215,17 @@ export const PATCH = route(async (request) => {
   if ('activity_trailing_days' in patch) {
     patch.activity_trailing_days = patch.activity_trailing_days || 14;
   }
+  // Also NOT NULL (migration 035): blank resets to the default 2.
+  if ('veggie_target_servings' in patch) {
+    const n = Number(patch.veggie_target_servings ?? 2);
+    if (!Number.isFinite(n) || n <= 0 || n > 99) {
+      return Response.json(
+        { error: 'veggie_target_servings must be a positive number' },
+        { status: 400 }
+      );
+    }
+    patch.veggie_target_servings = n;
+  }
 
   // Read-merge-write rather than ten conditional SQL fragments: a field the
   // caller omitted must keep its stored value, while a field sent as null must
@@ -226,7 +251,8 @@ export const PATCH = route(async (request) => {
         goal_date           = ${dateOnly(next.goal_date)},
         floor_pct           = ${next.floor_pct},
         manual_floor_cal    = ${next.manual_floor_cal},
-        manual_target_cal   = ${next.manual_target_cal}
+        manual_target_cal   = ${next.manual_target_cal},
+        veggie_target_servings = ${next.veggie_target_servings}
     WHERE id = 1
     RETURNING *
   `;

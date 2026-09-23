@@ -24,7 +24,8 @@
 --                      028_health_diet, 029_health_mcp_oauth,
 --                      030_health_steps, 031_health_activity_source,
 --                      032_health_macros_favorites, 033_health_recommended_meals,
---                      034_mileage_scenario_occurrences
+--                      034_mileage_scenario_occurrences,
+--                      035_health_veggie_servings
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -658,6 +659,10 @@ CREATE TABLE IF NOT EXISTS health_profile (
   -- When set, the formula stops computing entirely and this number IS the
   -- target (CLAUDE.md §7.3 — a figure John maintains outranks a derived one).
   manual_target_cal    integer,
+  -- Daily vegetable-servings baseline (migration 035) — a field John
+  -- maintains, not a constant in code. get_day reports whether it was met.
+  veggie_target_servings numeric(3, 1) NOT NULL DEFAULT 2
+                       CHECK (veggie_target_servings > 0),
   created_at           timestamptz NOT NULL DEFAULT now(),
   updated_at           timestamptz NOT NULL DEFAULT now()
 );
@@ -710,6 +715,10 @@ CREATE INDEX IF NOT EXISTS health_weight_readings_date_idx
 -- steps is on health_weight_readings: an existing or manually-typed row may
 -- simply not have them, and a NOT NULL default of 0 would misrepresent
 -- "not logged" as "zero grams" — this domain never fabricates a number.
+-- veggie_servings (migration 035) is the deliberate exception: NOT NULL
+-- DEFAULT 0, because it only feeds a "did the day reach its minimum" check,
+-- so an unassessed 0 can only under-count (reads NOT met), never fabricate a
+-- success. A serving ≈ 1 cup raw or 1/2 cup cooked vegetables.
 CREATE TABLE IF NOT EXISTS health_intake_entries (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   entry_date     date NOT NULL,
@@ -720,6 +729,7 @@ CREATE TABLE IF NOT EXISTS health_intake_entries (
   protein_g      numeric(5, 1) CHECK (protein_g >= 0),
   carbs_g        numeric(5, 1) CHECK (carbs_g >= 0),
   fat_g          numeric(5, 1) CHECK (fat_g >= 0),
+  veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
   source         text NOT NULL
                  CHECK (source IN ('label', 'recall', 'estimated')),
   -- Where a `label` came from (a menu, a wrapper, a URL) or what a `recall`
@@ -751,6 +761,7 @@ CREATE TABLE IF NOT EXISTS health_favorite_meals (
   protein_g    numeric(5, 1) CHECK (protein_g >= 0),
   carbs_g      numeric(5, 1) CHECK (carbs_g >= 0),
   fat_g        numeric(5, 1) CHECK (fat_g >= 0),
+  veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
   source       text NOT NULL CHECK (source IN ('label', 'recall', 'estimated')),
   source_detail text,
   created_at   timestamptz NOT NULL DEFAULT now(),

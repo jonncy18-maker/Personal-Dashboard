@@ -140,6 +140,31 @@ function BudgetRing({ consumed, target, estimated }) {
   );
 }
 
+// The day's vegetable servings against the profile baseline. Beside the
+// completeness line above it, so "0 of 2" on an unlogged day reads as
+// "nothing logged", not as a verdict on the day.
+function VeggieLine({ veggies }) {
+  if (!veggies || veggies.target == null) return null;
+  const pct = Math.min(100, (veggies.servings / veggies.target) * 100);
+  return (
+    <div className={styles.veggieLine}>
+      <div className={styles.veggieTrack}>
+        <div
+          className={styles.veggieFill}
+          style={{
+            width: `${pct}%`,
+            background: veggies.met ? 'var(--good)' : 'var(--dom-health)',
+          }}
+        />
+      </div>
+      <span>
+        Veggies {veggies.servings} / {veggies.target} servings
+        {veggies.met ? ' ✓' : ''}
+      </span>
+    </div>
+  );
+}
+
 // A stacked proportional bar only means something when all three macros are
 // actually known for the day — built from a partial set it would imply a
 // split that was never measured, so it only renders when nothing is missing.
@@ -501,6 +526,7 @@ function AddTimelineEntryForm({ onAdd }) {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [veggies, setVeggies] = useState('');
   const [source, setSource] = useState('estimated');
   const [busy, setBusy] = useState(false);
 
@@ -515,6 +541,7 @@ function AddTimelineEntryForm({ onAdd }) {
       protein_g: protein === '' ? '' : Number(protein),
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
+      veggie_servings: veggies === '' ? 0 : Number(veggies),
       source,
     });
     setBusy(false);
@@ -524,6 +551,7 @@ function AddTimelineEntryForm({ onAdd }) {
       setProtein('');
       setCarbs('');
       setFat('');
+      setVeggies('');
       setSource('estimated');
       setOpen(false);
     }
@@ -605,6 +633,16 @@ function AddTimelineEntryForm({ onAdd }) {
           value={fat}
           onChange={(e) => setFat(e.target.value)}
         />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          step="0.5"
+          placeholder="veg servings"
+          title="1 serving ≈ 1 cup raw or ½ cup cooked"
+          value={veggies}
+          onChange={(e) => setVeggies(e.target.value)}
+        />
       </div>
       <div className={styles.formRow}>
         <button className={styles.saveBtn} type="submit" disabled={busy}>
@@ -634,6 +672,9 @@ function EditEntryForm({ entry, onSave, onCancel }) {
   const [fat, setFat] = useState(
     entry.fat_g == null ? '' : String(entry.fat_g)
   );
+  const [veggies, setVeggies] = useState(
+    entry.veggie_servings ? String(entry.veggie_servings) : ''
+  );
   const [source, setSource] = useState(entry.source);
   const [busy, setBusy] = useState(false);
 
@@ -653,6 +694,7 @@ function EditEntryForm({ entry, onSave, onCancel }) {
       protein_g: protein === '' ? '' : Number(protein),
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
+      veggie_servings: veggies === '' ? 0 : Number(veggies),
     };
     // Only send `source` when John actually changed it — otherwise the API's
     // own re-tier-a-hand-edited-label rule (app/api/health/intake/[id])
@@ -719,6 +761,16 @@ function EditEntryForm({ entry, onSave, onCancel }) {
           value={fat}
           onChange={(e) => setFat(e.target.value)}
         />
+        <input
+          className={styles.inputNum}
+          type="number"
+          min="0"
+          step="0.5"
+          placeholder="veg servings"
+          title="1 serving ≈ 1 cup raw or ½ cup cooked"
+          value={veggies}
+          onChange={(e) => setVeggies(e.target.value)}
+        />
       </div>
       {willReTier ? (
         <p className={styles.reTierNote}>
@@ -749,6 +801,7 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
     entry.protein_g != null ? `${Math.round(entry.protein_g)}p` : null,
     entry.carbs_g != null ? `${Math.round(entry.carbs_g)}c` : null,
     entry.fat_g != null ? `${Math.round(entry.fat_g)}f` : null,
+    entry.veggie_servings > 0 ? `${entry.veggie_servings} veg` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -1849,6 +1902,7 @@ export default function DietPage() {
               fatG={totals.fatG}
               fatComplete={totals.fatComplete}
             />
+            <VeggieLine veggies={day.veggies} />
 
             {target.clamped ? (
               <p className={styles.clamp}>
