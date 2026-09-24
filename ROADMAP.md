@@ -75,6 +75,37 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-24 — Home redesign: Today / Horizon groups, state pills, quiet empty cards
+
+A review of the Home page (screenshots at desktop, tablet and phone), then a clickable before/after mockup John signed off before any code. Shipped everything in the mockup except the 6-week horizon strip ("B"), which John skipped.
+
+- **Fixes.**
+  - **Phone quote mark.** On phones the quote mark rode up into "Working late, John." It now sits inline before the quote.
+  - **Health with nothing logged.** The card led with "1,984 left", which read as a good day. It now says "Nothing logged yet" and puts the target on a secondary line.
+  - **Email card.** The permanent "— important" was a dead metric, the kind CLAUDE.md §7 forbids. It now shows the count of starred to-dos from `email_todos`.
+  - **Negative PTO.** A negative balance on the Travel card was caption-weight text. It now gets a warn chip, and the scrim is darker so the text stays readable on the trip photo.
+- **Layout.**
+  - Cards sit in 4 columns (2 on tablet, 1 on phone), split into two groups of four. **Today** holds Health, Schedules, Language and Email; **Horizon** holds Travel, Car, AI Projects and Ideas. Three columns always left an orphan row.
+  - The sidebar's "Next trip" card is hidden on Home, where the Travel card already shows the trip.
+  - Home has bottom padding so the Assistant button no longer covers a card.
+- **State pills.** Every card pill is now derived from data ("In 37 days", "Not started" / "On track" / "Over", "Clear", "Call Mon", "All active"). A card with no state to report shows no pill. Car's "On pace" was the model.
+- **Quiet empty cards.** A card with nothing in it (Schedules 0 open, Ideas 0 open, Email 0 starred) drops to a sunken, dashed, untinted style so the cards with data carry the page. The fill is sunken rather than transparent, so it never depends on what's painted behind the card.
+- **Stat bar.** "Need attention" was renamed "Next 7 days", because it counts every agenda item, routine calls included. "Open Calendar" is now an outline link; it had been the loudest element on the page.
+- **Hero.**
+  - The greeting uses the display face of the "John" wordmark, with a mono date line under it.
+  - Up Next is wider (up to half the hero), and titles wrap to two lines instead of cutting off.
+  - An empty To-do column is narrower.
+  - `.body` reserves the widget's width (`--widget-w`), so the larger greeting wraps instead of running under Up Next. It did run under at 1024px, and a sweep caught it.
+  - The hero stacks at 1000px (was 900): between those widths Up Next was too cramped.
+- **Meters and freshness.**
+  - Car shows a Year-1 projection bar against the allowance.
+  - Once food is logged, Health shows eaten vs target, plus meals / veg / water chips. `home-summary` now returns `veggie_servings`, `veggie_target`, `water_oz` and `water_target_oz`, computed with the same helpers as `get_day`.
+  - Language flags French hours whose import is older than 14 days ("as of Jul 18 · 67 days old"). Every ratio comes from real data; no goal was invented.
+- **Verified.**
+  - A text-box overlap sweep of the hero and grid at 1440, 1280, 1100, 1024, 1001, 1000, 901, 768 and 390px found no overlaps.
+  - Screenshots in dark and light, with today's live summary and a sample logged day.
+  - `next build` passes.
+
 ## 2026-09-23 (cont'd 2) — Water tracking on Health › Diet, including drinks logged as food
 
 John asked to record water through the day, in the terms he already uses: "I just drank an eight ounce cup of water."
@@ -119,7 +150,7 @@ Key frames were also reviewed by eye at each size. **Not visually tested:** the 
 
 **Veggie servings (migration 035).** John asked, from a food-logging chat, for vegetable-serving tracking: a per-entry `veggie_servings` field (1 serving ≈ 1 cup raw / ½ cup cooked, USDA guidance), accepted by `log_food`/`update_intake_entry`, a daily `veggie_servings_total` from `get_day`, and a flag for hitting a 2-serving baseline "configurable later". Fiber grams deliberately not built. Decisions:
 
-- **`NOT NULL DEFAULT 0`, as John specified — the one deliberate break from the macros' nullable rule.** Macros stay nullable so "not logged" never reads as "zero grams". Veggie servings only feed a "did the day reach its minimum" check, so an entry nobody assessed can only under-count (the day reads *not met*), never fabricate a success. The tool descriptions tell Claude to set the field whenever a meal contains vegetables, since omission silently means 0.
+- **`NOT NULL DEFAULT 0`, as John specified — the one deliberate break from the macros' nullable rule.** Macros stay nullable so "not logged" never reads as "zero grams". Veggie servings only feed a "did the day reach its minimum" check, so an entry nobody assessed can only under-count (the day reads _not met_), never fabricate a success. The tool descriptions tell Claude to set the field whenever a meal contains vegetables, since omission silently means 0.
 - **The target is a profile column (`veggie_target_servings`, default 2), not a constant in code** — same treatment as `floor_pct`, so raising it is an `update_health_profile` call, not a deploy. `get_day` returns `veggie_servings_total` / `veggie_target_servings` / `veggie_target_met`; `lib/health.js`'s `dayTotals()` sums it and `veggieProgress()` makes the comparison, so page, API and MCP all share one rule.
 - **Favorites carry `veggie_servings` too** (same migration) — logging a favorite copies it into the new entry. Without it, every one-tap log of the usual breakfast would record 0. Recommended meals do not: a logged recommendation gets the column default 0 and can be corrected with `update_intake_entry`.
 - **UI stayed small, per the ask:** a "veg servings" input on the add/edit entry forms, a `1.5 veg` tag on timeline rows, and a small Veggies bar under the macros in the sidebar (below the completeness line, so "0 / 2" on an unlogged day reads as "nothing logged"). No new screens. The in-app Assistant and both MCP servers picked up the new fields automatically (they read `HEALTH_TOOLS` directly).
@@ -146,7 +177,7 @@ John flagged `/health/diet` as messy — the dark full-width hero banner didn't 
 
 **What shipped, presentation-only (no API or schema changes):** `/health/diet` is now a sidebar (day's numbers, pinned) + main panel (the day as a timeline) layout. The dark hero card is gone — `BudgetRing` moved into a light `.card` and got recolored for it (its track/arc were styled for the dark gradient it no longer sits on). A new `MacroBar` shows protein/carbs/fat as a proportional bar, but only when all three are actually known — a bar built from a partial set would visually claim a split that was never measured, so a partial macro set falls back to legend numbers alone. The four fixed meal-bucket sections are gone; entries render as one chronological timeline ordered by `created_at`, each tagged by a small per-meal color instead of a repeated section header. Favorites and Recommended merge into a "Meal Library": one-tap quick-add chips (only for items that actually have a calorie figure to log) plus a "Manage" toggle that reveals the original full-CRUD cards unchanged.
 
-**One correctness point surfaced during the build, not just a restyle:** a timeline needs to show *when* something was logged, and the only timestamp on an entry is `created_at` — but that's when the row was written, not when the meal happened. Showing a clock time on a backfilled past day would silently claim a precision the data doesn't have (log yesterday's breakfast this morning and `created_at` reads "now," not "7am yesterday"). Fixed by only rendering a time on `isToday`; a past day's timeline shows the meal tag with no time. Also fixed in passing: `.figureLabel` (used in the Weight & Steps card) had been styled with a semi-transparent near-white color intended for the old dark hero, back when it was already being reused on a light card — a pre-existing low-contrast bug, not something this redesign introduced, now using `var(--ink-muted)`.
+**One correctness point surfaced during the build, not just a restyle:** a timeline needs to show _when_ something was logged, and the only timestamp on an entry is `created_at` — but that's when the row was written, not when the meal happened. Showing a clock time on a backfilled past day would silently claim a precision the data doesn't have (log yesterday's breakfast this morning and `created_at` reads "now," not "7am yesterday"). Fixed by only rendering a time on `isToday`; a past day's timeline shows the meal tag with no time. Also fixed in passing: `.figureLabel` (used in the Weight & Steps card) had been styled with a semi-transparent near-white color intended for the old dark hero, back when it was already being reused on a light card — a pre-existing low-contrast bug, not something this redesign introduced, now using `var(--ink-muted)`.
 
 **Verification:** `npm run build` and `npx prettier --check` both clean. Not verified in a live browser — no dev server in this sandbox; worth a manual pass over the timeline, the macro bar's all-vs-partial branches, and the meal-library chips once deployed.
 
@@ -180,7 +211,7 @@ John asked whether yesterday's steps still influence today's calorie target, exp
 
 **What it does.** A profile can now opt `activity_source` into `'steps_trailing'` (default stays `'manual'` — zero behavior change for every existing profile). When opted in, `computeTarget()` in `lib/health.js` averages logged steps over a trailing window (`activity_trailing_days`, default 14) and maps that average onto the same five standard Mifflin–St Jeor activity categories (sedentary 1.2 through extra-active 1.9), banded at 5,000/7,500/10,000/12,500 steps/day. The average is gap-tolerant — a day with no steps row is excluded, never treated as zero — matching how weight and every other dated log in this app already handles gaps.
 
-**The safeguard is the whole point.** The multiplier only ever moves from *trailing, historical* steps, never from the day's own step count — so there is no intraday calorie credit. A wearable crediting today's steps back into today's target, on top of a multiplier that already assumes elevated activity, would double-count the same movement — worse given wearables' well-documented 20–40% overestimate of active burn. This matches the original design exactly, just built a session later than scoped.
+**The safeguard is the whole point.** The multiplier only ever moves from _trailing, historical_ steps, never from the day's own step count — so there is no intraday calorie credit. A wearable crediting today's steps back into today's target, on top of a multiplier that already assumes elevated activity, would double-count the same movement — worse given wearables' well-documented 20–40% overestimate of active burn. This matches the original design exactly, just built a session later than scoped.
 
 **Honesty on sparse data.** A minimum-data gate (half the trailing window must have logged days) keeps the multiplier from being derived off too few points. Below that threshold, `computeTarget()` reports `activityProvenance: 'steps_trailing_pending'`, falls back to the profile's manual `activity_multiplier`, and the UI says outright how many more logged days are needed — never a silent, unexplained fallback.
 
@@ -233,7 +264,7 @@ Once the Health MCP connector actually worked end to end, John asked for the obv
 
 ## 2026-09-17 (cont'd 4) — Health MCP: Vercel Authentication turned off — connector now unblocked
 
-The bypass-secret theory from the previous entry didn't hold up. John retried with "Register automatically" (DCR) selected in claude.ai's connector settings — the correct choice, since `/api/mcp/health/register` implements RFC 7591 DCR, not the newer CIMD ("Use Claude's published identity") option the UI defaults to. Same error either way. Checked Vercel's runtime logs one more time: identical stopping point as every prior attempt — `POST /api/mcp/health` (401) and `.well-known/oauth-protected-resource/api/mcp/health` (200), then nothing. The bypass *cookie* Vercel was supposed to set on that first successful response never carried forward to the client's next request (the self-constructed `.well-known/oauth-authorization-server` fetch, which per spec can't carry a query-string bypass either) — confirming this path was a genuine dead end, not a bug in our code.
+The bypass-secret theory from the previous entry didn't hold up. John retried with "Register automatically" (DCR) selected in claude.ai's connector settings — the correct choice, since `/api/mcp/health/register` implements RFC 7591 DCR, not the newer CIMD ("Use Claude's published identity") option the UI defaults to. Same error either way. Checked Vercel's runtime logs one more time: identical stopping point as every prior attempt — `POST /api/mcp/health` (401) and `.well-known/oauth-protected-resource/api/mcp/health` (200), then nothing. The bypass _cookie_ Vercel was supposed to set on that first successful response never carried forward to the client's next request (the self-constructed `.well-known/oauth-authorization-server` fetch, which per spec can't carry a query-string bypass either) — confirming this path was a genuine dead end, not a bug in our code.
 
 **Decision: turned off Vercel Authentication (`ssoProtection`) for this project entirely**, via the Vercel MCP's `update_project_deployment_protection`. Weighed against the alternatives (a custom domain — same exposure tradeoff, more setup; a real login layer — reverses CLAUDE.md §7.1's Hard Boundary) and chose this because it's simplest and keeps the actual "no in-app login" design intact rather than fighting it. **Real consequence, stated plainly: the dashboard is now reachable by anyone who has the `.vercel.app` URL — no password, no wall.** That was always closer to this app's stated single-user design than the Vercel-level wall silently providing (undocumented) protection nobody had actually decided to rely on. `HEALTH_MCP_TOKEN` and the OAuth handshake still gate the MCP write tools specifically; the human-facing pages (`/travel`, `/health/diet`, etc.) have no gate at all now, by design, matching CLAUDE.md.
 
@@ -259,7 +290,7 @@ This wall is very likely what CLAUDE.md §7.1 means by "gate access at the Verce
 
 **Built:** `lib/health-oauth.js` exports `withBypass(url)`, which appends `?x-vercel-protection-bypass=<VERCEL_AUTOMATION_BYPASS_SECRET>&x-vercel-set-bypass-cookie=true` to a URL when that env var is set (a no-op otherwise). Applied to every endpoint URL in the OAuth metadata (`authorization_endpoint`, `token_endpoint`, `registration_endpoint`, the `authorization_servers` entry) and to the `resource_metadata` URL in `/api/mcp/health`'s 401 `WWW-Authenticate` header.
 
-**John's remaining manual step:** turn on "Protection Bypass for Automation" in Vercel (Settings → Deployment Protection) — this auto-provisions `VERCEL_AUTOMATION_BYPASS_SECRET`, nothing to type in. Then, because that secret can only reach requests *we* construct, the very first hop (whatever URL gets pasted into claude.ai's "Remote MCP server URL" field) has to carry it too: `https://personal-dashboard-jonncy18.vercel.app/api/mcp/health?x-vercel-protection-bypass=<the secret shown in Vercel's settings>`.
+**John's remaining manual step:** turn on "Protection Bypass for Automation" in Vercel (Settings → Deployment Protection) — this auto-provisions `VERCEL_AUTOMATION_BYPASS_SECRET`, nothing to type in. Then, because that secret can only reach requests _we_ construct, the very first hop (whatever URL gets pasted into claude.ai's "Remote MCP server URL" field) has to carry it too: `https://personal-dashboard-jonncy18.vercel.app/api/mcp/health?x-vercel-protection-bypass=<the secret shown in Vercel's settings>`.
 
 **Real uncertainty flagged rather than papered over:** RFC 8414/9728 well-known URL construction is normally done by stripping any query string off the seed URL and inserting a path segment — so it's possible claude.ai's client does the same and drops the bypass param before ever fetching `.well-known/oauth-protected-resource/api/mcp/health`, in which case this still won't work and the real choice becomes custom domain vs. turning the wall off vs. real auth. No way to confirm which without John retrying it live.
 

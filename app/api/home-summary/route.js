@@ -5,7 +5,13 @@ import { fetchCalendarEvents } from '../../../lib/calendar-events';
 import { yearOf, ptoSummary, netPtoLeft } from '../../../lib/pto';
 import { mileageSummary, monthlyForecast } from '../../../lib/mileage';
 import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
-import { computeTarget, dayTotals, todayYMD } from '../../../lib/health';
+import {
+  computeTarget,
+  dayTotals,
+  todayYMD,
+  veggieProgress,
+  waterProgress,
+} from '../../../lib/health';
 
 // Maintenance's tables are read separately from the main Promise.all, and a
 // failure here degrades to "no maintenance line" instead of taking the whole
@@ -34,20 +40,24 @@ async function loadMaintenanceRows(sql) {
 // may not exist for the window between merge and `npm run migrate`.
 async function loadHealthDay(sql, todayStr) {
   try {
-    const [profileRows, weightRows, stepsRowsRaw, entries] = await Promise.all([
-      sql`SELECT * FROM health_profile WHERE id = 1`,
-      sql`SELECT reading_date, weight_lb FROM health_weight_readings
+    const [profileRows, weightRows, stepsRowsRaw, entries, waterRows] =
+      await Promise.all([
+        sql`SELECT * FROM health_profile WHERE id = 1`,
+        sql`SELECT reading_date, weight_lb FROM health_weight_readings
           WHERE reading_date <= ${todayStr} AND weight_lb IS NOT NULL
           ORDER BY reading_date DESC LIMIT 1`,
-      // Only needed when activity_source = 'steps_trailing' below, but this
-      // read is cheap and keeping it unconditional avoids a second
-      // profile-dependent round trip inside the same try/catch.
-      sql`SELECT reading_date, steps FROM health_weight_readings
+        // Only needed when activity_source = 'steps_trailing' below, but this
+        // read is cheap and keeping it unconditional avoids a second
+        // profile-dependent round trip inside the same try/catch.
+        sql`SELECT reading_date, steps FROM health_weight_readings
           WHERE steps IS NOT NULL
           ORDER BY reading_date DESC LIMIT 60`,
-      sql`SELECT meal, calories, source FROM health_intake_entries
+        sql`SELECT meal, calories, source, veggie_servings, fluid_oz
+          FROM health_intake_entries
           WHERE entry_date = ${todayStr}`,
-    ]);
+        sql`SELECT ounces FROM health_water_entries
+          WHERE entry_date = ${todayStr}`,
+      ]);
     const profileRow = profileRows[0];
     const profile = profileRow
       ? {
@@ -79,6 +89,18 @@ async function loadHealthDay(sql, todayStr) {
       stepsRows,
     });
     const totals = dayTotals(entries);
+    // Veg and water ride along so the Home card can show the day's full
+    // picture once something is logged. Same helpers as get_day, so Home and
+    // the Diet page can't disagree about a total.
+    const veggies = veggieProgress(
+      totals.veggieServings,
+      profileRow ? num(profileRow.veggie_target_servings) : null
+    );
+    const water = waterProgress(
+      waterRows,
+      profileRow ? num(profileRow.water_target_oz) : null,
+      entries
+    );
     return {
       target: target.target,
       consumed: totals.total,
@@ -90,6 +112,10 @@ async function loadHealthDay(sql, todayStr) {
       entry_count: totals.entryCount,
       remaining: target.target == null ? null : target.target - totals.total,
       weight_lb: target.weightLb,
+      veggie_servings: veggies.servings,
+      veggie_target: veggies.target,
+      water_oz: water.ounces,
+      water_target_oz: water.target,
     };
   } catch (err) {
     console.error('[home-summary] health read failed:', err);

@@ -13,20 +13,20 @@ import { buildAgenda } from '../lib/agenda';
 import { daysUntil } from '../lib/format';
 import styles from './page.module.css';
 
-function StatBar({ needAttention, eventsToday }) {
+function StatBar({ nextWeek, eventsToday }) {
   // Email is intentionally absent — there's no cheap, honest count without a
   // live Gmail call on every Home load (see CLAUDE.md §7 / home-summary route),
   // and a permanent "—" tile is exactly the dead metric that rule forbids.
   const tiles = [
     {
       icon: <CheckCircleIcon />,
-      num: needAttention,
-      label: 'Need attention',
+      num: nextWeek,
+      label: 'Next 7 days',
     },
     {
       icon: <SchedulesIcon />,
       num: eventsToday,
-      label: 'Events today',
+      label: 'Today',
     },
   ];
   return (
@@ -40,13 +40,14 @@ function StatBar({ needAttention, eventsToday }) {
           </div>
         </div>
       ))}
-      {/* Fills the bar's empty third column — a prominent shortcut into the
-          Calendar. Solid accent so it contrasts against the dark bar while
-          staying in the app's own primary-action color. */}
+      {/* A quiet outline link, not a solid button: it was the loudest thing
+          on the page and pulled the eye before the numbers did, for a
+          destination the sidebar already has. */}
       <div className={styles.calCell}>
-        <Link href="/calendar" className={styles.calButton}>
+        <Link href="/calendar" className={styles.calLink}>
           <CalendarIcon />
-          <span>Open Calendar</span>
+          <span>Calendar</span>
+          <span aria-hidden="true">&rarr;</span>
         </Link>
       </div>
     </div>
@@ -57,9 +58,9 @@ export default function HomePage() {
   const { summary, error } = useHomeSummary();
 
   const agenda = summary ? buildAgenda(summary) : [];
-  const needAttention = agenda.filter(
-    (item) => daysUntil(item.when) <= 7
-  ).length;
+  // Every agenda item in the week, routine calls included, so it's labelled
+  // "Next 7 days" rather than "Need attention".
+  const nextWeek = agenda.filter((item) => daysUntil(item.when) <= 7).length;
   const eventsToday = agenda.filter(
     (item) => daysUntil(item.when) === 0
   ).length;
@@ -72,14 +73,13 @@ export default function HomePage() {
         scheduleTasks={summary?.schedules?.items || []}
       />
 
-      <StatBar needAttention={needAttention} eventsToday={eventsToday} />
+      <StatBar nextWeek={nextWeek} eventsToday={eventsToday} />
 
       {error && <p className={styles.loadError}>{error}</p>}
       {!summary && !error && <p className={styles.loading}>Loading…</p>}
 
       {summary && (
         <div>
-          <p className={`eyebrow ${styles.sectionLabel}`}>At a glance</p>
           <DomainGrid summary={summary} />
         </div>
       )}

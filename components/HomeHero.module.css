@@ -1,4 +1,7 @@
 .hero {
+  /* The overlay widget's width, shared with .body so the greeting's column
+     stops short of it and wraps instead of running underneath. */
+  --widget-w: min(560px, 50%);
   position: relative;
   height: 300px;
   border-radius: var(--radius-lg);
@@ -64,7 +67,7 @@
   position: relative;
   z-index: 1;
   height: 100%;
-  padding: 26px 30px;
+  padding: 26px calc(var(--widget-w) + 48px) 26px 30px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -82,7 +85,8 @@
     transform: translateY(0);
   }
 }
-.greetRow,
+.greet,
+.dateLine,
 .quote,
 .widget {
   animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -94,49 +98,43 @@
   animation-delay: 0.16s;
 }
 
-.greetRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 .greet {
   margin: 0;
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  /* The display face of the "John" wordmark and the intro, so the hero
+     reads as the same brand as the launch animation. */
+  font-family: var(--font-display), serif;
+  font-style: italic;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
 }
-.liveDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(109, 147, 255, 0.4);
+.dateLine {
+  margin: 6px 0 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .liveDot {
-    animation: pulse 2.4s ease-in-out infinite;
-  }
-}
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
+/* The mark sits inline before the quote. Stacked above it (line-height .5),
+   it rode up into the greeting once the hero went to auto height on phones. */
 .quote {
   max-width: 460px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 .quoteMark {
-  font-size: 30px;
-  line-height: 0.5;
+  flex: none;
+  font-size: 26px;
+  line-height: 1.1;
   font-weight: 800;
   color: var(--accent-ink);
 }
 .quoteText {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 17px;
   font-weight: 600;
   line-height: 1.35;
@@ -164,7 +162,9 @@
   top: 22px;
   right: 24px;
   bottom: 22px;
-  width: 440px;
+  /* Wide enough that Up Next titles fit; capped as a share of the hero so
+     the greeting keeps its side on a narrower screen. */
+  width: var(--widget-w);
   display: flex;
   flex-direction: row;
   overflow: hidden;
@@ -180,6 +180,9 @@
   flex: 1 1 0;
   min-width: 0;
   padding-right: 20px;
+}
+.sectionCompact {
+  flex: 0 0 170px;
 }
 .section + .section {
   padding-right: 0;
@@ -261,9 +264,13 @@
   min-width: 0;
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1.35;
+  /* Two lines, then an ellipsis — a one-line cut dropped most of a long
+     event title ("Recordatorio Pag…"). */
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .widgetRowDot {
   flex: 0 0 auto;
@@ -362,12 +369,12 @@
   text-underline-offset: 2px;
 }
 
-/* 900px, not 640px: the widget widened to 440px for the two-column layout,
+/* 1000px, not 640px: the widget is up to 560px (half the hero) in the two-column layout,
    so it needs to switch to a stacked, narrower column well before the
    original single-list breakpoint — otherwise on a medium/tablet-width hero
    the still-side-by-side widget can visually crowd the quote text on its
    left (both sit at the same z-index, .widget painting on top in DOM order). */
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   /* .body's `height: 100%` and .widget's overlay offsets both assume a
      hero with a definite height. Once .hero switches to `height: auto`,
      make it a flex column too — percentage-height resolution against an
@@ -383,6 +390,7 @@
     flex: 0 0 auto;
     height: auto;
     padding: 24px 24px 0;
+    /* (the widget stacks below here, so no reserved column) */
   }
   .widget {
     flex: 0 0 auto;
@@ -406,8 +414,18 @@
   }
 }
 
+@media (max-width: 1000px) {
+  /* The hero is auto-height here, so .body's space-between no longer
+     separates the date line from the quote. */
+  .quote {
+    margin-top: 16px;
+  }
+  .sectionCompact {
+    flex: 0 0 auto;
+  }
+}
 @media (max-width: 560px) {
   .greet {
-    font-size: 24px;
+    font-size: 30px;
   }
 }

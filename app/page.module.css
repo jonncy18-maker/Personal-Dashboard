@@ -1,5 +1,8 @@
 .home {
   max-width: 1180px;
+  /* Room under the last card for the fixed Assistant button, which used to
+     sit on top of the bottom-right card. */
+  padding-bottom: 72px;
 }
 
 .home > * + * {
@@ -82,39 +85,35 @@
   font-weight: 600;
 }
 
-/* Calendar shortcut occupying the bar's third column. */
+/* Calendar shortcut in the bar's third column. */
 .calCell {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   padding: 12px 16px;
   border-left: 1px solid var(--border);
 }
-.calButton {
-  display: flex;
+.calLink {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 46px;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: var(--accent);
-  color: #fff;
-  font-size: 14px;
+  color: var(--accent-ink);
+  font-size: 13.5px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   transition:
-    filter 0.15s ease,
-    transform 0.05s ease;
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
-.calButton svg {
-  width: 18px;
-  height: 18px;
+.calLink svg {
+  width: 16px;
+  height: 16px;
 }
-.calButton:hover {
-  filter: brightness(1.08);
-}
-.calButton:active {
-  transform: translateY(1px);
+.calLink:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 @media (max-width: 560px) {
@@ -125,15 +124,12 @@
     border-left: none;
     border-top: 1px solid var(--border);
   }
-  /* Stacked: the button becomes a full-width row, divider flips to the top. */
+  /* Stacked: the link sits left in its own row, divider flips to the top. */
   .calCell {
+    justify-content: flex-start;
     border-left: none;
     border-top: 1px solid var(--border);
   }
-}
-
-.sectionLabel {
-  margin: 0 0 13px;
 }
 
 .loading,
