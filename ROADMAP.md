@@ -75,6 +75,36 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-24 (cont'd) — Schedules redesign: date groups, all-clear state, quick add, side panel
+
+Built from a before/after mockup John approved. There is no schema change; it's all `app/schedules/page.jsx` and its CSS.
+
+- **What was wrong.**
+  - All 7 tasks were done, yet they filled the page at full weight under "Tasks (0 open)".
+  - "+ Add task" opened a form inside the header row and reflowed it.
+  - The list was one flat, absolute-dated column, with half the desktop width unused.
+  - Each row had an Open / In progress dropdown.
+  - × deleted on the first click, with no undo.
+- **Now.**
+  - **Summary strip:** Overdue / This week / Later / Done, each jumping to its group.
+  - **Quick-add bar:** one always-visible row for title, date (defaults to today) and an optional trip or project link. Notes are added from a row's edit form.
+  - **Groups:** open tasks by date (Overdue with a red edge, This week including today, Later). Every due chip reads both ways ("in 2 days · Sat, Sep 26").
+  - **By link view:** groups open tasks by trip or project instead. The choice is remembered per browser in `localStorage`.
+  - **All clear:** when nothing is open, the page says so and names the last task finished.
+  - **Completed:** done tasks collapse into "Completed · N", newest first, each with "Done <date>".
+- **Rows.**
+  - A half-filled circle means in progress, and a Start / Pause button replaces the dropdown.
+  - Delete is deferred with an Undo toast: the DELETE is sent after 6s, or on unmount; a failed DELETE restores the row.
+  - Project badges show just the repo name.
+- **Side panel** (stacks under the list below 1100px):
+  - A month calendar with a dot per due date: red if overdue, the domain color if open, grey if done.
+  - Done-of-total per linked trip or project. These are real row counts.
+- **"Done <date>" comes from `updated_at`.** There's no `completed_at` column, and a done row's last update is in practice when it was checked off. It's shown as a date only, never a time. If that ever misleads, the fix is a `completed_at` migration, not a guess.
+- **Verified.**
+  - Screenshots with the real task list (the all-clear state) and a sample busy week, in dark and light, at 1440, 1024 and 390px.
+  - Delete → Undo restores the row with no request sent; without Undo, a single DELETE fires after the window.
+  - `next build` passes.
+
 ## 2026-09-24 — Home redesign: Today / Horizon groups, state pills, quiet empty cards
 
 A review of the Home page (screenshots at desktop, tablet and phone), then a clickable before/after mockup John signed off before any code. Shipped everything in the mockup except the 6-week horizon strip ("B"), which John skipped.
