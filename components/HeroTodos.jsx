@@ -93,7 +93,11 @@ export default function HeroTodos({ items, scheduleTasks = [] }) {
   const extra = local.length - shown.length;
 
   return (
-    <div className={styles.section} aria-label="To-do's">
+    // Narrower when empty, so Up Next gets the width.
+    <div
+      className={`${styles.section} ${local.length === 0 ? styles.sectionCompact : ''}`}
+      aria-label="To-do's"
+    >
       <p className={styles.widgetEyebrow}>To-do&rsquo;s</p>
 
       {local.length === 0 ? (

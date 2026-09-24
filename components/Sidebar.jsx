@@ -94,7 +94,8 @@ export default function Sidebar({ collapsed, drawerOpen, onCloseDrawer }) {
           </div>
         )}
 
-        {trip && (
+        {/* Hidden on Home, where the Travel card already shows the trip. */}
+        {trip && pathname !== '/' && (
           <Link href="/travel" className={styles.tripCard}>
             <TripPhoto
               src={trip.image_url}

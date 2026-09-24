@@ -22,6 +22,7 @@ export default function HomeHero({ agenda, todos = [], scheduleTasks = [] }) {
   const [band, setBand] = useState('day');
   const [greeting, setGreeting] = useState('Hello');
   const [quote, setQuote] = useState('');
+  const [dateLine, setDateLine] = useState('');
   const [image, setImage] = useState(null);
 
   useEffect(() => {
@@ -30,6 +31,13 @@ export default function HomeHero({ agenda, todos = [], scheduleTasks = [] }) {
     setBand(b);
     setGreeting(timeOfDayGreeting(now));
     setQuote(quoteForDay(now));
+    setDateLine(
+      now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      })
+    );
     fetch(`/api/hero-image?band=${b}`)
       .then((res) => res.json())
       .then((data) => setImage(data))
@@ -47,10 +55,8 @@ export default function HomeHero({ agenda, todos = [], scheduleTasks = [] }) {
       <div className={styles.scrim} />
       <div className={styles.body}>
         <div>
-          <div className={styles.greetRow}>
-            <h1 className={styles.greet}>{greeting}, John.</h1>
-            <span className={styles.liveDot} aria-hidden="true" />
-          </div>
+          <h1 className={styles.greet}>{greeting}, John.</h1>
+          {dateLine && <p className={styles.dateLine}>{dateLine}</p>}
         </div>
         {quote && (
           <div className={styles.quote}>
