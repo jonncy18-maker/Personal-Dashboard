@@ -75,6 +75,18 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-25 — Home hero: a looping Google Flow video for the Day band
+
+John wanted a video behind the Home hero. A mockup artifact (the real hero layout with an animated stand-in, a crop study and one Google Flow prompt per time-of-day band) came first; John generated the Day clip in Flow and uploaded it to a branch; it was processed and wired in here. No schema change.
+
+- **One clip per band, added one band at a time.** `BAND_VIDEO` in `lib/time-of-day.js` lists the bands that have a clip. Only `day` does today. Dawn, Golden and Night keep the cached Unsplash photo until their clips exist, and a video band skips the `/api/hero-image` fetch. The per-band CSS gradient is still the bottom layer.
+- **The clip.** Flow's 8 s 1080p take (6 MB) became a 7 s loop: the last second crossfades into the first, so the end frame is the start frame. The seam was measured, not eyeballed: the last→first frame difference matches an ordinary frame-to-frame step (PSNR ≈30 dB either way). Output is 1600×900, no audio: `public/hero/day.mp4` (H.264, 1.9 MB) and `day.webm` (VP9, 1.8 MB, for browsers built without H.264), plus `day.jpg` as the poster.
+- **Motion rules.** Reduced motion or Data Saver gets the poster as a still image and no video at all. Everyone else gets a pause button in the hero's top-right corner (WCAG 2.2.2), remembered per browser in `localStorage`.
+- **Legibility.** A video band adds a top-down shade to the scrim, because the Day take's clouds sat behind the widget's "To-do's" column.
+- **Service worker.** `public/sw.js` now leaves `.mp4`/`.webm` and any `Range` request to the browser. Network-first would have cached the whole file and broken the byte-range requests Safari plays video with.
+- **Raw clip.** The upload went to `claude/affectionate-shannon-ujnx52` (an already-merged branch) and was not merged from there; only the processed files are in this PR. Delete that commit or branch whenever convenient.
+- **Verified.** `next build` passes. In the built app at 1440, 1024 and 390px, with the clock pinned to 10:15: the video reaches `readyState` 4 and advances; pause persists across reload; reduced motion renders the poster `<img>` and no `<video>`. Screenshots checked at each width. The test browser is Chromium without H.264, so playback there was the WebM; the MP4 was verified by `ffprobe`, not played.
+
 ## 2026-09-24 (cont'd) — Schedules redesign: date groups, all-clear state, quick add, side panel
 
 Built from a before/after mockup John approved. There is no schema change; it's all `app/schedules/page.jsx` and its CSS.

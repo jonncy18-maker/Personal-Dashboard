@@ -22,7 +22,9 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+        Promise.all(
+          keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
+        )
       )
       .then(() => self.clients.claim())
   );
@@ -60,6 +62,10 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   // Never serve API data from cache — freshness matters more than offline here.
   if (url.pathname.startsWith('/api/')) return;
+  // Leave video to the browser: players fetch it in byte ranges (Safari
+  // requires it), and network-first would cache the whole file per request.
+  if (request.headers.has('range') || /\.(?:mp4|webm)$/.test(url.pathname))
+    return;
 
   const isStatic =
     url.pathname.startsWith('/_next/static/') ||
