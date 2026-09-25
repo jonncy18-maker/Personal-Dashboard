@@ -2,13 +2,6 @@
   max-width: 720px;
 }
 
-.header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
 .rulesButton {
   flex: 0 0 auto;
   background: var(--surface);
@@ -23,11 +16,6 @@
 .rulesButton:hover {
   border-color: var(--accent);
   color: var(--accent-ink);
-}
-.title {
-  margin: 4px 0 0;
-  font-size: 24px;
-  font-weight: 800;
 }
 
 .note {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useResource } from '../../lib/useResource';
 import { useRefresh } from '../../lib/refresh';
+import PageBanner from '../../components/PageBanner';
 import styles from './page.module.css';
 
 function ManageForm({ message, existingRule, onSave, onCancel }) {
@@ -431,18 +432,14 @@ export default function EmailPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.header}>
-        <div>
-          <p className="eyebrow">Email</p>
-          <h1 className={styles.title}>Inbox</h1>
-        </div>
+      <PageBanner domain="email" eyebrow="Email" title="Inbox">
         <button
           className={styles.rulesButton}
           onClick={() => setRulesOpen(true)}
         >
           Rules{rules.length > 0 ? ` (${rules.length})` : ''}
         </button>
-      </div>
+      </PageBanner>
 
       {!configured && (
         <p className={styles.note}>

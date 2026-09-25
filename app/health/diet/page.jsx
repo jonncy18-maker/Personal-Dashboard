@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useResource } from '../../../lib/useResource';
 import { absoluteDate } from '../../../lib/format';
 import { todayYMD, addDays } from '../../../lib/health';
+import PageBanner from '../../../components/PageBanner';
 import styles from './page.module.css';
 
 const MEALS = [
@@ -2040,41 +2041,35 @@ export default function DietPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.headRow}>
-        <div className={styles.headLeft}>
-          <div>
-            <p className={styles.eyebrow}>Health</p>
-            <h1 className={styles.pageTitle}>Diet</h1>
-            <div className={styles.dateNav}>
-              <button
-                className={styles.dateNavBtn}
-                onClick={() => setViewDate((d) => addDays(d, -1))}
-                aria-label="Previous day"
-              >
-                ‹
-              </button>
-              <p className={styles.pageSub}>
-                {absoluteDate(day.date)}
-                {isToday ? ' · Today' : ''}
-              </p>
-              <button
-                className={styles.dateNavBtn}
-                onClick={() => setViewDate((d) => addDays(d, 1))}
-                disabled={isToday}
-                aria-label="Next day"
-              >
-                ›
-              </button>
-              {isToday ? null : (
-                <button
-                  className={styles.dateNavToday}
-                  onClick={() => setViewDate(todayYMD())}
-                >
-                  Today
-                </button>
-              )}
-            </div>
-          </div>
+      <PageBanner domain="health" eyebrow="Health" title="Diet">
+        <div className={styles.dateNav}>
+          <button
+            className={styles.dateNavBtn}
+            onClick={() => setViewDate((d) => addDays(d, -1))}
+            aria-label="Previous day"
+          >
+            ‹
+          </button>
+          <p className={styles.pageSub}>
+            {absoluteDate(day.date)}
+            {isToday ? ' · Today' : ''}
+          </p>
+          <button
+            className={styles.dateNavBtn}
+            onClick={() => setViewDate((d) => addDays(d, 1))}
+            disabled={isToday}
+            aria-label="Next day"
+          >
+            ›
+          </button>
+          {isToday ? null : (
+            <button
+              className={styles.dateNavToday}
+              onClick={() => setViewDate(todayYMD())}
+            >
+              Today
+            </button>
+          )}
         </div>
         <button
           className={styles.editProfileBtn}
@@ -2082,7 +2077,7 @@ export default function DietPage() {
         >
           {editingProfile ? 'Close' : 'Edit profile'}
         </button>
-      </div>
+      </PageBanner>
 
       {editingProfile ? (
         <section className={styles.profileCard}>

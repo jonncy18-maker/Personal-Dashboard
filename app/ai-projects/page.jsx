@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { PROJECT_STATUSES, PROJECT_STATUS_META } from '../../lib/projects';
+import PageBanner from '../../components/PageBanner';
 import styles from './page.module.css';
 
 const STATUS_META = PROJECT_STATUS_META;
@@ -562,14 +563,14 @@ export default function AiProjectsPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.header}>
-        <div>
-          <p className="eyebrow">AI Projects</p>
-          <h1 className={styles.title}>Tracked projects</h1>
-          <p className={styles.tagline}>Build. Ship. Iterate.</p>
-        </div>
+      <PageBanner
+        domain="projects"
+        eyebrow="AI Projects"
+        title="Tracked projects"
+        sub="Build. Ship. Iterate."
+      >
         <AddProjectForm onAdded={load} />
-      </div>
+      </PageBanner>
 
       {loadError && <p className={styles.formError}>{loadError}</p>}
       {!data && !loadError && <p className={styles.empty}>Loading…</p>}

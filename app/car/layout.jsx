@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import PageBanner from '../../components/PageBanner';
 import styles from './layout.module.css';
 
 // The Car domain's two tabs. Mileage is the lease tracker that was /mileage
@@ -20,6 +21,7 @@ export default function CarLayout({ children }) {
 
   return (
     <div className={styles.wrap}>
+      <PageBanner domain="car" title="Car" as="p" />
       <nav className={styles.tabs} aria-label="Car sections">
         {TABS.map(({ href, label }) => {
           const active = pathname?.startsWith(href);

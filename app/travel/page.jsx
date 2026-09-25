@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useResource } from '../../lib/useResource';
+import PageBanner from '../../components/PageBanner';
 import TripPhoto from '../../components/TripPhoto';
 import WorldMap from '../../components/WorldMap';
 import ChecklistTemplates from '../../components/ChecklistTemplates';
@@ -923,18 +924,20 @@ export default function TravelPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.header}>
-        <div>
-          <p className="eyebrow">Travel</p>
-          <h1 className={styles.title}>
+      <PageBanner
+        domain="travel"
+        eyebrow="Travel"
+        title={
+          <>
             Trips{' '}
             {trips && (
               <span className={`${styles.titleCount} tabular`}>
                 · {upcoming.length} upcoming
               </span>
             )}
-          </h1>
-        </div>
+          </>
+        }
+      >
         <div className={styles.headerActions}>
           <SuggestionsBell
             suggestions={suggestions}
@@ -969,7 +972,7 @@ export default function TravelPage() {
             onAdded={(trip) => setTrips((prev) => [trip, ...(prev || [])])}
           />
         </div>
-      </div>
+      </PageBanner>
 
       {scanNote && <p className={styles.scanNote}>{scanNote}</p>}
       {historyScanNote && <p className={styles.scanNote}>{historyScanNote}</p>}

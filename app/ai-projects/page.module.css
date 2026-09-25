@@ -2,24 +2,6 @@
   max-width: 1180px;
 }
 
-.header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-.title {
-  margin: 4px 0 2px;
-  font-size: 25px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.tagline {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-muted);
-}
 .newBtn {
   flex: 0 0 auto;
   background: var(--accent);
@@ -721,10 +703,6 @@
 }
 
 @media (max-width: 560px) {
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-  }
   .fieldRow {
     flex-direction: column;
   }

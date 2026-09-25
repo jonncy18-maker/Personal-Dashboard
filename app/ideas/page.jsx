@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useResource } from '../../lib/useResource';
+import PageBanner from '../../components/PageBanner';
 import styles from './page.module.css';
 
 const DOMAIN_TAGS = [
@@ -217,18 +218,20 @@ export default function IdeasPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.header}>
-        <div>
-          <p className="eyebrow">Idea Board</p>
-          <h1 className={styles.title}>
+      <PageBanner
+        domain="ideas"
+        eyebrow="Idea Board"
+        title={
+          <>
             Ideas{' '}
             {ideas && <span className={styles.count}>({openCount} open)</span>}
-          </h1>
-        </div>
+          </>
+        }
+      >
         <AddIdeaForm
           onAdded={(idea) => setIdeas((prev) => [idea, ...(prev || [])])}
         />
-      </div>
+      </PageBanner>
 
       {loadError && <p className={styles.formError}>{loadError}</p>}
 
