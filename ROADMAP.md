@@ -75,6 +75,15 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-25 (cont'd) — Hero video for Dawn, Golden and Night
+
+John generated the other three clips with the same prompts and uploaded them to the same holding branch. All four bands now play video, so none of them calls `/api/hero-image` any more.
+
+- **Ping-pong, not crossfade, for these three.** Each changes far more over 8 s than Day. Similarity to the first frame drops to about 16 dB PSNR by the end, against Day's 26.5 dB. A 1 s crossfade would show as a visible dissolve every cycle. So each plays forward and then reversed, into a ~16 s loop that is seamless by construction. The trade-off is that motion runs backward on the return: clouds drift back, and Golden's sun rises again.
+- **Per-clip crop point (`focus`).** The horizons sit at different heights in each take (Day ~56% of the frame, Golden ~61%, Dawn ~65%, Night ~70%). With a centered crop, the wide desktop hero lost Dawn's and Night's lake reflections, and Night's bright cloud sat behind the greeting. Each clip's `object-position` is now set so the horizon lands a little below the hero's middle.
+- **Night at a higher CRF.** Night's streaming clouds made it 7.3 MB at the Day settings. At CRF 31 it's 3.1 MB, with no visible difference at the hero's size (checked on a full-res crop). Totals: Dawn 2.0 MB, Golden 2.7 MB, Night 3.1 MB (MP4). The WebM fallbacks are only fetched by browsers without H.264.
+- **Verified.** `next build` passes. With the clock pinned to each band, the right clip plays at 1440px and 1024px (1440/390 for the first pass). Each band fetches only its own files and never `/api/hero-image`. Screenshots reviewed for all four.
+
 ## 2026-09-25 — Home hero: a looping Google Flow video for the Day band
 
 John wanted a video behind the Home hero. A mockup artifact (the real hero layout with an animated stand-in, a crop study and one Google Flow prompt per time-of-day band) came first; John generated the Day clip in Flow and uploaded it to a branch; it was processed and wired in here. No schema change.

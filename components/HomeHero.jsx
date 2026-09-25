@@ -103,6 +103,7 @@ export default function HomeHero({ agenda, todos = [], scheduleTasks = [] }) {
         <video
           ref={videoRef}
           className={styles.photo}
+          style={{ objectPosition: `center ${video.focus}` }}
           poster={video.poster}
           autoPlay={!paused}
           muted
@@ -116,7 +117,12 @@ export default function HomeHero({ agenda, todos = [], scheduleTasks = [] }) {
         </video>
       )}
       {video && motionOk === false && (
-        <img src={video.poster} alt="" className={styles.photo} />
+        <img
+          src={video.poster}
+          alt=""
+          className={styles.photo}
+          style={{ objectPosition: `center ${video.focus}` }}
+        />
       )}
       {!video && (
         <TripPhoto
