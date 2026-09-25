@@ -63,6 +63,21 @@
   );
 }
 
+/* The video bands add a top-down shade: a real sky (Day's cumulus) is
+   brighter up top than any photo the Unsplash query tended to return, and
+   the widget's eyebrows and the greeting both sit there. */
+.hero[data-video] .scrim {
+  background:
+    linear-gradient(180deg, rgba(6, 10, 20, 0.3) 0%, rgba(6, 10, 20, 0) 45%),
+    linear-gradient(
+      100deg,
+      rgba(6, 10, 20, 0.62) 0%,
+      rgba(6, 10, 20, 0.24) 42%,
+      rgba(6, 10, 20, 0.02) 62%,
+      rgba(6, 10, 20, 0.34) 100%
+    );
+}
+
 .body {
   position: relative;
   z-index: 1;
@@ -149,6 +164,40 @@
   z-index: 1;
   font-size: 10px;
   color: rgba(255, 255, 255, 0.6);
+}
+
+/* Pause/play for the looping hero video (WCAG 2.2.2: motion that runs past
+   5 s needs a way to stop it). Top-right corner: the widget's columns start
+   22px down with left-aligned eyebrows, so the corner above them is empty. */
+.motionToggle {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(6, 10, 20, 0.35);
+  color: #fff;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.motionToggle:hover,
+.motionToggle:focus-visible {
+  opacity: 1;
+}
+.motionToggle:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.motionToggle svg {
+  width: 11px;
+  height: 11px;
 }
 
 /* ── Overlay widget — fully transparent, no panel of its own. Legibility
@@ -389,7 +438,8 @@
   .body {
     flex: 0 0 auto;
     height: auto;
-    padding: 24px 24px 0;
+    /* Right padding clears the pause button in the top-right corner. */
+    padding: 24px 44px 0 24px;
     /* (the widget stacks below here, so no reserved column) */
   }
   .widget {
