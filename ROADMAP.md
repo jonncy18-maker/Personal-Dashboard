@@ -75,6 +75,25 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-25 (cont'd 2) — Photo header bands on every domain page
+
+John asked whether generated images could work elsewhere in the app, the way the hero videos did. The first style round, a flat "paper cut-out" landscape and then a risograph print, looked generic, and the fault was mostly the prompt: it put the accent color on the sun, made washed-out periwinkle the dominant color, and repeated one composition. The direction that worked was photographic, matching the hero: alpine lakes and hazy ridges, with exactly one saturated detail in each domain's app color. John generated all sixteen images in ChatGPT (Images 2.5) from a shared prompt, and each was checked at real size in a mockup before building.
+
+- **`PageBanner`** (`components/PageBanner.jsx`) replaces the plain eyebrow + h1 header on Schedules, Travel, Health › Diet, Language, Ideas, Email and AI Projects. Car gets it once, in `app/car/layout.jsx` above its tabs, with the title as a `<p>` so each tab keeps its own h1.
+  - The eyebrow and title sit on the photo. The page's existing controls go in a row beneath, not on the photo, because several expand inline (Add idea, New project) or open popovers (Travel's suggestions bell).
+  - Only the photo layer is clipped to the rounded corners, so a popover in the row is never cut off.
+- **`lib/page-art.js`** maps each domain to its band and a per-image `focus` (vertical `object-position`). The band keeps a thin strip of a 3:2 photo, and each subject sits at a different height; one shared crop cut off the Schedules flag, the Ideas balloon and the tops of the buildings, and lost Car's road and Health's flowers.
+- **Schedules "All clear"** swaps its ✓ mark for a 112 px circle of its own photo. The other seven empty-state photos exist but aren't committed. Most pages have no designed empty state yet, so they wait for one; the raw files are on the holding branch `claude/affectionate-shannon-ujnx52`.
+- **Size.** ChatGPT's PNGs (~2.3 MB each) became WebP: bands at 1600 px, 90–215 KB each, and the one spot at 43 KB. `public/art/` is 1.3 MB, and each page loads only its own band.
+- **Cleanup.** The header rules each page no longer uses (`.header`, `.title`, `.tagline`, Health's `.headRow`/`.headLeft`/`.eyebrow`/`.pageTitle`, Language's `.icon`) were removed from those pages' CSS. Language lost its 64 px top padding, which left a gap above the band.
+- **Rule** (now in CLAUDE.md §8): generated images decorate, never document. They show imagined places, not real landmarks, and never stand in for the user's own data, so no generated trip or meal photos.
+- **Verified.**
+  - `next build` passes.
+  - In the built app, every domain page renders its band, and the image loads at full width. Screenshots at 1440px dark and 390px light.
+  - Schedules' All-clear was shown with a stubbed task list.
+  - Health was shown with a stubbed `/api/health` response built by the app's own `computeTarget`/`dayTotals`, since there's no database here.
+  - The Mileage and Maintenance bodies weren't exercised; they need data. The banner sits in the layout above both tabs, and neither tab's own header was changed.
+
 ## 2026-09-25 (cont'd) — Hero video for Dawn, Golden and Night
 
 John generated the other three clips with the same prompts and uploaded them to the same holding branch. All four bands now play video, so none of them calls `/api/hero-image` any more.

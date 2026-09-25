@@ -12,34 +12,6 @@
   color: var(--critical);
 }
 
-/* ── header ─────────────────────────────────────────────── */
-.headRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.headLeft {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  font-weight: 800;
-  color: var(--dom-health);
-  margin: 0 0 2px;
-}
-.pageTitle {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.15;
-}
 .pageSub {
   margin: 3px 0 0;
   font-size: 13px;

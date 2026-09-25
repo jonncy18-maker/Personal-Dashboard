@@ -5,6 +5,8 @@ import { useResource } from '../../lib/useResource';
 import { useRefresh } from '../../lib/refresh';
 import { absoluteDate, parseDateInput } from '../../lib/format';
 import { EditIcon } from '../../components/icons';
+import PageBanner from '../../components/PageBanner';
+import { PAGE_ART } from '../../lib/page-art';
 import styles from './page.module.css';
 
 const ALLOWED_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -951,11 +953,7 @@ export default function SchedulesPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.header}>
-        <div>
-          <p className="eyebrow">Schedules</p>
-          <h1 className={styles.title}>Tasks</h1>
-        </div>
+      <PageBanner domain="schedules" eyebrow="Schedules" title="Tasks">
         <div className={styles.headerActions}>
           <div
             className={styles.viewToggle}
@@ -993,7 +991,7 @@ export default function SchedulesPage() {
             onChange={handleImportFile}
           />
         </div>
-      </div>
+      </PageBanner>
 
       {importNote && <p className={styles.formError}>{importNote}</p>}
 
@@ -1048,9 +1046,11 @@ export default function SchedulesPage() {
 
               {groups.open.length === 0 ? (
                 <div className={styles.allClear}>
-                  <span className={styles.allClearMark} aria-hidden="true">
-                    ✓
-                  </span>
+                  <img
+                    src={PAGE_ART.schedules.spot}
+                    alt=""
+                    className={styles.allClearArt}
+                  />
                   <div>
                     <p className={styles.allClearTitle}>All clear</p>
                     <p className={styles.allClearSub}>

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { DOMAIN_META } from '../../components/domain-meta';
 import { absoluteDate, relativeDay } from '../../lib/format';
 import { useResource } from '../../lib/useResource';
+import PageBanner from '../../components/PageBanner';
 import styles from './page.module.css';
 
 const meta = DOMAIN_META.language;
@@ -461,7 +462,6 @@ function SpanishNote() {
 }
 
 export default function LanguagePage() {
-  const Icon = meta.icon;
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -512,10 +512,11 @@ export default function LanguagePage() {
       className={styles.wrap}
       style={{ '--card-accent': meta.color, '--card-soft': meta.soft }}
     >
-      <div className={styles.icon}>
-        <Icon />
-      </div>
-      <h1 className={styles.title}>{meta.label}</h1>
+      <PageBanner
+        domain="language"
+        eyebrow={meta.label}
+        title="French & Spanish"
+      />
       <p className={styles.note}>
         Two languages, two different shapes: French is the active learning
         project, tracked in hours via Dreaming French. Spanish is already part

@@ -1,33 +1,15 @@
 .wrap {
   max-width: 480px;
-  padding: 64px 8px 32px;
+  padding: 0 8px 32px;
 }
-.icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
-  background: var(--card-soft);
-  color: var(--card-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 18px;
-}
-.icon svg {
-  width: 22px;
-  height: 22px;
-}
+
 .headerRow {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
 }
-.title {
-  margin: 0 0 8px;
-  font-size: 22px;
-  font-weight: 800;
-}
+
 .scanButton {
   flex: 0 0 auto;
   background: var(--surface);
