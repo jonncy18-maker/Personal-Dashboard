@@ -26,7 +26,7 @@
 --                      032_health_macros_favorites, 033_health_recommended_meals,
 --                      034_mileage_scenario_occurrences,
 --                      035_health_veggie_servings, 036_health_water,
---                      037_health_drink_fluid
+--                      037_health_drink_fluid, 038_mcp_auth_code_server
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -840,5 +840,7 @@ CREATE TABLE IF NOT EXISTS health_mcp_auth_codes (
   code_challenge_method  text NOT NULL DEFAULT 'S256',
   redirect_uri           text NOT NULL,
   expires_at             timestamptz NOT NULL,
-  created_at             timestamptz NOT NULL DEFAULT now()
+  created_at             timestamptz NOT NULL DEFAULT now(),
+  -- Issuing server's token env var (038) — a code redeems only there.
+  server                 text
 );
