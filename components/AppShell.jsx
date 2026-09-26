@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import RegisterSW from './RegisterSW';
+import DeviceTimezone from './DeviceTimezone';
 import AssistantPanel from './AssistantPanel';
 import IntroSplash from './IntroSplash';
 import { RefreshProvider } from '../lib/refresh';
@@ -32,6 +33,7 @@ export default function AppShell({ children }) {
       <AssistantPanel />
       <IntroSplash />
       <RegisterSW />
+      <DeviceTimezone />
     </RefreshProvider>
   );
 }

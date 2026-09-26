@@ -1,6 +1,6 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { todayYMD } from '../../../../lib/health';
+import { deviceToday } from '../../../../lib/device-time';
 
 // Weight + steps readings — one dated row per calendar day (migration 030
 // added `steps` alongside the original weight-only log). weight_lb is ground
@@ -72,7 +72,7 @@ export const POST = route(async (request) => {
     }
   }
 
-  const readingDate = body.reading_date || todayYMD();
+  const readingDate = body.reading_date || (await deviceToday());
   if (!/^\d{4}-\d{2}-\d{2}$/.test(readingDate)) {
     return Response.json(
       { error: 'reading_date must be YYYY-MM-DD' },

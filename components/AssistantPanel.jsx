@@ -202,6 +202,16 @@ function attachmentsToBlocks(attachments) {
   });
 }
 
+// This device's IANA zone, so the assistant's "today" is the device's date
+// rather than the server's UTC one (lib/device-time.js).
+function deviceTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function AssistantPanel() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -290,7 +300,7 @@ export default function AssistantPanel() {
       const res = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: nextApi }),
+        body: JSON.stringify({ messages: nextApi, timeZone: deviceTimeZone() }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
