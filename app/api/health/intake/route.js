@@ -1,10 +1,7 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import {
-  todayYMD,
-  parseVeggieServings,
-  parseFluidOz,
-} from '../../../../lib/health';
+import { parseVeggieServings, parseFluidOz } from '../../../../lib/health';
+import { deviceToday } from '../../../../lib/device-time';
 
 // Intake entries. `source` is required and never defaulted: it is the whole
 // honesty mechanism (see the ROADMAP entry and .claude/skills/health), and a
@@ -93,7 +90,7 @@ export const POST = route(async (request) => {
     );
   }
 
-  const entryDate = body.entry_date || todayYMD();
+  const entryDate = body.entry_date || (await deviceToday());
   if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
     return Response.json(
       { error: 'entry_date must be YYYY-MM-DD' },

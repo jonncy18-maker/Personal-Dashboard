@@ -45,6 +45,9 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Run `npm run migrate` after the trip-merging PR merges** — 2026-09-07, applied via the Neon MCP right after #93 merged. Migration 023 (`trip_merge`) added `trips.merged_into_id`; confirmed the column exists and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, same as prior entries — the net state is identical to a `npm run migrate` run.)_
 - [x] **Run `npm run migrate` after the Travel historical-import PR (#104) merges** — 2026-09-13, applied via the Neon MCP right after #104 merged. Migration 027 added `trip_history_scan` (the resumable-scan cursor row); confirmed the table exists and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, same as prior entries — the net state is identical to an `npm run migrate` run.)_
 
+- [ ] **Run `npm run migrate` after the audit-fixes PR merges** — migration 038 (`038_mcp_auth_code_server.sql`) adds `server` to `health_mcp_auth_codes`. Until it's applied, `/authorize` on both MCP servers fails on insert, so reconnecting a claude.ai connector breaks; already-connected sessions keep working since the token itself is unchanged. Apply right after merge.
+- [ ] **googleapis 144 → 182 major upgrade** — clears the last `npm audit` item (a moderate `uuid` advisory for v3/v5/v6 with a caller buffer; gaxios/googleapis-common only call `v4()` without one, so not reachable today). Needs the Calendar and Gmail flows checked end to end.
+
 ---
 
 ## Design / UX Backlog
@@ -72,6 +75,31 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 - [x] **Health & Fitness card/subsection — scoped 2026-09-16 as Health › Diet.** Raised 2026-07-13, grilled 2026-09-16 (see the entry below). Resolved: an 8th domain at `/health/diet` (not a card inside an existing domain), data captured primarily through an MCP server rather than in-app AI, v1 slice = calories + weight. The fitness half stays unbuilt — John won't log lifts, so the second tab is deferred until there's a reason for it. Not yet built.
 - [x] **PTO planner — scoped 2026-08-08, built 2026-08-08.** Grill session resolved every open question (see the 2026-08-08 entries below for decisions + data model, then the build). Not a 7th domain: a PTO section on `/travel` + one line on Home's Travel card. No AI anywhere in it.
 - [x] **Tesla lease mileage calculator — scoped 2026-08-26, built 2026-08-26, "usual trips" baseline added 2026-08-26.** New 7th domain (`/mileage`; renamed to `/car` on 2026-09-13 when maintenance joined it). See the 2026-08-26 entries below for the spec, the mockup review, the build, and the follow-up baseline override. No AI anywhere in it. **Run `npm run migrate` after merge** (migrations 017 and 018).
+
+---
+
+## 2026-09-26 (cont'd) — The rest of the Codex audit: F03, F06–F10
+
+Follow-up to the Assistant/MCP fixes above. John chose the behavior for the two judgment calls: F06 as Codex proposed, and F08 based on the device's timezone.
+
+- **F03 — MCP OAuth codes are bound to the server that issued them.** Migration 038 adds `server` (the issuing token env var) to `health_mcp_auth_codes`. `/token` only redeems, and only deletes, a code from its own server, so a code earned with the Health token can't be exchanged for `APP_MCP_TOKEN`, and a wrong-server attempt doesn't burn the code.
+- **F06 — Travel Day Exclusions count only after the anchor reading.** `exclusionMilesAt()` in `lib/mileage.js`: a trip wholly before the latest odometer reading subtracts 0 (the odometer already reflects it), a straddling trip subtracts its after-reading share of days, and a later trip subtracts in full. A projection on the anchor date now equals the reading.
+- **F07 — recurring scenarios wait for `effective_start`.** `scenarioImpactAt()` adds the start as a 0-impact mark, so monthly points before it are 0; the 1/2/3-yr checkpoint figures are unchanged.
+- **F09 — cruise nights use each cruise segment's own dates.** `collapseMergedTrips()` keeps `own_start_date`/`own_end_date`; cruise segments are unioned so an overlapping cruise leg isn't counted twice. Whole-journey nights and PTO still use the merged range.
+- **F08 — "today" on the server is the device's date.** `components/DeviceTimezone.jsx` reports the browser's IANA zone to `/api/device-timezone` (stored in `app_flags`); `deviceToday()` in `lib/device-time.js` replaces every server-side `todayYMD()` in Health and the Home card. The in-app Assistant also sends its own zone per message. The MCP `instructions` date is built on each `initialize` instead of once at cold start. MCP calls from claude.ai use the zone of the device John last opened the app on, so it follows him when he travels. With no zone recorded, the server clock is used, as before.
+- **F10 — dependencies.** Non-breaking `npm audit fix`: Next.js 16.2.10 → 16.3.6 (floor raised in `package.json`), sharp 0.34.5 → 0.35.4, plus postcss and qs. The remaining moderate `uuid` advisory needs the googleapis major upgrade (tracked above).
+
+Checked with scratch scripts against the bundled modules (mocked DB):
+
+- F03: a cross-server redemption fails and leaves the code usable; a same-server redemption succeeds once.
+- F06: a projection on the anchor date equals the reading; straddling, future and not-yet-ended cases.
+- F07: zero before and at the start, positive after, and checkpoints still match.
+- F09: a cruise root with a hotel leg, a hotel root with a cruise leg, and an overlapping duplicate leg.
+- F08: at 01:00Z on 09-26, an Eastern device gives 09-25; an explicit zone wins; an unset or failing lookup falls back to the server clock.
+
+Also Prettier on the touched files and `npm run build` on Next 16.3.6.
+
+Not changed: the Home card's mileage summary still omits accepted exclusions (`app/api/home-summary/route.js` never loads them), so it can differ from the Car page. This is a separate, pre-existing gap.
 
 ---
 

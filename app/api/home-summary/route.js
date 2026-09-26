@@ -8,7 +8,6 @@ import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
 import {
   computeTarget,
   dayTotals,
-  todayYMD,
   veggieProgress,
   waterProgress,
 } from '../../../lib/health';
@@ -124,6 +123,7 @@ async function loadHealthDay(sql, todayStr) {
 }
 
 import { collapseMergedTrips } from '../../../lib/trip-merge';
+import { deviceToday } from '../../../lib/device-time';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -225,7 +225,7 @@ export const GET = route(async () => {
     sql`SELECT id, active, impact_1yr, impact_2yr, impact_3yr FROM mileage_scenarios`,
   ]);
 
-  const health = await loadHealthDay(sql, todayYMD());
+  const health = await loadHealthDay(sql, await deviceToday());
 
   const { items: maintenanceItemRows, records: maintenanceRecordRows } =
     await loadMaintenanceRows(sql);

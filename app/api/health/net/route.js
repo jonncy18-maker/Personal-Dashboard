@@ -1,11 +1,7 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import {
-  computeTarget,
-  todayYMD,
-  addDays,
-  daysBetween,
-} from '../../../../lib/health';
+import { computeTarget, addDays, daysBetween } from '../../../../lib/health';
+import { deviceToday } from '../../../../lib/device-time';
 
 // Trailing net calorie surplus/deficit — sum of (consumed - target) over a
 // window, so John can see whether he's running ahead of or behind his target
@@ -47,7 +43,7 @@ function latestWeightAsOf(dateStr, weightRows) {
 export const GET = route(async (request) => {
   const sql = getDb();
   const url = new URL(request.url);
-  const todayStr = todayYMD();
+  const todayStr = await deviceToday();
   const range = url.searchParams.get('range');
 
   const from =

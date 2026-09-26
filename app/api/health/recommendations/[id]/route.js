@@ -1,6 +1,6 @@
 import { getDb, num, dateOnly } from '../../../../../lib/db';
 import { route } from '../../../../../lib/route';
-import { todayYMD } from '../../../../../lib/health';
+import { deviceToday } from '../../../../../lib/device-time';
 
 const HORIZONS = ['today', 'ongoing'];
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -43,7 +43,8 @@ export const PATCH = route(async (request, { params }) => {
   let forDate;
   if ('for_date' in body || 'horizon' in body) {
     if (horizon === 'today') {
-      forDate = body.for_date || dateOnly(current.for_date) || todayYMD();
+      forDate =
+        body.for_date || dateOnly(current.for_date) || (await deviceToday());
     } else {
       forDate = null;
     }

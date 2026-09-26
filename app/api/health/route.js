@@ -5,8 +5,8 @@ import {
   dayTotals,
   veggieProgress,
   waterProgress,
-  todayYMD,
 } from '../../../lib/health';
+import { deviceToday } from '../../../lib/device-time';
 
 // Health › Diet — the profile plus the computed day view in one read, so the
 // page never has to assemble the target from three round trips (and so the
@@ -50,7 +50,7 @@ function shapeReading(row) {
 export const GET = route(async (request) => {
   const sql = getDb();
   const url = new URL(request.url);
-  const todayStr = url.searchParams.get('date') || todayYMD();
+  const todayStr = url.searchParams.get('date') || (await deviceToday());
 
   const [profileRow] = await sql`
     SELECT * FROM health_profile WHERE id = 1

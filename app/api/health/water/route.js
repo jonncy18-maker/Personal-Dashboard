@@ -1,6 +1,7 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { todayYMD, toWaterOunces, WATER_UNITS } from '../../../../lib/health';
+import { toWaterOunces, WATER_UNITS } from '../../../../lib/health';
+import { deviceToday } from '../../../../lib/device-time';
 
 // Water, one row per drink (migration 036). A drink is its own log, never an
 // intake row, so it can't count toward "N of 4 meals logged". POST always
@@ -16,7 +17,8 @@ function shape(row) {
 }
 
 export const GET = route(async (request) => {
-  const date = new URL(request.url).searchParams.get('date') || todayYMD();
+  const date =
+    new URL(request.url).searchParams.get('date') || (await deviceToday());
   const sql = getDb();
   const rows = await sql`
     SELECT id, entry_date, ounces, logged_via, created_at
@@ -39,7 +41,7 @@ export const POST = route(async (request) => {
       { status: 400 }
     );
   }
-  const entryDate = body.entry_date || todayYMD();
+  const entryDate = body.entry_date || (await deviceToday());
   if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
     return Response.json(
       { error: 'entry_date must be YYYY-MM-DD' },

@@ -1,0 +1,13 @@
+-- Bind each MCP OAuth authorization code to the server that issued it.
+--
+-- health_mcp_auth_codes is shared by every MCP server here (Health and the
+-- app-wide one). Until now a code carried no record of which server's
+-- /authorize minted it, and each /token endpoint handed out its OWN secret
+-- for any valid code — so a code earned by typing HEALTH_MCP_TOKEN could be
+-- redeemed at /api/mcp/app/token for APP_MCP_TOKEN (Codex audit F03,
+-- 2026-09-25). `server` is the issuing server's token env var name
+-- (HEALTH_MCP_TOKEN / APP_MCP_TOKEN); redemption only matches rows for the
+-- redeeming server. Nullable so the ALTER is instant and idempotent; a
+-- pre-migration row (null) can never be redeemed, which costs at most one
+-- in-flight login (codes live 5 minutes).
+ALTER TABLE health_mcp_auth_codes ADD COLUMN IF NOT EXISTS server text;

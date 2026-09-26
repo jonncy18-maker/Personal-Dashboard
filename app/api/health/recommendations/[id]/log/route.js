@@ -1,6 +1,6 @@
 import { getDb, num, dateOnly } from '../../../../../../lib/db';
 import { route } from '../../../../../../lib/route';
-import { todayYMD } from '../../../../../../lib/health';
+import { deviceToday } from '../../../../../../lib/device-time';
 
 // Turns a meal-shaped recommendation into a fresh, independently-editable
 // intake entry — mirrors app/api/health/favorites/[id]/log exactly. Unlike
@@ -50,7 +50,7 @@ export const POST = route(async (request, { params }) => {
     );
   }
 
-  const entryDate = body.entry_date || todayYMD();
+  const entryDate = body.entry_date || (await deviceToday());
   const [row] = await sql`
     INSERT INTO health_intake_entries
       (entry_date, meal, description, calories, protein_g, carbs_g, fat_g,

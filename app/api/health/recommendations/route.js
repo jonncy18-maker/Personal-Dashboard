@@ -1,6 +1,6 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { todayYMD } from '../../../../lib/health';
+import { deviceToday } from '../../../../lib/device-time';
 
 // "Recommended meals" — Claude-curated nudges toward a healthier baseline,
 // distinct from health_favorite_meals (things John already eats and saves
@@ -63,7 +63,8 @@ export const POST = route(async (request) => {
   // 'today' requires a for_date (defaults to today); 'ongoing' must not
   // have one — mirrors the DB CHECK constraint so a bad request 400s
   // cleanly instead of surfacing a raw constraint-violation error.
-  const forDate = body.horizon === 'today' ? body.for_date || todayYMD() : null;
+  const forDate =
+    body.horizon === 'today' ? body.for_date || (await deviceToday()) : null;
 
   let calories = null;
   if (body.calories != null && body.calories !== '') {

@@ -1,5 +1,6 @@
 import { route } from '../../../lib/route';
 import { runAssistant } from '../../../lib/assistant';
+import { deviceToday } from '../../../lib/device-time';
 
 // App-wide AI Assistant (CLAUDE.md §7). The client posts the full raw message
 // history (Anthropic block form) plus the new user text; this handler runs the
@@ -108,6 +109,9 @@ export const POST = route(async (request) => {
   }
 
   const origin = new URL(request.url).origin;
-  const result = await runAssistant({ messages: trimmed, origin });
+  // The chat's own device says what "today" is (lib/device-time.js); an
+  // absent or invalid zone falls back to the last reported device zone.
+  const today = await deviceToday({ timeZone: body.timeZone });
+  const result = await runAssistant({ messages: trimmed, origin, today });
   return Response.json(result);
 });
