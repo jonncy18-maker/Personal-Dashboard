@@ -75,6 +75,19 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-26 — Assistant/MCP fixes from the Codex audit (F01, F02, F04, F05)
+
+A Codex audit of `0a20e4d` reported nine defects; Claude Code checked each against the code and agreed with all of them. This entry covers the Assistant/MCP group. The others (the F03 OAuth code binding, mileage F06/F07, Health dates F08, cruise nights F09, dependencies F10) are separate changes, and F06/F08 wait on John's decision about how they should behave.
+
+- **F01 — the app-wide MCP server published the wrong schema field.** `/api/mcp/app` handed the transport the Anthropic-shaped `TOOLS`, so all 111 tools went out with `input_schema` and none with MCP's `inputSchema`. `lib/assistant.js` now also exports `MCP_TOOLS`, the same catalog in MCP's shape plus `annotations` (`readOnlyHint` for GET, `destructiveHint` for DELETE). It is still one catalog written in two wire formats, not a second catalog (CLAUDE.md §7.5).
+- **F02 — ID fields were declared `integer`.** Every row the catalog addresses has a uuid key, and email to-dos use a Gmail message id, so the shared `ID` schema is now `string`. The email to-do tools got their own `GMAIL_ID` description.
+- **F04 — Health writes made in chat didn't refresh the page.** Action classification only looked in the route catalog, so `log_food` and similar came back `write: false`. Health's read tools now carry `readOnlyHint` in `lib/health-mcp-tools.js`, and `isWriteTool()` reads it. An untagged Health tool counts as a write, so a missed tag causes an extra refresh, never a stale screen.
+- **F05 — a model-call failure after a write lost the record of that write.** `runAssistant()` now catches a failure in the model call. If nothing had run yet, it rethrows exactly as before. If tools had already run, it returns the completed actions with a closing assistant turn, so the history keeps alternating, the client refreshes, and a follow-up message sees the tool results rather than repeating them.
+
+Checked with a mocked-provider script run against the bundled module (all tools in MCP shape; no non-string id fields; Health reads and writes classified correctly; mid-turn failure keeps its write; failure before any tool ran still errors), plus Prettier and `npm run build`. The live claude.ai connector was not re-tested.
+
+---
+
 ## 2026-09-25 (cont'd 2) — Photo header bands on every domain page
 
 John asked whether generated images could work elsewhere in the app, the way the hero videos did. The first style round, a flat "paper cut-out" landscape and then a risograph print, looked generic, and the fault was mostly the prompt: it put the accent color on the sun, made washed-out periwinkle the dominant color, and repeated one composition. The direction that worked was photographic, matching the hero: alpine lakes and hazy ridges, with exactly one saturated detail in each domain's app color. John generated all sixteen images in ChatGPT (Images 2.5) from a shared prompt, and each was checked at real size in a mockup before building.

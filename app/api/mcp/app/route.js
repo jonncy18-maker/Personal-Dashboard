@@ -1,12 +1,12 @@
 import { createMcpHandler, toolText } from '../../../../lib/mcp-server';
-import { TOOLS, executeTool, houseRules } from '../../../../lib/assistant';
+import { MCP_TOOLS, executeTool, houseRules } from '../../../../lib/assistant';
 
 // App-wide MCP server — the whole Personal Dashboard, not just Health, over
 // the same claude.ai connector flow that Health's server (app/api/mcp/health)
 // already went through. Scoped 2026-09-17 after John asked for exactly this,
 // once Health's version proved the OAuth wrapper approach works.
 //
-// Deliberately reuses rather than reinvents: `TOOLS` and `executeTool` are
+// Deliberately reuses rather than reinvents: `MCP_TOOLS` and `executeTool` are
 // lib/assistant.js's own — the same allowlisted catalog the in-app AI
 // Assistant already uses (CLAUDE.md §7 Hard Boundary — same tools, same
 // restrictions: read-only Gmail, no direct DB handle, no raw fetch, no
@@ -44,7 +44,7 @@ export const POST = createMcpHandler({
   tokenEnvVar: 'APP_MCP_TOKEN',
   resourcePath: '/api/mcp/app',
   serverName: 'personal-dashboard-app',
-  tools: TOOLS,
+  tools: MCP_TOOLS,
   callTool,
   instructions: instructions(),
 });
