@@ -78,6 +78,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-27 — A ChatGPT-shaped alias for the app-wide MCP server
+
+John wants to drive the dashboard from ChatGPT rather than Claude for some of his day-to-day updates, specifically because ChatGPT's own MCP tool usage doesn't draw against his Claude usage the way the claude.ai connector does. First attempt (via ChatGPT itself, reported back by John) failed silently — ChatGPT's connector registry showed no callable tools at all, not a permission error.
+
+Root cause, found by research rather than guessing: ChatGPT's custom-connector setup has a hard UI requirement that the server URL literally end in `/mcp` — undocumented-feeling but confirmed across multiple setup guides, and unrelated to the MCP protocol itself. `/api/mcp/app` doesn't end in `/mcp`, so ChatGPT was never reaching a real endpoint to enumerate tools from in the first place; the earlier "permission" theory was a red herring.
+
+**The fix stayed small on purpose.** `app/api/chatgpt/mcp/route.js` is a one-line re-export of `/api/mcp/app`'s existing `POST` handler — no new tool catalog, no new auth logic, same `APP_MCP_TOKEN` bearer check. It only exists as a second URL shaped the way ChatGPT's UI demands. Better still: ChatGPT's connector setup offers a static "Access token / API key" auth mode that just attaches `Authorization: Bearer <token>` to every request — exactly what this app's existing bearer check already expects — so **no OAuth wrapper was needed for ChatGPT at all**, unlike claude.ai's connector, which required the full OAuth 2.1 + DCR saga documented in the 2026-09-17 entries below. Setup on ChatGPT's side: Settings → Apps & Connectors → Developer Mode (requires a paid plan — Plus or above) → Create → URL `https://personal-dashboard-jonncy18.vercel.app/api/chatgpt/mcp` → auth "Access token / API key" → paste `APP_MCP_TOKEN`'s value.
+
+**Verification:** `npm run build` and `npx prettier --check` clean; the new route appears in the build's route list. Not verified against a live ChatGPT connector from this sandbox (no way to drive ChatGPT's UI here) — John still needs to add the connector on his end and confirm tools enumerate.
+
 ## 2026-09-26 (cont'd) — The rest of the Codex audit: F03, F06–F10
 
 Follow-up to the Assistant/MCP fixes above. John chose the behavior for the two judgment calls: F06 as Codex proposed, and F08 based on the device's timezone.
