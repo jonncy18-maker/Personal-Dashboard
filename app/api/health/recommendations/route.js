@@ -1,6 +1,7 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
 import { deviceToday } from '../../../../lib/device-time';
+import { parseFruitServings } from '../../../../lib/health';
 
 // "Recommended meals" — Claude-curated nudges toward a healthier baseline,
 // distinct from health_favorite_meals (things John already eats and saves
@@ -20,6 +21,7 @@ function shape(row) {
     fat_g: num(row.fat_g),
     fiber_g: num(row.fiber_g),
     saturated_fat_g: num(row.saturated_fat_g),
+    fruit_servings: num(row.fruit_servings),
   };
 }
 
@@ -34,7 +36,7 @@ export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
     SELECT id, horizon, for_date, title, detail, meal, calories, protein_g,
-           carbs_g, fat_g, fiber_g, saturated_fat_g, created_at
+           carbs_g, fat_g, fiber_g, saturated_fat_g, fruit_servings, created_at
     FROM health_recommended_meals
     ORDER BY horizon ASC, for_date DESC, created_at DESC
   `;
@@ -102,13 +104,20 @@ export const POST = route(async (request) => {
   }
 
   const sql = getDb();
+  const fruitServings = parseFruitServings(body.fruit_servings);
+  if (fruitServings === undefined) {
+    return Response.json(
+      { error: 'fruit_servings must be a non-negative number' },
+      { status: 400 }
+    );
+  }
   const [row] = await sql`
     INSERT INTO health_recommended_meals
-      (horizon, for_date, title, detail, meal, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g)
+      (horizon, for_date, title, detail, meal, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g, fruit_servings)
     VALUES (${body.horizon}, ${forDate}, ${title}, ${detail},
-            ${body.meal || null}, ${calories}, ${proteinG}, ${carbsG}, ${fatG}, ${fiberG}, ${saturatedFatG})
+            ${body.meal || null}, ${calories}, ${proteinG}, ${carbsG}, ${fatG}, ${fiberG}, ${saturatedFatG}, ${fruitServings})
     RETURNING id, horizon, for_date, title, detail, meal, calories, protein_g,
-              carbs_g, fat_g, fiber_g, saturated_fat_g, created_at
+              carbs_g, fat_g, fiber_g, saturated_fat_g, fruit_servings, created_at
   `;
   return Response.json({ recommendation: shape(row) }, { status: 201 });
 });

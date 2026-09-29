@@ -1,6 +1,7 @@
 import { getDb, num, dateOnly } from '../../../../../lib/db';
 import { route } from '../../../../../lib/route';
 import { deviceToday } from '../../../../../lib/device-time';
+import { parseFruitServings } from '../../../../../lib/health';
 
 const HORIZONS = ['today', 'ongoing'];
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -14,6 +15,7 @@ function shape(row) {
     fat_g: num(row.fat_g),
     fiber_g: num(row.fiber_g),
     saturated_fat_g: num(row.saturated_fat_g),
+    fruit_servings: num(row.fruit_servings),
   };
 }
 
@@ -67,13 +69,18 @@ export const PATCH = route(async (request, { params }) => {
   const fatG = resolveMacro('fat_g');
   const fiberG = resolveMacro('fiber_g');
   const saturatedFatG = resolveMacro('saturated_fat_g');
+  const fruitServings =
+    'fruit_servings' in body
+      ? parseFruitServings(body.fruit_servings)
+      : num(current.fruit_servings);
   if (
     calories === undefined ||
     proteinG === undefined ||
     carbsG === undefined ||
     fatG === undefined ||
     fiberG === undefined ||
-    saturatedFatG === undefined
+    saturatedFatG === undefined ||
+    fruitServings === undefined
   ) {
     return Response.json(
       {
@@ -105,10 +112,11 @@ export const PATCH = route(async (request, { params }) => {
         carbs_g    = ${carbsG},
         fat_g      = ${fatG},
         fiber_g    = ${fiberG},
-        saturated_fat_g = ${saturatedFatG}
+        saturated_fat_g = ${saturatedFatG},
+        fruit_servings = ${fruitServings}
     WHERE id = ${id}
     RETURNING id, horizon, for_date, title, detail, meal, calories, protein_g,
-              carbs_g, fat_g, fiber_g, saturated_fat_g, created_at
+              carbs_g, fat_g, fiber_g, saturated_fat_g, fruit_servings, created_at
   `;
   return Response.json({ recommendation: shape(row) });
 });

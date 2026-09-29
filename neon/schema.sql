@@ -666,6 +666,7 @@ CREATE TABLE IF NOT EXISTS health_profile (
   veggie_target_servings numeric(3, 1) NOT NULL DEFAULT 2
                        CHECK (veggie_target_servings > 0),
   fiber_target_g       numeric(5, 1) NOT NULL DEFAULT 30 CHECK (fiber_target_g > 0),
+  fruit_target_servings numeric(3, 1) NOT NULL DEFAULT 1 CHECK (fruit_target_servings > 0),
   -- Optional daily water goal in US fl oz (migration 036). NULL by default:
   -- no goal was named, and a guessed one would be a fabricated target. With
   -- no goal the day shows its total with no met/not-met verdict.
@@ -739,6 +740,7 @@ CREATE TABLE IF NOT EXISTS health_intake_entries (
   fiber_g        numeric(5, 1) CHECK (fiber_g >= 0),
   saturated_fat_g numeric(5, 1) CHECK (saturated_fat_g >= 0),
   veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
+  fruit_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (fruit_servings >= 0),
   -- Liquid a drink is made with, US fl oz (migration 037); NULL = not a
   -- drink. Counted in full toward water, shown apart from plain water.
   fluid_oz       numeric(5, 1) CHECK (fluid_oz > 0),
@@ -790,6 +792,7 @@ CREATE TABLE IF NOT EXISTS health_favorite_meals (
   fiber_g      numeric(5, 1) CHECK (fiber_g >= 0),
   saturated_fat_g numeric(5, 1) CHECK (saturated_fat_g >= 0),
   veggie_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (veggie_servings >= 0),
+  fruit_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (fruit_servings >= 0),
   fluid_oz     numeric(5, 1) CHECK (fluid_oz > 0),
   source       text NOT NULL CHECK (source IN ('label', 'recall', 'estimated')),
   source_detail text,
@@ -823,6 +826,7 @@ CREATE TABLE IF NOT EXISTS health_recommended_meals (
   fat_g        numeric(5, 1) CHECK (fat_g >= 0),
   fiber_g      numeric(5, 1) CHECK (fiber_g >= 0),
   saturated_fat_g numeric(5, 1) CHECK (saturated_fat_g >= 0),
+  fruit_servings numeric(4, 1) NOT NULL DEFAULT 0 CHECK (fruit_servings >= 0),
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now(),
   CHECK (

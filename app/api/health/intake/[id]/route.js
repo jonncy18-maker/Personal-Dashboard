@@ -1,6 +1,10 @@
 import { getDb, num, dateOnly } from '../../../../../lib/db';
 import { route } from '../../../../../lib/route';
-import { parseVeggieServings, parseFluidOz } from '../../../../../lib/health';
+import {
+  parseVeggieServings,
+  parseFruitServings,
+  parseFluidOz,
+} from '../../../../../lib/health';
 
 // Correcting or removing a single intake entry. Editing a calorie figure by
 // hand makes it John's own number, so a PATCH that touches `calories` without
@@ -84,6 +88,16 @@ export const PATCH = route(async (request, { params }) => {
       { status: 400 }
     );
   }
+  const fruitServings =
+    'fruit_servings' in body
+      ? parseFruitServings(body.fruit_servings)
+      : num(current.fruit_servings);
+  if (fruitServings === undefined) {
+    return Response.json(
+      { error: 'fruit_servings must be a non-negative number' },
+      { status: 400 }
+    );
+  }
 
   // Nullable (migration 037): omitted keeps the stored value, blank clears.
   const fluidOz =
@@ -106,12 +120,13 @@ export const PATCH = route(async (request, { params }) => {
         fiber_g       = ${fiberG},
         saturated_fat_g = ${saturatedFatG},
         veggie_servings = ${veggieServings},
+        fruit_servings = ${fruitServings},
         fluid_oz      = ${fluidOz},
         source        = ${source},
         source_detail = ${body.source_detail ?? current.source_detail}
     WHERE id = ${id}
     RETURNING id, entry_date, meal, description, calories, protein_g,
-              carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via, created_at,
+              carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fruit_servings, fluid_oz, source, source_detail, logged_via, created_at,
               updated_at
   `;
   return Response.json({
@@ -124,6 +139,7 @@ export const PATCH = route(async (request, { params }) => {
       fiber_g: num(row.fiber_g),
       saturated_fat_g: num(row.saturated_fat_g),
       veggie_servings: num(row.veggie_servings),
+      fruit_servings: num(row.fruit_servings),
       fluid_oz: num(row.fluid_oz),
     },
   });

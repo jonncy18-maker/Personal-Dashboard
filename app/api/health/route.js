@@ -4,6 +4,7 @@ import {
   computeTarget,
   dayTotals,
   veggieProgress,
+  fruitProgress,
   fiberProgress,
   waterProgress,
 } from '../../../lib/health';
@@ -35,6 +36,7 @@ function shapeProfile(row) {
     goal_weight_lb: num(row.goal_weight_lb),
     floor_pct: num(row.floor_pct),
     veggie_target_servings: num(row.veggie_target_servings),
+    fruit_target_servings: num(row.fruit_target_servings),
     fiber_target_g: num(row.fiber_target_g),
     water_target_oz: num(row.water_target_oz),
   };
@@ -88,7 +90,7 @@ export const GET = route(async (request) => {
 
   const entryRows = await sql`
     SELECT id, entry_date, meal, description, calories, protein_g, carbs_g,
-           fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via, created_at
+           fat_g, fiber_g, saturated_fat_g, veggie_servings, fruit_servings, fluid_oz, source, source_detail, logged_via, created_at
     FROM health_intake_entries
     WHERE entry_date = ${todayStr}
     ORDER BY created_at ASC
@@ -102,6 +104,7 @@ export const GET = route(async (request) => {
     fiber_g: num(row.fiber_g),
     saturated_fat_g: num(row.saturated_fat_g),
     veggie_servings: num(row.veggie_servings),
+    fruit_servings: num(row.fruit_servings),
     fluid_oz: num(row.fluid_oz),
   }));
 
@@ -133,6 +136,10 @@ export const GET = route(async (request) => {
     totals.veggieServings,
     profile?.veggie_target_servings ?? null
   );
+  const fruit = fruitProgress(
+    totals.fruitServings,
+    profile?.fruit_target_servings ?? null
+  );
   const fiber = fiberProgress(totals.fiberG, profile?.fiber_target_g ?? null);
 
   // `remaining` is only meaningful next to the completeness signal the client
@@ -145,7 +152,7 @@ export const GET = route(async (request) => {
   // every day's Add form regardless of which date is being viewed.
   const favoriteRows = await sql`
     SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
-           veggie_servings, fluid_oz, source, source_detail
+           veggie_servings, fruit_servings, fluid_oz, source, source_detail
     FROM health_favorite_meals
     ORDER BY created_at ASC
   `;
@@ -157,6 +164,7 @@ export const GET = route(async (request) => {
     fiber_g: num(row.fiber_g),
     saturated_fat_g: num(row.saturated_fat_g),
     veggie_servings: num(row.veggie_servings),
+    fruit_servings: num(row.fruit_servings),
     fluid_oz: num(row.fluid_oz),
   }));
 
@@ -165,7 +173,7 @@ export const GET = route(async (request) => {
   // always show regardless of viewed date.
   const recommendationRows = await sql`
     SELECT id, horizon, for_date, title, detail, meal, calories, protein_g,
-           carbs_g, fat_g, fiber_g, saturated_fat_g, created_at
+           carbs_g, fat_g, fiber_g, saturated_fat_g, fruit_servings, created_at
     FROM health_recommended_meals
     WHERE horizon = 'ongoing' OR for_date = ${todayStr}
     ORDER BY horizon ASC, created_at DESC
@@ -178,6 +186,7 @@ export const GET = route(async (request) => {
     fat_g: num(row.fat_g),
     fiber_g: num(row.fiber_g),
     saturated_fat_g: num(row.saturated_fat_g),
+    fruit_servings: num(row.fruit_servings),
   }));
 
   return Response.json({
@@ -186,6 +195,10 @@ export const GET = route(async (request) => {
     target,
     totals,
     veggies,
+    fruit,
+    fruit_servings_total: fruit.servings,
+    fruit_target_servings: fruit.target,
+    fruit_target_met: fruit.met,
     fiber,
     fiber_g_total: totals.fiberG,
     fiber_complete: totals.fiberComplete,
@@ -220,6 +233,7 @@ const PROFILE_FIELDS = [
   'manual_floor_cal',
   'manual_target_cal',
   'veggie_target_servings',
+  'fruit_target_servings',
   'fiber_target_g',
   'water_target_oz',
 ];
@@ -275,6 +289,19 @@ export const PATCH = route(async (request) => {
     }
     patch.fiber_target_g = n;
   }
+  if ('fruit_target_servings' in patch) {
+    const n =
+      patch.fruit_target_servings == null
+        ? NaN
+        : Number(patch.fruit_target_servings);
+    if (!Number.isFinite(n) || n <= 0 || n > 99) {
+      return Response.json(
+        { error: 'fruit_target_servings must be a positive number' },
+        { status: 400 }
+      );
+    }
+    patch.fruit_target_servings = n;
+  }
   // Nullable (migration 036): blank clears the goal rather than resetting it.
   if (patch.water_target_oz != null) {
     const n = Number(patch.water_target_oz);
@@ -314,6 +341,7 @@ export const PATCH = route(async (request) => {
         manual_target_cal   = ${next.manual_target_cal},
         veggie_target_servings = ${next.veggie_target_servings},
         fiber_target_g      = ${next.fiber_target_g},
+        fruit_target_servings = ${next.fruit_target_servings},
         water_target_oz     = ${next.water_target_oz}
     WHERE id = 1
     RETURNING *

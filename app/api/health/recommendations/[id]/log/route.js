@@ -1,6 +1,7 @@
 import { getDb, num, dateOnly } from '../../../../../../lib/db';
 import { route } from '../../../../../../lib/route';
 import { deviceToday } from '../../../../../../lib/device-time';
+import { parseFruitServings } from '../../../../../../lib/health';
 
 // Turns a meal-shaped recommendation into a fresh, independently-editable
 // intake entry — mirrors app/api/health/favorites/[id]/log exactly. Unlike
@@ -17,6 +18,7 @@ function shape(row) {
     fat_g: num(row.fat_g),
     fiber_g: num(row.fiber_g),
     saturated_fat_g: num(row.saturated_fat_g),
+    fruit_servings: num(row.fruit_servings),
   };
 }
 
@@ -53,17 +55,35 @@ export const POST = route(async (request, { params }) => {
   }
 
   const entryDate = body.entry_date || (await deviceToday());
+  function nutrient(key) {
+    if (!(key in body)) return num(rec[key]);
+    if (body[key] == null || body[key] === '') return null;
+    const n = Number(body[key]);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  }
+  const fiberG = nutrient('fiber_g');
+  const saturatedFatG = nutrient('saturated_fat_g');
+  const fruitServings =
+    'fruit_servings' in body
+      ? parseFruitServings(body.fruit_servings)
+      : num(rec.fruit_servings);
+  if ([fiberG, saturatedFatG, fruitServings].some((n) => n === undefined)) {
+    return Response.json(
+      { error: 'invalid nutrient or fruit servings' },
+      { status: 400 }
+    );
+  }
   const [row] = await sql`
     INSERT INTO health_intake_entries
       (entry_date, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
-       source, source_detail, logged_via)
+       fruit_servings, source, source_detail, logged_via)
     VALUES (${entryDate}, ${meal}, ${rec.title}, ${rec.calories},
             ${rec.protein_g}, ${rec.carbs_g}, ${rec.fat_g},
-            ${rec.fiber_g}, ${rec.saturated_fat_g}, 'estimated',
+            ${fiberG}, ${saturatedFatG}, ${fruitServings}, 'estimated',
             ${'from recommended meal: ' + rec.title},
             ${body.logged_via === 'mcp' ? 'mcp' : 'app'})
     RETURNING id, entry_date, meal, description, calories, protein_g,
-              carbs_g, fat_g, fiber_g, saturated_fat_g, source, source_detail, logged_via, created_at,
+              carbs_g, fat_g, fiber_g, saturated_fat_g, fruit_servings, source, source_detail, logged_via, created_at,
               updated_at
   `;
   return Response.json({ entry: shape(row) }, { status: 201 });
