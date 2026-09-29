@@ -14,6 +14,8 @@ function shape(row) {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    fiber_g: num(row.fiber_g),
+    saturated_fat_g: num(row.saturated_fat_g),
     veggie_servings: num(row.veggie_servings),
     fluid_oz: num(row.fluid_oz),
   };
@@ -43,15 +45,16 @@ export const POST = route(async (request, { params }) => {
   const entryDate = body.entry_date || (await deviceToday());
   const [row] = await sql`
     INSERT INTO health_intake_entries
-      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g,
+      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
        veggie_servings, fluid_oz, source, source_detail, logged_via)
     VALUES (${entryDate}, ${meal}, ${favorite.description}, ${favorite.calories},
             ${favorite.protein_g}, ${favorite.carbs_g}, ${favorite.fat_g},
+            ${favorite.fiber_g}, ${favorite.saturated_fat_g},
             ${favorite.veggie_servings}, ${favorite.fluid_oz}, ${favorite.source},
             ${favorite.source_detail},
             ${body.logged_via === 'mcp' ? 'mcp' : 'app'})
     RETURNING id, entry_date, meal, description, calories, protein_g,
-              carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail,
+              carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail,
               logged_via, created_at,
               updated_at
   `;

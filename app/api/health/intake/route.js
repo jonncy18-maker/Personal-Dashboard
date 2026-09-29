@@ -18,6 +18,8 @@ function shape(row) {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    fiber_g: num(row.fiber_g),
+    saturated_fat_g: num(row.saturated_fat_g),
     veggie_servings: num(row.veggie_servings),
     fluid_oz: num(row.fluid_oz),
   };
@@ -42,7 +44,7 @@ export const GET = route(async (request) => {
   const rows = date
     ? await sql`
         SELECT id, entry_date, meal, description, calories, protein_g,
-               carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
+               carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
                created_at,
                updated_at
         FROM health_intake_entries
@@ -51,7 +53,7 @@ export const GET = route(async (request) => {
       `
     : await sql`
         SELECT id, entry_date, meal, description, calories, protein_g,
-               carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
+               carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
                created_at,
                updated_at
         FROM health_intake_entries
@@ -101,13 +103,20 @@ export const POST = route(async (request) => {
   let proteinG;
   let carbsG;
   let fatG;
+  let fiberG;
+  let saturatedFatG;
   try {
     proteinG = parseMacro(body.protein_g);
     carbsG = parseMacro(body.carbs_g);
     fatG = parseMacro(body.fat_g);
+    fiberG = parseMacro(body.fiber_g);
+    saturatedFatG = parseMacro(body.saturated_fat_g);
   } catch {
     return Response.json(
-      { error: 'protein_g/carbs_g/fat_g must be non-negative numbers' },
+      {
+        error:
+          'protein_g/carbs_g/fat_g/fiber_g/saturated_fat_g must be non-negative numbers',
+      },
       { status: 400 }
     );
   }
@@ -135,13 +144,13 @@ export const POST = route(async (request) => {
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO health_intake_entries
-      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g,
+      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
        veggie_servings, fluid_oz, source, source_detail, logged_via)
     VALUES (${entryDate}, ${body.meal}, ${description}, ${Math.round(calories)},
-            ${proteinG}, ${carbsG}, ${fatG}, ${veggieServings}, ${fluidOz},
+            ${proteinG}, ${carbsG}, ${fatG}, ${fiberG}, ${saturatedFatG}, ${veggieServings}, ${fluidOz},
             ${body.source}, ${body.source_detail || null}, ${loggedVia})
     RETURNING id, entry_date, meal, description, calories, protein_g, carbs_g,
-              fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
+              fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
               created_at, updated_at
   `;
   return Response.json({ entry: shape(row) }, { status: 201 });

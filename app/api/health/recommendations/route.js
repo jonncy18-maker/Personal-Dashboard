@@ -18,6 +18,8 @@ function shape(row) {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    fiber_g: num(row.fiber_g),
+    saturated_fat_g: num(row.saturated_fat_g),
   };
 }
 
@@ -32,7 +34,7 @@ export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
     SELECT id, horizon, for_date, title, detail, meal, calories, protein_g,
-           carbs_g, fat_g, created_at
+           carbs_g, fat_g, fiber_g, saturated_fat_g, created_at
     FROM health_recommended_meals
     ORDER BY horizon ASC, for_date DESC, created_at DESC
   `;
@@ -81,13 +83,20 @@ export const POST = route(async (request) => {
   let proteinG;
   let carbsG;
   let fatG;
+  let fiberG;
+  let saturatedFatG;
   try {
     proteinG = parseMacro(body.protein_g);
     carbsG = parseMacro(body.carbs_g);
     fatG = parseMacro(body.fat_g);
+    fiberG = parseMacro(body.fiber_g);
+    saturatedFatG = parseMacro(body.saturated_fat_g);
   } catch {
     return Response.json(
-      { error: 'protein_g/carbs_g/fat_g must be non-negative numbers' },
+      {
+        error:
+          'protein_g/carbs_g/fat_g/fiber_g/saturated_fat_g must be non-negative numbers',
+      },
       { status: 400 }
     );
   }
@@ -95,11 +104,11 @@ export const POST = route(async (request) => {
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO health_recommended_meals
-      (horizon, for_date, title, detail, meal, calories, protein_g, carbs_g, fat_g)
+      (horizon, for_date, title, detail, meal, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g)
     VALUES (${body.horizon}, ${forDate}, ${title}, ${detail},
-            ${body.meal || null}, ${calories}, ${proteinG}, ${carbsG}, ${fatG})
+            ${body.meal || null}, ${calories}, ${proteinG}, ${carbsG}, ${fatG}, ${fiberG}, ${saturatedFatG})
     RETURNING id, horizon, for_date, title, detail, meal, calories, protein_g,
-              carbs_g, fat_g, created_at
+              carbs_g, fat_g, fiber_g, saturated_fat_g, created_at
   `;
   return Response.json({ recommendation: shape(row) }, { status: 201 });
 });

@@ -58,9 +58,16 @@ export const PATCH = route(async (request, { params }) => {
   const proteinG = resolveMacro('protein_g');
   const carbsG = resolveMacro('carbs_g');
   const fatG = resolveMacro('fat_g');
-  if (proteinG === undefined || carbsG === undefined || fatG === undefined) {
+  const fiberG = resolveMacro('fiber_g');
+  const saturatedFatG = resolveMacro('saturated_fat_g');
+  if (
+    [proteinG, carbsG, fatG, fiberG, saturatedFatG].some((v) => v === undefined)
+  ) {
     return Response.json(
-      { error: 'protein_g/carbs_g/fat_g must be non-negative numbers' },
+      {
+        error:
+          'protein_g/carbs_g/fat_g/fiber_g/saturated_fat_g must be non-negative numbers',
+      },
       { status: 400 }
     );
   }
@@ -96,13 +103,15 @@ export const PATCH = route(async (request, { params }) => {
         protein_g     = ${proteinG},
         carbs_g       = ${carbsG},
         fat_g         = ${fatG},
+        fiber_g       = ${fiberG},
+        saturated_fat_g = ${saturatedFatG},
         veggie_servings = ${veggieServings},
         fluid_oz      = ${fluidOz},
         source        = ${source},
         source_detail = ${body.source_detail ?? current.source_detail}
     WHERE id = ${id}
     RETURNING id, entry_date, meal, description, calories, protein_g,
-              carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via, created_at,
+              carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via, created_at,
               updated_at
   `;
   return Response.json({
@@ -112,6 +121,8 @@ export const PATCH = route(async (request, { params }) => {
       protein_g: num(row.protein_g),
       carbs_g: num(row.carbs_g),
       fat_g: num(row.fat_g),
+      fiber_g: num(row.fiber_g),
+      saturated_fat_g: num(row.saturated_fat_g),
       veggie_servings: num(row.veggie_servings),
       fluid_oz: num(row.fluid_oz),
     },

@@ -17,6 +17,8 @@ function shape(row) {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    fiber_g: num(row.fiber_g),
+    saturated_fat_g: num(row.saturated_fat_g),
     veggie_servings: num(row.veggie_servings),
     fluid_oz: num(row.fluid_oz),
   };
@@ -32,7 +34,7 @@ function parseMacro(value) {
 export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
-    SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g,
+    SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
            veggie_servings, fluid_oz, source, source_detail, created_at
     FROM health_favorite_meals
     ORDER BY created_at ASC
@@ -71,13 +73,20 @@ export const POST = route(async (request) => {
   let proteinG;
   let carbsG;
   let fatG;
+  let fiberG;
+  let saturatedFatG;
   try {
     proteinG = parseMacro(body.protein_g);
     carbsG = parseMacro(body.carbs_g);
     fatG = parseMacro(body.fat_g);
+    fiberG = parseMacro(body.fiber_g);
+    saturatedFatG = parseMacro(body.saturated_fat_g);
   } catch {
     return Response.json(
-      { error: 'protein_g/carbs_g/fat_g must be non-negative numbers' },
+      {
+        error:
+          'protein_g/carbs_g/fat_g/fiber_g/saturated_fat_g must be non-negative numbers',
+      },
       { status: 400 }
     );
   }
@@ -101,14 +110,14 @@ export const POST = route(async (request) => {
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO health_favorite_meals
-      (name, meal, description, calories, protein_g, carbs_g, fat_g,
+      (name, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
        veggie_servings, fluid_oz, source, source_detail)
     VALUES (${name}, ${body.meal || null}, ${description},
-            ${Math.round(calories)}, ${proteinG}, ${carbsG}, ${fatG},
+            ${Math.round(calories)}, ${proteinG}, ${carbsG}, ${fatG}, ${fiberG}, ${saturatedFatG},
             ${veggieServings}, ${fluidOz}, ${body.source},
             ${body.source_detail || null})
     RETURNING id, name, meal, description, calories, protein_g, carbs_g,
-              fat_g, veggie_servings, fluid_oz, source, source_detail, created_at
+              fat_g, fiber_g, saturated_fat_g, veggie_servings, fluid_oz, source, source_detail, created_at
   `;
   return Response.json({ favorite: shape(row) }, { status: 201 });
 });

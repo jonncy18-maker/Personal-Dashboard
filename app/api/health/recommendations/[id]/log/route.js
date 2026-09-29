@@ -15,6 +15,8 @@ function shape(row) {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    fiber_g: num(row.fiber_g),
+    saturated_fat_g: num(row.saturated_fat_g),
   };
 }
 
@@ -53,14 +55,15 @@ export const POST = route(async (request, { params }) => {
   const entryDate = body.entry_date || (await deviceToday());
   const [row] = await sql`
     INSERT INTO health_intake_entries
-      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g,
+      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
        source, source_detail, logged_via)
     VALUES (${entryDate}, ${meal}, ${rec.title}, ${rec.calories},
-            ${rec.protein_g}, ${rec.carbs_g}, ${rec.fat_g}, 'estimated',
+            ${rec.protein_g}, ${rec.carbs_g}, ${rec.fat_g},
+            ${rec.fiber_g}, ${rec.saturated_fat_g}, 'estimated',
             ${'from recommended meal: ' + rec.title},
             ${body.logged_via === 'mcp' ? 'mcp' : 'app'})
     RETURNING id, entry_date, meal, description, calories, protein_g,
-              carbs_g, fat_g, source, source_detail, logged_via, created_at,
+              carbs_g, fat_g, fiber_g, saturated_fat_g, source, source_detail, logged_via, created_at,
               updated_at
   `;
   return Response.json({ entry: shape(row) }, { status: 201 });
