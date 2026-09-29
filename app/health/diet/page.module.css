@@ -211,6 +211,53 @@
   font-weight: 700;
   color: var(--ink-muted);
 }
+.nutritionSummary {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.nutritionRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+.nutritionLabel {
+  color: var(--ink-muted);
+  flex: none;
+}
+.nutritionValue {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.metCheck {
+  color: var(--good);
+}
+.statusDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.statusgreen {
+  background: var(--good);
+}
+.statusyellow {
+  background: var(--warn);
+}
+.statusred {
+  background: var(--critical);
+}
+.statusincomplete {
+  background: var(--ink-faint);
+}
 .dotOk,
 .dotWarn {
   width: 7px;
@@ -666,6 +713,19 @@
 .formRow {
   display: flex;
   gap: 8px;
+}
+@media (max-width: 600px) {
+  .form .formRow {
+    flex-wrap: wrap;
+  }
+  .form .formRow .inputNum {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 calc(50% - 8px);
+  }
+  .form .formRow .select {
+    flex: 1 1 140px;
+  }
 }
 .input,
 .inputNum,

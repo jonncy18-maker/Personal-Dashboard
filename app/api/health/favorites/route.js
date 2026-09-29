@@ -1,6 +1,10 @@
 import { getDb, num } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { parseVeggieServings, parseFluidOz } from '../../../../lib/health';
+import {
+  parseVeggieServings,
+  parseFruitServings,
+  parseFluidOz,
+} from '../../../../lib/health';
 
 // Saved meal templates for something that repeats verbatim (e.g. the same
 // breakfast every day) — see .claude/skills/health. Logging one is a
@@ -17,7 +21,10 @@ function shape(row) {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    fiber_g: num(row.fiber_g),
+    saturated_fat_g: num(row.saturated_fat_g),
     veggie_servings: num(row.veggie_servings),
+    fruit_servings: num(row.fruit_servings),
     fluid_oz: num(row.fluid_oz),
   };
 }
@@ -32,8 +39,8 @@ function parseMacro(value) {
 export const GET = route(async () => {
   const sql = getDb();
   const rows = await sql`
-    SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g,
-           veggie_servings, fluid_oz, source, source_detail, created_at
+    SELECT id, name, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
+           veggie_servings, fruit_servings, fluid_oz, source, source_detail, created_at
     FROM health_favorite_meals
     ORDER BY created_at ASC
   `;
@@ -71,18 +78,32 @@ export const POST = route(async (request) => {
   let proteinG;
   let carbsG;
   let fatG;
+  let fiberG;
+  let saturatedFatG;
   try {
     proteinG = parseMacro(body.protein_g);
     carbsG = parseMacro(body.carbs_g);
     fatG = parseMacro(body.fat_g);
+    fiberG = parseMacro(body.fiber_g);
+    saturatedFatG = parseMacro(body.saturated_fat_g);
   } catch {
     return Response.json(
-      { error: 'protein_g/carbs_g/fat_g must be non-negative numbers' },
+      {
+        error:
+          'protein_g/carbs_g/fat_g/fiber_g/saturated_fat_g must be non-negative numbers',
+      },
       { status: 400 }
     );
   }
 
   const veggieServings = parseVeggieServings(body.veggie_servings);
+  const fruitServings = parseFruitServings(body.fruit_servings);
+  if (fruitServings === undefined) {
+    return Response.json(
+      { error: 'fruit_servings must be a non-negative number' },
+      { status: 400 }
+    );
+  }
   if (veggieServings === undefined) {
     return Response.json(
       { error: 'veggie_servings must be a non-negative number' },
@@ -101,14 +122,14 @@ export const POST = route(async (request) => {
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO health_favorite_meals
-      (name, meal, description, calories, protein_g, carbs_g, fat_g,
-       veggie_servings, fluid_oz, source, source_detail)
+      (name, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
+       veggie_servings, fruit_servings, fluid_oz, source, source_detail)
     VALUES (${name}, ${body.meal || null}, ${description},
-            ${Math.round(calories)}, ${proteinG}, ${carbsG}, ${fatG},
-            ${veggieServings}, ${fluidOz}, ${body.source},
+            ${Math.round(calories)}, ${proteinG}, ${carbsG}, ${fatG}, ${fiberG}, ${saturatedFatG},
+            ${veggieServings}, ${fruitServings}, ${fluidOz}, ${body.source},
             ${body.source_detail || null})
     RETURNING id, name, meal, description, calories, protein_g, carbs_g,
-              fat_g, veggie_servings, fluid_oz, source, source_detail, created_at
+              fat_g, fiber_g, saturated_fat_g, veggie_servings, fruit_servings, fluid_oz, source, source_detail, created_at
   `;
   return Response.json({ favorite: shape(row) }, { status: 201 });
 });

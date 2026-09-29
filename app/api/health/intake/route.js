@@ -1,6 +1,10 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { parseVeggieServings, parseFluidOz } from '../../../../lib/health';
+import {
+  parseVeggieServings,
+  parseFruitServings,
+  parseFluidOz,
+} from '../../../../lib/health';
 import { deviceToday } from '../../../../lib/device-time';
 
 // Intake entries. `source` is required and never defaulted: it is the whole
@@ -18,7 +22,10 @@ function shape(row) {
     protein_g: num(row.protein_g),
     carbs_g: num(row.carbs_g),
     fat_g: num(row.fat_g),
+    fiber_g: num(row.fiber_g),
+    saturated_fat_g: num(row.saturated_fat_g),
     veggie_servings: num(row.veggie_servings),
+    fruit_servings: num(row.fruit_servings),
     fluid_oz: num(row.fluid_oz),
   };
 }
@@ -42,7 +49,7 @@ export const GET = route(async (request) => {
   const rows = date
     ? await sql`
         SELECT id, entry_date, meal, description, calories, protein_g,
-               carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
+               carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fruit_servings, fluid_oz, source, source_detail, logged_via,
                created_at,
                updated_at
         FROM health_intake_entries
@@ -51,7 +58,7 @@ export const GET = route(async (request) => {
       `
     : await sql`
         SELECT id, entry_date, meal, description, calories, protein_g,
-               carbs_g, fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
+               carbs_g, fat_g, fiber_g, saturated_fat_g, veggie_servings, fruit_servings, fluid_oz, source, source_detail, logged_via,
                created_at,
                updated_at
         FROM health_intake_entries
@@ -101,18 +108,32 @@ export const POST = route(async (request) => {
   let proteinG;
   let carbsG;
   let fatG;
+  let fiberG;
+  let saturatedFatG;
   try {
     proteinG = parseMacro(body.protein_g);
     carbsG = parseMacro(body.carbs_g);
     fatG = parseMacro(body.fat_g);
+    fiberG = parseMacro(body.fiber_g);
+    saturatedFatG = parseMacro(body.saturated_fat_g);
   } catch {
     return Response.json(
-      { error: 'protein_g/carbs_g/fat_g must be non-negative numbers' },
+      {
+        error:
+          'protein_g/carbs_g/fat_g/fiber_g/saturated_fat_g must be non-negative numbers',
+      },
       { status: 400 }
     );
   }
 
   const veggieServings = parseVeggieServings(body.veggie_servings);
+  const fruitServings = parseFruitServings(body.fruit_servings);
+  if (fruitServings === undefined) {
+    return Response.json(
+      { error: 'fruit_servings must be a non-negative number' },
+      { status: 400 }
+    );
+  }
   if (veggieServings === undefined) {
     return Response.json(
       { error: 'veggie_servings must be a non-negative number' },
@@ -135,13 +156,13 @@ export const POST = route(async (request) => {
   const sql = getDb();
   const [row] = await sql`
     INSERT INTO health_intake_entries
-      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g,
-       veggie_servings, fluid_oz, source, source_detail, logged_via)
+      (entry_date, meal, description, calories, protein_g, carbs_g, fat_g, fiber_g, saturated_fat_g,
+       veggie_servings, fruit_servings, fluid_oz, source, source_detail, logged_via)
     VALUES (${entryDate}, ${body.meal}, ${description}, ${Math.round(calories)},
-            ${proteinG}, ${carbsG}, ${fatG}, ${veggieServings}, ${fluidOz},
+            ${proteinG}, ${carbsG}, ${fatG}, ${fiberG}, ${saturatedFatG}, ${veggieServings}, ${fruitServings}, ${fluidOz},
             ${body.source}, ${body.source_detail || null}, ${loggedVia})
     RETURNING id, entry_date, meal, description, calories, protein_g, carbs_g,
-              fat_g, veggie_servings, fluid_oz, source, source_detail, logged_via,
+              fat_g, fiber_g, saturated_fat_g, veggie_servings, fruit_servings, fluid_oz, source, source_detail, logged_via,
               created_at, updated_at
   `;
   return Response.json({ entry: shape(row) }, { status: 201 });
