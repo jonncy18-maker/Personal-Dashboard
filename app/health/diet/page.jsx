@@ -141,86 +141,68 @@ function BudgetRing({ consumed, target, estimated }) {
   );
 }
 
-// The day's vegetable servings against the profile baseline. Beside the
-// completeness line above it, so "0 of 2" on an unlogged day reads as
-// "nothing logged", not as a verdict on the day.
-function VeggieLine({ veggies }) {
-  if (!veggies || veggies.target == null) return null;
-  const pct = Math.min(100, (veggies.servings / veggies.target) * 100);
+// Compact day summary. Missing nutrients use the existing tilde convention;
+// the saturated-fat signal stays gray until its calorie coverage is sufficient.
+function NutritionRow({ label, value, met, status }) {
   return (
-    <div className={styles.veggieLine}>
-      <div className={styles.veggieTrack}>
-        <div
-          className={styles.veggieFill}
-          style={{
-            width: `${pct}%`,
-            background: veggies.met ? 'var(--good)' : 'var(--dom-health)',
-          }}
-        />
-      </div>
-      <span>
-        Veggies {veggies.servings} / {veggies.target} servings
-        {veggies.met ? ' ✓' : ''}
+    <div className={styles.nutritionRow}>
+      <span className={styles.nutritionLabel}>{label}</span>
+      <span className={styles.nutritionValue}>
+        {status ? (
+          <span
+            className={`${styles.statusDot} ${styles[`status${status}`]}`}
+            aria-label={status}
+          />
+        ) : null}
+        {value}
+        {met ? (
+          <span className={styles.metCheck} aria-label="Target met">
+            {' '}
+            ✓
+          </span>
+        ) : null}
       </span>
     </div>
   );
 }
 
-// A stacked proportional bar only means something when all three macros are
-// actually known for the day — built from a partial set it would imply a
-// split that was never measured, so it only renders when nothing is missing.
-// The legend numbers still show whatever is known, complete or not.
-function MacroBar({
-  proteinG,
-  proteinComplete,
-  carbsG,
-  carbsComplete,
-  fatG,
-  fatComplete,
-}) {
-  if (proteinG == null && carbsG == null && fatG == null) return null;
-  const total = (proteinG || 0) + (carbsG || 0) + (fatG || 0);
-  const canBar =
-    proteinG != null && carbsG != null && fatG != null && total > 0;
-
+function NutritionSummary({ totals, fiber, veggies, fruit, water }) {
+  const saturatedStatus = totals.saturatedFatStatus;
+  const saturatedValue =
+    saturatedStatus === 'incomplete'
+      ? 'incomplete'
+      : `${totals.saturatedFatPctCalories.toFixed(1)}% calories`;
   return (
-    <div>
-      {canBar ? (
-        <div className={styles.macroBar}>
-          <div
-            style={{
-              width: `${(proteinG / total) * 100}%`,
-              background: 'var(--dom-health)',
-            }}
-          />
-          <div
-            style={{
-              width: `${(carbsG / total) * 100}%`,
-              background: 'var(--accent)',
-            }}
-          />
-          <div
-            style={{
-              width: `${(fatG / total) * 100}%`,
-              background: 'var(--warn)',
-            }}
-          />
-        </div>
-      ) : null}
-      <div className={styles.macroLegend}>
-        <span>
-          <span style={{ color: 'var(--dom-health)' }}>●</span> Protein{' '}
-          {macroG(proteinG, proteinComplete)}
-        </span>
-        <span>
-          <span style={{ color: 'var(--accent)' }}>●</span> Carbs{' '}
-          {macroG(carbsG, carbsComplete)}
-        </span>
-        <span>
-          <span style={{ color: 'var(--warn)' }}>●</span> Fat{' '}
-          {macroG(fatG, fatComplete)}
-        </span>
-      </div>
+    <div className={styles.nutritionSummary} aria-label="Day nutrition summary">
+      <NutritionRow
+        label="Protein"
+        value={macroG(totals.proteinG, totals.proteinComplete)}
+      />
+      <NutritionRow
+        label="Fiber"
+        value={`${macroG(totals.fiberG, totals.fiberComplete)}${fiber?.target == null ? '' : ` / ${fiber.target}g`}`}
+        met={fiber?.met}
+      />
+      <NutritionRow
+        label="Vegetables"
+        value={`${veggies?.servings ?? 0}${veggies?.target == null ? '' : ` / ${veggies.target}`} servings`}
+        met={veggies?.met}
+      />
+      <NutritionRow
+        label="Fruit"
+        value={`${fruit?.servings ?? 0}${fruit?.target == null ? '' : ` / ${fruit.target}`} servings`}
+        met={fruit?.met}
+      />
+      <NutritionRow
+        label="Water"
+        value={`${water?.ounces ?? 0} oz${water?.target == null ? '' : ` / ${water.target} oz`}`}
+        met={water?.met}
+      />
+      <NutritionRow
+        label="Saturated Fat"
+        value={saturatedValue}
+        status={saturatedStatus}
+      />
     </div>
   );
 }
@@ -320,6 +302,9 @@ function ProfileForm({ profile, onSave }) {
       profile?.floor_pct != null ? Math.round(profile.floor_pct * 100) : 60,
     manual_floor_cal: profile?.manual_floor_cal ?? '',
     manual_target_cal: profile?.manual_target_cal ?? '',
+    veggie_target_servings: profile?.veggie_target_servings ?? '',
+    fiber_target_g: profile?.fiber_target_g ?? '',
+    fruit_target_servings: profile?.fruit_target_servings ?? '',
     water_target_oz: profile?.water_target_oz ?? '',
   }));
   const [busy, setBusy] = useState(false);
@@ -357,6 +342,9 @@ function ProfileForm({ profile, onSave }) {
         form.manual_floor_cal === '' ? '' : Number(form.manual_floor_cal),
       manual_target_cal:
         form.manual_target_cal === '' ? '' : Number(form.manual_target_cal),
+      veggie_target_servings: Number(form.veggie_target_servings),
+      fiber_target_g: Number(form.fiber_target_g),
+      fruit_target_servings: Number(form.fruit_target_servings),
       water_target_oz:
         form.water_target_oz === '' ? '' : Number(form.water_target_oz),
     });
@@ -512,6 +500,42 @@ function ProfileForm({ profile, onSave }) {
           />
         </label>
         <label className={styles.field}>
+          <span>Daily vegetable target (servings)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="0.1"
+            step="0.1"
+            required
+            value={form.veggie_target_servings}
+            onChange={(e) => set('veggie_target_servings', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Daily fiber target (g)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="0.1"
+            step="0.1"
+            required
+            value={form.fiber_target_g}
+            onChange={(e) => set('fiber_target_g', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>Daily fruit target (servings)</span>
+          <input
+            className={styles.input}
+            type="number"
+            min="0.1"
+            step="0.1"
+            required
+            value={form.fruit_target_servings}
+            onChange={(e) => set('fruit_target_servings', e.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
           <span>Daily water goal (oz)</span>
           <input
             className={styles.input}
@@ -530,6 +554,50 @@ function ProfileForm({ profile, onSave }) {
   );
 }
 
+function ExtraNutritionInputs({
+  fiber,
+  setFiber,
+  saturatedFat,
+  setSaturatedFat,
+  fruit,
+  setFruit,
+}) {
+  return (
+    <div className={styles.formRow}>
+      <input
+        className={styles.inputNum}
+        type="number"
+        min="0"
+        step="0.1"
+        placeholder="fiber g"
+        title="Leave blank when unknown; zero means a measured zero"
+        value={fiber}
+        onChange={(e) => setFiber(e.target.value)}
+      />
+      <input
+        className={styles.inputNum}
+        type="number"
+        min="0"
+        step="0.1"
+        placeholder="saturated fat g"
+        title="Leave blank when unknown; zero means a measured zero"
+        value={saturatedFat}
+        onChange={(e) => setSaturatedFat(e.target.value)}
+      />
+      <input
+        className={styles.inputNum}
+        type="number"
+        min="0"
+        step="0.1"
+        placeholder="fruit servings"
+        title="Log only servings you know: 1 medium apple or orange is about 1"
+        value={fruit}
+        onChange={(e) => setFruit(e.target.value)}
+      />
+    </div>
+  );
+}
+
 // The timeline's own add form — unlike the old per-meal Add button, this one
 // carries its own meal picker (defaulted from the time of day) since entries
 // are no longer grouped by meal on screen.
@@ -541,6 +609,9 @@ function AddTimelineEntryForm({ onAdd }) {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [fiber, setFiber] = useState('');
+  const [saturatedFat, setSaturatedFat] = useState('');
+  const [fruit, setFruit] = useState('');
   const [veggies, setVeggies] = useState('');
   const [fluid, setFluid] = useState('');
   const [source, setSource] = useState('estimated');
@@ -557,6 +628,9 @@ function AddTimelineEntryForm({ onAdd }) {
       protein_g: protein === '' ? '' : Number(protein),
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
+      fiber_g: fiber === '' ? '' : Number(fiber),
+      saturated_fat_g: saturatedFat === '' ? '' : Number(saturatedFat),
+      fruit_servings: fruit === '' ? 0 : Number(fruit),
       veggie_servings: veggies === '' ? 0 : Number(veggies),
       fluid_oz: fluid === '' ? '' : Number(fluid),
       source,
@@ -568,6 +642,9 @@ function AddTimelineEntryForm({ onAdd }) {
       setProtein('');
       setCarbs('');
       setFat('');
+      setFiber('');
+      setSaturatedFat('');
+      setFruit('');
       setVeggies('');
       setFluid('');
       setSource('estimated');
@@ -672,6 +749,14 @@ function AddTimelineEntryForm({ onAdd }) {
           onChange={(e) => setFluid(e.target.value)}
         />
       </div>
+      <ExtraNutritionInputs
+        fiber={fiber}
+        setFiber={setFiber}
+        saturatedFat={saturatedFat}
+        setSaturatedFat={setSaturatedFat}
+        fruit={fruit}
+        setFruit={setFruit}
+      />
       <div className={styles.formRow}>
         <button className={styles.saveBtn} type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save'}
@@ -700,6 +785,15 @@ function EditEntryForm({ entry, onSave, onCancel }) {
   const [fat, setFat] = useState(
     entry.fat_g == null ? '' : String(entry.fat_g)
   );
+  const [fiber, setFiber] = useState(
+    entry.fiber_g == null ? '' : String(entry.fiber_g)
+  );
+  const [saturatedFat, setSaturatedFat] = useState(
+    entry.saturated_fat_g == null ? '' : String(entry.saturated_fat_g)
+  );
+  const [fruit, setFruit] = useState(
+    entry.fruit_servings ? String(entry.fruit_servings) : ''
+  );
   const [veggies, setVeggies] = useState(
     entry.veggie_servings ? String(entry.veggie_servings) : ''
   );
@@ -725,6 +819,9 @@ function EditEntryForm({ entry, onSave, onCancel }) {
       protein_g: protein === '' ? '' : Number(protein),
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
+      fiber_g: fiber === '' ? '' : Number(fiber),
+      saturated_fat_g: saturatedFat === '' ? '' : Number(saturatedFat),
+      fruit_servings: fruit === '' ? 0 : Number(fruit),
       veggie_servings: veggies === '' ? 0 : Number(veggies),
       fluid_oz: fluid === '' ? '' : Number(fluid),
     };
@@ -814,6 +911,14 @@ function EditEntryForm({ entry, onSave, onCancel }) {
           onChange={(e) => setFluid(e.target.value)}
         />
       </div>
+      <ExtraNutritionInputs
+        fiber={fiber}
+        setFiber={setFiber}
+        saturatedFat={saturatedFat}
+        setSaturatedFat={setSaturatedFat}
+        fruit={fruit}
+        setFruit={setFruit}
+      />
       {willReTier ? (
         <p className={styles.reTierNote}>
           Changing the number moves this to Estimated — a hand-typed figure
@@ -843,7 +948,10 @@ function TimelineRow({ entry, time, onEdit, onDelete }) {
     entry.protein_g != null ? `${Math.round(entry.protein_g)}p` : null,
     entry.carbs_g != null ? `${Math.round(entry.carbs_g)}c` : null,
     entry.fat_g != null ? `${Math.round(entry.fat_g)}f` : null,
+    entry.fiber_g != null ? `${entry.fiber_g}g fiber` : null,
+    entry.saturated_fat_g != null ? `${entry.saturated_fat_g}g sat fat` : null,
     entry.veggie_servings > 0 ? `${entry.veggie_servings} veg` : null,
+    entry.fruit_servings > 0 ? `${entry.fruit_servings} fruit` : null,
     entry.fluid_oz > 0 ? `${entry.fluid_oz} oz fluid` : null,
   ]
     .filter(Boolean)
@@ -978,6 +1086,9 @@ function NewFavoriteForm({ onSave }) {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [fiber, setFiber] = useState('');
+  const [saturatedFat, setSaturatedFat] = useState('');
+  const [fruit, setFruit] = useState('');
   const [source, setSource] = useState('estimated');
   const [busy, setBusy] = useState(false);
 
@@ -993,6 +1104,9 @@ function NewFavoriteForm({ onSave }) {
       protein_g: protein === '' ? '' : Number(protein),
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
+      fiber_g: fiber === '' ? '' : Number(fiber),
+      saturated_fat_g: saturatedFat === '' ? '' : Number(saturatedFat),
+      fruit_servings: fruit === '' ? 0 : Number(fruit),
       source,
     });
     setBusy(false);
@@ -1004,6 +1118,9 @@ function NewFavoriteForm({ onSave }) {
       setProtein('');
       setCarbs('');
       setFat('');
+      setFiber('');
+      setSaturatedFat('');
+      setFruit('');
       setSource('estimated');
       setOpen(false);
     }
@@ -1093,6 +1210,14 @@ function NewFavoriteForm({ onSave }) {
           onChange={(e) => setFat(e.target.value)}
         />
       </div>
+      <ExtraNutritionInputs
+        fiber={fiber}
+        setFiber={setFiber}
+        saturatedFat={saturatedFat}
+        setSaturatedFat={setSaturatedFat}
+        fruit={fruit}
+        setFruit={setFruit}
+      />
       <div className={styles.formRow}>
         <button className={styles.saveBtn} type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save'}
@@ -1201,6 +1326,9 @@ function NewRecommendationForm({ onSave }) {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [fiber, setFiber] = useState('');
+  const [saturatedFat, setSaturatedFat] = useState('');
+  const [fruit, setFruit] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit(event) {
@@ -1216,6 +1344,9 @@ function NewRecommendationForm({ onSave }) {
       protein_g: protein === '' ? '' : Number(protein),
       carbs_g: carbs === '' ? '' : Number(carbs),
       fat_g: fat === '' ? '' : Number(fat),
+      fiber_g: fiber === '' ? '' : Number(fiber),
+      saturated_fat_g: saturatedFat === '' ? '' : Number(saturatedFat),
+      fruit_servings: fruit === '' ? 0 : Number(fruit),
     });
     setBusy(false);
     if (ok) {
@@ -1227,6 +1358,9 @@ function NewRecommendationForm({ onSave }) {
       setProtein('');
       setCarbs('');
       setFat('');
+      setFiber('');
+      setSaturatedFat('');
+      setFruit('');
       setOpen(false);
     }
   }
@@ -1315,6 +1449,14 @@ function NewRecommendationForm({ onSave }) {
           onChange={(e) => setFat(e.target.value)}
         />
       </div>
+      <ExtraNutritionInputs
+        fiber={fiber}
+        setFiber={setFiber}
+        saturatedFat={saturatedFat}
+        setSaturatedFat={setSaturatedFat}
+        fruit={fruit}
+        setFruit={setFruit}
+      />
       <div className={styles.formRow}>
         <button className={styles.saveBtn} type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save'}
@@ -2114,15 +2256,13 @@ export default function DietPage() {
               {completenessLabel(totals)}
             </div>
 
-            <MacroBar
-              proteinG={totals.proteinG}
-              proteinComplete={totals.proteinComplete}
-              carbsG={totals.carbsG}
-              carbsComplete={totals.carbsComplete}
-              fatG={totals.fatG}
-              fatComplete={totals.fatComplete}
+            <NutritionSummary
+              totals={totals}
+              fiber={day.fiber}
+              veggies={day.veggies}
+              fruit={day.fruit}
+              water={day.water}
             />
-            <VeggieLine veggies={day.veggies} />
 
             {target.clamped ? (
               <p className={styles.clamp}>
