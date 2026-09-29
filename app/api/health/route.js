@@ -117,7 +117,19 @@ export const GET = route(async (request) => {
     todayStr,
     stepsRows: shapedTrend,
   });
-  const totals = dayTotals(entries);
+  const [overrideRow] = await sql`
+    SELECT fiber_g, saturated_fat_g, source, note
+    FROM health_daily_nutrition_overrides
+    WHERE entry_date = ${todayStr}
+  `;
+  const dayOverride = overrideRow
+    ? {
+        ...overrideRow,
+        fiber_g: num(overrideRow.fiber_g),
+        saturated_fat_g: num(overrideRow.saturated_fat_g),
+      }
+    : null;
+  const totals = dayTotals(entries, dayOverride);
   const waterRows = await sql`
     SELECT id, ounces, logged_via, created_at
     FROM health_water_entries
@@ -208,6 +220,7 @@ export const GET = route(async (request) => {
     saturated_fat_complete: totals.saturatedFatComplete,
     saturated_fat_pct_calories: totals.saturatedFatPctCalories,
     saturated_fat_status: totals.saturatedFatStatus,
+    daily_nutrition_override: dayOverride,
     water,
     remaining,
     entries,

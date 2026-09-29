@@ -78,6 +78,14 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-29 (cont'd) — Day-total fiber / saturated fat for retroactive days
+
+Feedback from ChatGPT over the MCP: fiber and saturated fat could only be set per food entry, but a reconstructed day exists only as daily totals, and forcing a total onto one arbitrary food (or a fake zero-calorie "adjustment meal") would make the underlying nutrition data misleading. Migration 040 adds `health_daily_nutrition_overrides` (one row per date: nullable `fiber_g` / `saturated_fat_g`, required `source`, optional `note`) and two MCP tools, `set_daily_nutrition_totals` and confirm-first `clear_daily_nutrition_totals`; both surfaces get them because the Assistant shares `lib/health-mcp-tools.js`. `dayTotals(entries, override)` lets a stated day total replace the entry sum for that nutrient only, counted as complete; the saturated-fat percentage then divides by the day's total calories. The diet page marks such values "(day total)" with a tilde unless the source is `label`. No UI form for it — capture is MCP-primary per the health skill.
+
+**Verification:** `npm test` (11 pass, 5 new for the override and date validation), `npm run build`, and the upsert/readback/delete SQL run against Neon on a scratch date. The MCP tool itself is not exercised end to end until it deploys. Migration 040 was applied to Neon ahead of the merge (additive new table, old code unaffected).
+
+---
+
 ## 2026-09-29 — Fiber, fruit servings and a saturated-fat indicator (PR #149)
 
 Migration 039 adds nullable `fiber_g` / `saturated_fat_g` and `NOT NULL DEFAULT 0` `fruit_servings` to intake, favorites and recommended meals, plus `fiber_target_g` (30) and `fruit_target_servings` (1) on the profile. Logic is in `lib/health.js` (`dayTotals`, `fiberProgress`, `fruitProgress`); the HTTP routes, `lib/health-mcp-tools.js` (so the in-app Assistant and both MCP servers pick it up) and the diet page all carry the new fields. `get_day` gains the fiber/fruit/saturated-fat totals, completeness, targets and `saturated_fat_status`.
