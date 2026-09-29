@@ -78,6 +78,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-09-29 — Fiber, fruit servings and a saturated-fat indicator (PR #149)
+
+Migration 039 adds nullable `fiber_g` / `saturated_fat_g` and `NOT NULL DEFAULT 0` `fruit_servings` to intake, favorites and recommended meals, plus `fiber_target_g` (30) and `fruit_target_servings` (1) on the profile. Logic is in `lib/health.js` (`dayTotals`, `fiberProgress`, `fruitProgress`); the HTTP routes, `lib/health-mcp-tools.js` (so the in-app Assistant and both MCP servers pick it up) and the diet page all carry the new fields. `get_day` gains the fiber/fruit/saturated-fat totals, completeness, targets and `saturated_fat_status`.
+
+**Decisions.** Saturated-fat percentage uses only the calories of entries that recorded it, and a verdict needs those entries to cover 90% of the day's calories (`SATURATED_FAT_MIN_CALORIE_COVERAGE`) — otherwise `incomplete`, never green. No LDL estimate is modelled: a daily food log can't predict a blood biomarker. Fruit mirrors vegetables (default 0, no completeness state). First test runner in the repo: Vitest, `npm test`, pure `lib/health.js` logic only. Review fix: the redesigned day summary had dropped the Carbs/Fat macro bar; restored beneath the new rows.
+
+**Deploy note.** Migration 039 is not run by the Vercel build — `npm run migrate` (or the Neon MCP) must apply it before the deployed code is relied on; Preview and Production share one database.
+
+---
+
 ## 2026-09-27 — A ChatGPT-shaped alias for the app-wide MCP server
 
 John wants to drive the dashboard from ChatGPT rather than Claude for some of his day-to-day updates, specifically because ChatGPT's own MCP tool usage doesn't draw against his Claude usage the way the claude.ai connector does. First attempt (via ChatGPT itself, reported back by John) failed silently — ChatGPT's connector registry showed no callable tools at all, not a permission error.

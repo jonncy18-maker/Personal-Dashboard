@@ -166,6 +166,65 @@ function NutritionRow({ label, value, met, status }) {
   );
 }
 
+// A stacked proportional bar only means something when all three macros are
+// actually known for the day — built from a partial set it would imply a
+// split that was never measured, so it only renders when nothing is missing.
+// The legend numbers still show whatever is known, complete or not.
+function MacroBar({
+  proteinG,
+  proteinComplete,
+  carbsG,
+  carbsComplete,
+  fatG,
+  fatComplete,
+}) {
+  if (proteinG == null && carbsG == null && fatG == null) return null;
+  const total = (proteinG || 0) + (carbsG || 0) + (fatG || 0);
+  const canBar =
+    proteinG != null && carbsG != null && fatG != null && total > 0;
+
+  return (
+    <div>
+      {canBar ? (
+        <div className={styles.macroBar}>
+          <div
+            style={{
+              width: `${(proteinG / total) * 100}%`,
+              background: 'var(--dom-health)',
+            }}
+          />
+          <div
+            style={{
+              width: `${(carbsG / total) * 100}%`,
+              background: 'var(--accent)',
+            }}
+          />
+          <div
+            style={{
+              width: `${(fatG / total) * 100}%`,
+              background: 'var(--warn)',
+            }}
+          />
+        </div>
+      ) : null}
+      <div className={styles.macroLegend}>
+        <span>
+          <span style={{ color: 'var(--dom-health)' }}>●</span> Protein{' '}
+          {macroG(proteinG, proteinComplete)}
+        </span>
+        <span>
+          <span style={{ color: 'var(--accent)' }}>●</span> Carbs{' '}
+          {macroG(carbsG, carbsComplete)}
+        </span>
+        <span>
+          <span style={{ color: 'var(--warn)' }}>●</span> Fat{' '}
+          {macroG(fatG, fatComplete)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function NutritionSummary({ totals, fiber, veggies, fruit, water }) {
   const saturatedStatus = totals.saturatedFatStatus;
   const saturatedValue =
@@ -2262,6 +2321,14 @@ export default function DietPage() {
               veggies={day.veggies}
               fruit={day.fruit}
               water={day.water}
+            />
+            <MacroBar
+              proteinG={totals.proteinG}
+              proteinComplete={totals.proteinComplete}
+              carbsG={totals.carbsG}
+              carbsComplete={totals.carbsComplete}
+              fatG={totals.fatG}
+              fatComplete={totals.fatComplete}
             />
 
             {target.clamped ? (
