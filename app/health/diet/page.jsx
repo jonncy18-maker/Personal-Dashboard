@@ -230,7 +230,7 @@ function NutritionSummary({ totals, fiber, veggies, fruit, water }) {
   const saturatedValue =
     saturatedStatus === 'incomplete'
       ? 'incomplete'
-      : `${totals.saturatedFatPctCalories.toFixed(1)}% calories`;
+      : `${totals.saturatedFatFromDayTotal && totals.dayTotalSource !== 'label' ? '~' : ''}${totals.saturatedFatPctCalories.toFixed(1)}% calories${totals.saturatedFatFromDayTotal ? ' (day total)' : ''}`;
   return (
     <div className={styles.nutritionSummary} aria-label="Day nutrition summary">
       <NutritionRow
@@ -239,7 +239,7 @@ function NutritionSummary({ totals, fiber, veggies, fruit, water }) {
       />
       <NutritionRow
         label="Fiber"
-        value={`${macroG(totals.fiberG, totals.fiberComplete)}${fiber?.target == null ? '' : ` / ${fiber.target}g`}`}
+        value={`${macroG(totals.fiberG, totals.fiberComplete && !(totals.fiberFromDayTotal && totals.dayTotalSource !== 'label'))}${fiber?.target == null ? '' : ` / ${fiber.target}g`}${totals.fiberFromDayTotal ? ' (day total)' : ''}`}
         met={fiber?.met}
       />
       <NutritionRow

@@ -27,7 +27,8 @@
 --                      034_mileage_scenario_occurrences,
 --                      035_health_veggie_servings, 036_health_water,
 --                      037_health_drink_fluid, 038_mcp_auth_code_server,
---                      039_health_nutrition
+--                      039_health_nutrition,
+--                      040_health_daily_nutrition_overrides
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -774,6 +775,20 @@ CREATE TABLE IF NOT EXISTS health_water_entries (
 );
 CREATE INDEX IF NOT EXISTS health_water_entries_date_idx
   ON health_water_entries (entry_date);
+
+-- A day-level fiber / saturated-fat total (migration 040), for days recorded as
+-- a total rather than item by item. A non-null value replaces the per-entry sum
+-- for that nutrient on that day only; it is never attributed to a single food.
+CREATE TABLE IF NOT EXISTS health_daily_nutrition_overrides (
+  entry_date      date PRIMARY KEY,
+  fiber_g         numeric(5, 1) CHECK (fiber_g >= 0),
+  saturated_fat_g numeric(5, 1) CHECK (saturated_fat_g >= 0),
+  source          text NOT NULL CHECK (source IN ('label', 'recall', 'estimated')),
+  note            text,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  CHECK (fiber_g IS NOT NULL OR saturated_fat_g IS NOT NULL)
+);
 
 -- A reusable template for a meal that repeats verbatim (migration 032) — e.g.
 -- the same breakfast every day. Logging one inserts a fresh
