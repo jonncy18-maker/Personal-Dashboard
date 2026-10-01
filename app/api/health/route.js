@@ -7,6 +7,7 @@ import {
   fruitProgress,
   fiberProgress,
   waterProgress,
+  DEFAULT_STEP_ADJUST_PCT,
 } from '../../../lib/health';
 import { deviceToday } from '../../../lib/device-time';
 
@@ -33,6 +34,7 @@ function shapeProfile(row) {
     height_in: num(row.height_in),
     activity_multiplier: num(row.activity_multiplier),
     activity_trailing_days: num(row.activity_trailing_days),
+    step_adjust_pct: num(row.step_adjust_pct),
     goal_weight_lb: num(row.goal_weight_lb),
     floor_pct: num(row.floor_pct),
     veggie_target_servings: num(row.veggie_target_servings),
@@ -240,6 +242,8 @@ const PROFILE_FIELDS = [
   'activity_multiplier',
   'activity_source',
   'activity_trailing_days',
+  'step_adjust_enabled',
+  'step_adjust_pct',
   'goal_weight_lb',
   'goal_date',
   'floor_pct',
@@ -280,6 +284,20 @@ export const PATCH = route(async (request) => {
   }
   if ('activity_trailing_days' in patch) {
     patch.activity_trailing_days = patch.activity_trailing_days || 14;
+  }
+  // Both NOT NULL (migration 041): blank resets to off / the 0.5 default.
+  if ('step_adjust_enabled' in patch) {
+    patch.step_adjust_enabled = patch.step_adjust_enabled === true;
+  }
+  if ('step_adjust_pct' in patch) {
+    const n = Number(patch.step_adjust_pct ?? DEFAULT_STEP_ADJUST_PCT);
+    if (!Number.isFinite(n) || n <= 0 || n > 1) {
+      return Response.json(
+        { error: 'step_adjust_pct must be above 0 and at most 1' },
+        { status: 400 }
+      );
+    }
+    patch.step_adjust_pct = n;
   }
   // Also NOT NULL (migration 035): blank resets to the default 2.
   if ('veggie_target_servings' in patch) {
@@ -347,6 +365,8 @@ export const PATCH = route(async (request) => {
         activity_multiplier = ${next.activity_multiplier},
         activity_source     = ${next.activity_source},
         activity_trailing_days = ${next.activity_trailing_days},
+        step_adjust_enabled = ${next.step_adjust_enabled},
+        step_adjust_pct     = ${next.step_adjust_pct},
         goal_weight_lb      = ${next.goal_weight_lb},
         goal_date           = ${dateOnly(next.goal_date)},
         floor_pct           = ${next.floor_pct},

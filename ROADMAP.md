@@ -46,6 +46,7 @@ _(Not dated history — live items that outlast a single session. Check `[x]` th
 - [x] **Run `npm run migrate` after the Travel historical-import PR (#104) merges** — 2026-09-13, applied via the Neon MCP right after #104 merged. Migration 027 added `trip_history_scan` (the resumable-scan cursor row); confirmed the table exists and `schema_migrations` records the file. _(Applied statement-by-statement rather than via the runner, same as prior entries — the net state is identical to an `npm run migrate` run.)_
 
 - [x] **Run `npm run migrate` after the audit-fixes PR merges** — 2026-09-26, applied via the Neon MCP right after #146 merged; confirmed the `server` column exists and `schema_migrations` records the file. Original note: migration 038 (`038_mcp_auth_code_server.sql`) adds `server` to `health_mcp_auth_codes`. Until it's applied, `/authorize` on both MCP servers fails on insert, so reconnecting a claude.ai connector breaks; already-connected sessions keep working since the token itself is unchanged. Apply right after merge.
+- [ ] **Run `npm run migrate` after the prior-day step-adjustment PR merges** — migration 041 (`041_health_step_adjust.sql`) adds `step_adjust_enabled`/`step_adjust_pct` to `health_profile`. **Apply it before the deployed code is used:** until it exists, every `PATCH /api/health` and `update_health_profile` fails on the new columns (reads are unaffected — the adjustment just reads as off). Then turn it on from Edit profile on `/health/diet`, or ask Claude to set `step_adjust_enabled`.
 - [ ] **googleapis 144 → 182 major upgrade** — clears the last `npm audit` item (a moderate `uuid` advisory for v3/v5/v6 with a caller buffer; gaxios/googleapis-common only call `v4()` without one, so not reachable today). Needs the Calendar and Gmail flows checked end to end.
 
 ---
@@ -75,6 +76,20 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 - [x] **Health & Fitness card/subsection — scoped 2026-09-16 as Health › Diet.** Raised 2026-07-13, grilled 2026-09-16 (see the entry below). Resolved: an 8th domain at `/health/diet` (not a card inside an existing domain), data captured primarily through an MCP server rather than in-app AI, v1 slice = calories + weight. The fitness half stays unbuilt — John won't log lifts, so the second tab is deferred until there's a reason for it. Not yet built.
 - [x] **PTO planner — scoped 2026-08-08, built 2026-08-08.** Grill session resolved every open question (see the 2026-08-08 entries below for decisions + data model, then the build). Not a 7th domain: a PTO section on `/travel` + one line on Home's Travel card. No AI anywhere in it.
 - [x] **Tesla lease mileage calculator — scoped 2026-08-26, built 2026-08-26, "usual trips" baseline added 2026-08-26.** New 7th domain (`/mileage`; renamed to `/car` on 2026-09-13 when maintenance joined it). See the 2026-08-26 entries below for the spec, the mockup review, the build, and the follow-up baseline override. No AI anywhere in it. **Run `npm run migrate` after merge** (migrations 017 and 018).
+
+---
+
+## 2026-10-01 — Prior-day step adjustment for the daily target
+
+John asked for the target to move with the previous day's step activity. Built opt-in (off by default), migration 041.
+
+**Shape.** `priorDayStepAdjustment()` in `lib/health.js`: adjustment = (yesterday's steps − trailing average ending the day _before_ yesterday) × kcal/step × `step_adjust_pct`, rounded to 5. It is **additive on top of the activity multiplier and applies only the deviation from usual**, because John's multiplier is a hand-set 1.75 that already prices in a very active day — a flat steps→calories credit would count that walking twice. Works the same under `activity_source = 'manual'` and `'steps_trailing'` (the multiplier carries the average, the adjustment carries the deviation). kcal/step is the ACSM walking equation (0.365 kcal/lb/mile net, stride 0.413 × height) × weight × height, ≈0.017 at 118 lb / 5′2″; the credited fraction defaults to 50% because the estimate is rough and wearables overstate burn. The honest expectation is small: a 10,000-step swing from usual moves the target ~85 cal, not hundreds.
+
+**Safeguards, all deliberate.** Today's own steps are never read (no intraday credit — the 2026-09-16 rule, unchanged; there is a test for it). No row for yesterday → no adjustment, labelled `no_data`; too few baseline days (half the window) → `pending`; never zero-filled or carried forward. The floor stays a fraction of _base_ maintenance and the adjustment only moves what the target is built from, so a low-step day cannot push the target below it; the hold-at-maintenance paths use `min(floor, maintenance)` so a profile with the feature off is bit-for-bit unchanged. A manual target still wins before anything is computed. The `/health/diet` sidebar says "Target includes ±N cal for yesterday's steps" whenever it is non-zero, and the formula toggle states why when it is zero.
+
+**Known limitation.** Steps are logged by hand through the MCP connector, so the day after an unlogged day the target simply doesn't move. Logging yesterday's steps after the fact also changes today's target (and, via the trailing-net card, past days' targets) — same retroactivity weight already has.
+
+**Verification:** `npm test` (18 pass, 7 new covering off-by-default, deviation-only maths, below-usual days, no-yesterday, thin baseline, no-intraday-credit, floor/manual-target) and `npm run build`. Not exercised against live Neon or the deployed page — migration 041 is unapplied (see the To-Dos entry).
 
 ---
 

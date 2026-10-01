@@ -5,10 +5,11 @@ import { deviceToday } from '../../../../lib/device-time';
 // Weight + steps readings — one dated row per calendar day (migration 030
 // added `steps` alongside the original weight-only log). weight_lb is ground
 // truth for both the trend and the target's weight input, the same role the
-// odometer log plays for Car. `steps` is display/log-only — never fed into
-// any calorie math (see that migration's comment: the activity multiplier
-// already assumes a general activity level, and wearables overestimate
-// active burn, so crediting steps back would double-count).
+// odometer log plays for Car. `steps` never credits the day it was logged
+// on — it feeds the target only as history (the trailing activity multiplier,
+// migration 031, and the opt-in prior-day adjustment, migration 041), because
+// a wearable's running count credited into the same day on top of a
+// multiplier that already assumes activity would double-count.
 //
 // One row per calendar day: a POST for a date that already has one CORRECTS
 // it rather than appending a second. Re-weighing after coffee, or logging
