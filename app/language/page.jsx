@@ -175,7 +175,7 @@ function ProgressPreview({ preview, onChange, onConfirm, onCancel, saving }) {
   return (
     <div className={styles.previewBox}>
       <p className={styles.previewHead}>
-        Review before saving — Haiku read this off your screenshot, so check it
+        Review before saving — the AI read this off your screenshot, so check it
         against the real numbers.
       </p>
 
@@ -281,7 +281,7 @@ function FrenchProgress() {
       if (!res.ok || result.configured === false) {
         setNote(
           result.configured === false
-            ? 'Anthropic isn’t configured yet.'
+            ? 'AI isn’t configured yet.'
             : 'Could not read that screenshot.'
         );
         return;

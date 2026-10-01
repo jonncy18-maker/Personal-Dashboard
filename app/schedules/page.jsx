@@ -630,7 +630,7 @@ function ImportPreviewPopup({ tasks, onChange, onConfirm, onCancel, saving }) {
           </button>
         </div>
         <p className={styles.importIntro}>
-          Haiku read this off your screenshot — check each title and due date
+          The AI read this off your screenshot — check each title and due date
           (or remove a row) before adding.
         </p>
 
@@ -849,7 +849,7 @@ export default function SchedulesPage() {
       if (!res.ok || result.configured === false) {
         setImportNote(
           result.configured === false
-            ? 'Anthropic isn’t configured yet.'
+            ? 'AI isn’t configured yet.'
             : 'Could not read that screenshot.'
         );
         return;
