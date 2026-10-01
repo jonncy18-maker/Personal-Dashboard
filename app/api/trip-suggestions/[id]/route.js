@@ -3,6 +3,10 @@ import { getGmailClient } from '../../../../lib/google';
 import { fetchDestinationPhoto } from '../../../../lib/unsplash';
 import { parseItineraryForMessage } from '../../../../lib/itinerary-import';
 
+// Reading an image or PDF can take Luna longer than a short text call, and a
+// Luna failure then falls back to Haiku, so allow a full minute.
+export const maxDuration = 60;
+
 function serialize(row) {
   return {
     ...row,

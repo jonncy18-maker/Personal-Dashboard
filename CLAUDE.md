@@ -30,18 +30,18 @@ Master personal planning hub consolidating John's AI projects, travel, schedules
 
 ## 1. Stack
 
-| Layer      | Choice                                                                                                                                                               |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework  | Next.js (App Router)                                                                                                                                                 |
-| Frontend   | React                                                                                                                                                                |
-| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                                                                  |
-| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                                                                          |
-| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                                                             |
-| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                                                                   |
-| Auth       | **None — deliberately dropped.** See §7 Hard Boundaries.                                                                                                             |
-| Hosting    | Vercel (native Git integration — no CI workflow)                                                                                                                     |
-| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                                                              |
-| AI         | Claude Haiku (`claude-haiku-4-5`) — narrow uses (text-only ones opt-in to GPT-6 Luna, `lib/ai-models.js`); Claude Sonnet (`claude-sonnet-5`) — the AI Assistant only |
+| Layer      | Choice                                                                                                                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js (App Router)                                                                                                                                                                     |
+| Frontend   | React                                                                                                                                                                                    |
+| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                                                                                      |
+| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                                                                                              |
+| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                                                                                 |
+| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                                                                                       |
+| Auth       | **None — deliberately dropped.** See §7 Hard Boundaries.                                                                                                                                 |
+| Hosting    | Vercel (native Git integration — no CI workflow)                                                                                                                                         |
+| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                                                                                  |
+| AI         | Claude Haiku (`claude-haiku-4-5`) — narrow uses (most now run on GPT-6 Luna when `OPENAI_API_KEY` is set, `lib/ai-models.js`); Claude Sonnet (`claude-sonnet-5`) — the AI Assistant only |
 
 **Two deliberate divergences from the NextGen-Immersion gold standard, documented so a future session doesn't "fix" them back:**
 
@@ -86,7 +86,7 @@ app/
 lib/
   db.js                    # Neon client + num() numeric-string coercion helper
   anthropic.js             # Shared Haiku client (server-only)
-  ai-models.js             # Task → provider registry for the text-only Haiku jobs; Luna opt-in via env (server-only)
+  ai-models.js             # Task → provider registry for the Haiku-class jobs (email, trip detect, French/Schedules/Travel imports); Luna when OPENAI_API_KEY is set (server-only)
 neon/
   schema.sql               # canonical current DB state
   migrations/              # numbered, immutable, additive (see §6)
@@ -98,7 +98,7 @@ neon/
 # Server-side (no public prefix)
 DATABASE_URL=              # Neon connection string
 ANTHROPIC_API_KEY=         # Claude Haiku — Email Tier 2 residual + Travel parse
-OPENAI_API_KEY=            # OPTIONAL — GPT-6 Luna for the text-only tasks in lib/ai-models.js; unset = all Haiku (scope to Preview first)
+OPENAI_API_KEY=            # OPTIONAL — GPT-6 Luna for the five tasks in lib/ai-models.js; unset = all Haiku
 AI_FORCE_ANTHROPIC=        # OPTIONAL — set to 1 to send every task back to Haiku at once
 VERCEL_API_TOKEN=          # Read-only Vercel API access for AI Projects
 GOOGLE_CLIENT_ID=          # Google OAuth — read-only Calendar + Gmail
