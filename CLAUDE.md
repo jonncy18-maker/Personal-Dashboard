@@ -30,18 +30,18 @@ Master personal planning hub consolidating John's AI projects, travel, schedules
 
 ## 1. Stack
 
-| Layer      | Choice                                                                                                                                         |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework  | Next.js (App Router)                                                                                                                           |
-| Frontend   | React                                                                                                                                          |
-| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                                            |
-| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                                                    |
-| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                                       |
-| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                                             |
-| Auth       | **None — deliberately dropped.** See §7 Hard Boundaries.                                                                                       |
-| Hosting    | Vercel (native Git integration — no CI workflow)                                                                                               |
-| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                                        |
-| AI         | Claude Haiku (`claude-haiku-4-5`) — narrow uses; Claude Sonnet (`claude-sonnet-5`) — the app-wide AI Assistant only; see the `assistant` skill |
+| Layer      | Choice                                                                                                                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js (App Router)                                                                                                                                                 |
+| Frontend   | React                                                                                                                                                                |
+| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                                                                  |
+| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                                                                          |
+| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                                                             |
+| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                                                                   |
+| Auth       | **None — deliberately dropped.** See §7 Hard Boundaries.                                                                                                             |
+| Hosting    | Vercel (native Git integration — no CI workflow)                                                                                                                     |
+| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                                                              |
+| AI         | Claude Haiku (`claude-haiku-4-5`) — narrow uses (text-only ones opt-in to GPT-6 Luna, `lib/ai-models.js`); Claude Sonnet (`claude-sonnet-5`) — the AI Assistant only |
 
 **Two deliberate divergences from the NextGen-Immersion gold standard, documented so a future session doesn't "fix" them back:**
 
@@ -54,7 +54,7 @@ No migration history — this is a new project, built directly to this stack fro
 
 The full key table (every key, its prefix, where it lives, and why) is in `docs/api-keys.md`.
 
-**Rule:** anything that touches the Vercel API, Neon connection, Google APIs, or Anthropic API goes through a server-side route handler (`app/api/*`); the browser never calls any of these directly. No env var carrying a secret gets a `NEXT_PUBLIC_` prefix.
+**Rule:** anything that touches the Vercel API, Neon connection, Google APIs, or the Anthropic or OpenAI API goes through a server-side route handler (`app/api/*`); the browser never calls any of these directly. No env var carrying a secret gets a `NEXT_PUBLIC_` prefix.
 
 **Rule:** the Gmail integration is **read-only by design**. No code path may call a Gmail write/modify/delete endpoint. "Hiding" an email only sets a local flag in this app's own Neon database (`email_hidden`); the actual Gmail mailbox is never touched.
 
@@ -86,6 +86,7 @@ app/
 lib/
   db.js                    # Neon client + num() numeric-string coercion helper
   anthropic.js             # Shared Haiku client (server-only)
+  ai-models.js             # Task → provider registry for the text-only Haiku jobs; Luna opt-in via env (server-only)
 neon/
   schema.sql               # canonical current DB state
   migrations/              # numbered, immutable, additive (see §6)
@@ -97,6 +98,8 @@ neon/
 # Server-side (no public prefix)
 DATABASE_URL=              # Neon connection string
 ANTHROPIC_API_KEY=         # Claude Haiku — Email Tier 2 residual + Travel parse
+OPENAI_API_KEY=            # OPTIONAL — GPT-6 Luna for the text-only tasks in lib/ai-models.js; unset = all Haiku (scope to Preview first)
+AI_FORCE_ANTHROPIC=        # OPTIONAL — set to 1 to send every task back to Haiku at once
 VERCEL_API_TOKEN=          # Read-only Vercel API access for AI Projects
 GOOGLE_CLIENT_ID=          # Google OAuth — read-only Calendar + Gmail
 GOOGLE_CLIENT_SECRET=
@@ -149,7 +152,7 @@ These are the rules where a violation is a real incident, not a style disagreeme
 3. **No fabricated metrics.** A metric comes from real data or a field John maintains, never a hardcoded number — if there's no data source, it does not appear.
 4. **No AI import ever auto-saves.** Every AI import shows a preview for John to confirm/edit before saving — Travel itinerary, French hours, Schedules screenshot, all of them.
 5. **The AI Assistant's tools are an explicit allowlisted catalog of this app's OWN api routes, called over same-origin fetch.** Never give it a direct DB handle, a raw-fetch tool, or a third-party API call. **The app-wide MCP server (`/api/mcp/app`, added 2026-09-17) reuses this exact catalog** rather than exposing a second, looser one — a claude.ai connection through it can do exactly what the in-app Assistant chat can do, no more. Extend the catalog once in `lib/assistant.js` and both surfaces pick it up.
-6. **No env var carrying a secret gets a `NEXT_PUBLIC_` prefix**, and anything that touches the Vercel API, Neon connection, Google APIs, or Anthropic API goes through a server-side route handler (`app/api/*`) — the browser never calls any of these directly.
+6. **No env var carrying a secret gets a `NEXT_PUBLIC_` prefix**, and anything that touches the Vercel API, Neon connection, Google APIs, or the Anthropic or OpenAI API goes through a server-side route handler (`app/api/*`) — the browser never calls any of these directly.
 7. **Applied migrations are immutable** — never edit one; every change is a new numbered file in `neon/migrations/`.
 8. **Coerce `NUMERIC`/`DECIMAL` columns with `num()`** from `lib/db.js` at the API boundary, never in a component.
 
