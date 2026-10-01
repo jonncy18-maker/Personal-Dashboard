@@ -10,6 +10,7 @@ Dated entries before 2026-07-15 have been moved to `ROADMAP-ARCHIVE-2026-H1.md`.
 
 _(Not dated history — live items that outlast a single session. Check `[x]` the box the session a step is completed, noting the date; remove the line once it's no longer useful context.)_
 
+- [ ] **Add `OPENAI_API_KEY` to Vercel (Preview first), then set `AI_LUNA_TASKS=email-tier2,trip-detect` on Preview** — wave 1 of the Luna move (2026-10-01, see entry below). Production stays on Haiku until the Preview logs show no `Luna failed` fallbacks and a trip scan plus an email-rule check look right.
 - [x] **`## Next Up` retrofit across sibling repos** — 2026-07-15. Added a standardized `## Next Up` section to the top of each tracked repo's `ROADMAP.md`, each seeded from that repo's own current roadmap state (not invented) and placed so the dashboard's parser captures only the intended text (bounded by the next `## ` heading): NextGen-Scholars #218 (Play Store native rollout), NextGen-Immersion #110 (Phase 32 TWA→Play), AI-Capital-Planning #153 (post-migration hardening / no test suite), Agentic-Loop #1 (created a ROADMAP.md — it had none — Next Up = cut the first `v1.0` tag). All merged. AI Projects cards now show real "Next Up" lines. _(The Stack Blueprint isn't a tracked AI Projects repo, so it needs no `## Next Up` for parsing; propagating the convention there is a docs nicety, not done here.)_
 - [x] **Build weekly Gmail trip auto-detection** — scoped then built 2026-07-15 (see entries below). Weekly Vercel Cron + manual "Scan Gmail" button → read-only Gmail search → Haiku detection → `trip_suggestions` (migration 003) → review banner + Home-card warning + bell notification → Approve (creates trip + auto-runs itinerary import) / Dismiss. **`CRON_SECRET` provisioned 2026-07-15** — cron GET is now protected.
 - [x] Record exact Vercel project slugs/IDs and repo names to track in AI Projects — 2026-07-14. Added NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning (all with their `-jonncy18.vercel.app` domains), and Agentic-Loop (GitHub only, no deployment). Deliberately left out Personal Dashboard itself and the private `Projects-Dashboard` repo (John's call — not one of the four sibling repos CLAUDE.md names).
@@ -75,6 +76,19 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 - [x] **Health & Fitness card/subsection — scoped 2026-09-16 as Health › Diet.** Raised 2026-07-13, grilled 2026-09-16 (see the entry below). Resolved: an 8th domain at `/health/diet` (not a card inside an existing domain), data captured primarily through an MCP server rather than in-app AI, v1 slice = calories + weight. The fitness half stays unbuilt — John won't log lifts, so the second tab is deferred until there's a reason for it. Not yet built.
 - [x] **PTO planner — scoped 2026-08-08, built 2026-08-08.** Grill session resolved every open question (see the 2026-08-08 entries below for decisions + data model, then the build). Not a 7th domain: a PTO section on `/travel` + one line on Home's Travel card. No AI anywhere in it.
 - [x] **Tesla lease mileage calculator — scoped 2026-08-26, built 2026-08-26, "usual trips" baseline added 2026-08-26.** New 7th domain (`/mileage`; renamed to `/car` on 2026-09-13 when maintenance joined it). See the 2026-08-26 entries below for the spec, the mockup review, the build, and the follow-up baseline override. No AI anywhere in it. **Run `npm run migrate` after merge** (migrations 017 and 018).
+
+---
+
+## 2026-10-01 — Luna opt-in for the text-only Haiku tasks (wave 1)
+
+John asked to align every AI task on a model and start moving the Haiku-class work to GPT-6 Luna (`gpt-6-luna`). The cross-repo map is in the "AI Model Map" artifact; this entry is Personal Dashboard's slice. Wave 1 here is the two text-only tasks: Email Tier 2 (`lib/email-tier2.js`) and trip detection (`lib/trip-detect.js`).
+
+- `lib/ai-models.js` is the task → provider registry. Everything stays on Haiku until a task is named in `AI_LUNA_TASKS` (or `all`) **and** `OPENAI_API_KEY` is set; `AI_FORCE_ANTHROPIC=1` overrides both. Env-driven so a Preview can try Luna while Production stays on Haiku. A Luna failure (HTTP error, truncation, empty reply) falls back to Haiku for that call, so flipping a task cannot make a feature fail where it worked before.
+- Calls the OpenAI Responses API with plain `fetch` (no new dependency), `store: false`, `reasoning.effort: 'low'`, and 600 tokens of headroom on `max_output_tokens` because reasoning tokens count against it (the same trap as Sonnet 5 in NextGen-Scholars).
+- Deliberately **not** moved: French screenshot import, Schedules screenshot import, Travel itinerary import (PDF vouchers). Luna's image and PDF input is unconfirmed. They move in wave 3 only if Luna reads a real file correctly.
+- The model ID is pinned in code like `MODEL` in `lib/anthropic.js`; this file says "Luna", not a version.
+
+**Verified:** 12 new vitest cases (provider selection, request shape, truncation and error fallback, no-Anthropic-key throw) and the existing suite pass. **Not verified:** any real Luna call — there is no OpenAI key in the build sandbox, so `reasoning.effort` and the response shape are written from OpenAI's documented Responses API and untested against `gpt-6-luna`. First step after merge: set `OPENAI_API_KEY` and `AI_LUNA_TASKS=email-tier2,trip-detect` on **Preview only**, run a trip scan and an email-rule check, and watch the Vercel logs for `[ai:...] Luna failed` lines (a fallback is logged, not silent).
 
 ---
 
