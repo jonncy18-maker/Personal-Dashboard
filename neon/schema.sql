@@ -28,7 +28,8 @@
 --                      035_health_veggie_servings, 036_health_water,
 --                      037_health_drink_fluid, 038_mcp_auth_code_server,
 --                      039_health_nutrition,
---                      040_health_daily_nutrition_overrides
+--                      040_health_daily_nutrition_overrides,
+--                      041_health_step_adjust
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -652,6 +653,13 @@ CREATE TABLE IF NOT EXISTS health_profile (
   activity_source      text NOT NULL DEFAULT 'manual'
                        CHECK (activity_source IN ('manual', 'steps_trailing')),
   activity_trailing_days integer NOT NULL DEFAULT 14 CHECK (activity_trailing_days > 0),
+  -- Opt-in prior-day step adjustment (migration 041): moves the target by how
+  -- far yesterday's steps landed from the trailing average, at step_adjust_pct
+  -- of the estimated walking burn. Additive on the multiplier, deviation only;
+  -- today's own steps are never read. Off by default.
+  step_adjust_enabled  boolean NOT NULL DEFAULT false,
+  step_adjust_pct      numeric(3, 2) NOT NULL DEFAULT 0.50
+                       CHECK (step_adjust_pct > 0 AND step_adjust_pct <= 1),
   goal_weight_lb       numeric(5, 1),
   goal_date            date,
   -- The safe floor the daily target may never fall below, as a fraction of
@@ -689,8 +697,8 @@ INSERT INTO health_profile (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 -- expected and are never interpolated: John weighs sporadically, so a missing
 -- week is a missing week, not a value to invent.
 -- weight_lb is nullable (migration 030): a steps-only day is a real row with
--- no weight in it. `steps` is a display/log-only metric, deliberately never
--- fed into any calorie math — see that migration's comment.
+-- no weight in it. `steps` feeds the target only through trailing/prior-day
+-- history (migrations 031 and 041), never the current day's own count.
 CREATE TABLE IF NOT EXISTS health_weight_readings (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   reading_date  date NOT NULL UNIQUE,
