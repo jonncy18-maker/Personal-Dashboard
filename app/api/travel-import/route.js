@@ -4,6 +4,10 @@ import { extractSenderName, header } from '../../../lib/email-sender';
 import { meaningfulWords } from '../../../lib/destination';
 import { parseItineraryForMessage } from '../../../lib/itinerary-import';
 
+// Reading an image or PDF can take Luna longer than a short text call, and a
+// Luna failure then falls back to Haiku, so allow a full minute.
+export const maxDuration = 60;
+
 // Travel itinerary import (CLAUDE.md §7) — read-only Gmail, the same hard
 // boundary as the Email domain (no write/modify/delete calls, ever). Two steps,
 // deliberately split so the model only does the part that needs it:

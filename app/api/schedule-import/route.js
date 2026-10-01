@@ -1,5 +1,9 @@
 import { parseScheduleScreenshot } from '../../../lib/schedule-import';
 
+// Reading an image or PDF can take Luna longer than a short text call, and a
+// Luna failure then falls back to Haiku, so allow a full minute.
+export const maxDuration = 60;
+
 const ALLOWED_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 // Preview step only — nothing is saved here. John reviews/edits the
