@@ -294,6 +294,37 @@ function ActivityProvenance({ target }) {
   return <>×{target?.activityMultiplier}</>;
 }
 
+// The prior-day step adjustment clause. Always says why when it isn't moving
+// the target, so a flat target never looks like a silent failure.
+function StepAdjustment({ adj }) {
+  if (!adj) return null;
+  const y = adj.yesterdaySteps;
+  if (adj.status === 'no_data') {
+    return (
+      <>Step adjustment: none — yesterday&apos;s steps aren&apos;t logged. </>
+    );
+  }
+  if (adj.status === 'pending') {
+    const need = Math.max(0, adj.minDaysNeeded - adj.baselineDaysLogged);
+    return (
+      <>
+        Step adjustment: none yet — need {need} more logged day
+        {need === 1 ? '' : 's'} to know your usual.{' '}
+      </>
+    );
+  }
+  const sign = adj.calories > 0 ? '+' : adj.calories < 0 ? '−' : '';
+  return (
+    <>
+      Step adjustment: {sign}
+      {Math.abs(adj.calories)} cal — yesterday {y.toLocaleString()} steps vs.
+      your usual {adj.baselineSteps.toLocaleString()} ({adj.baselineWindowDays}
+      -day avg), ~{adj.kcalPerStep.toFixed(3)} cal/step at{' '}
+      {Math.round(adj.pct * 100)}% credited.{' '}
+    </>
+  );
+}
+
 function TargetProvenance({ target, profile }) {
   if (target?.provenance === 'manual') {
     return (
@@ -330,6 +361,7 @@ function TargetProvenance({ target, profile }) {
           day{target.weightAgeDays === 1 ? '' : 's'} ago).{' '}
         </>
       ) : null}
+      <StepAdjustment adj={target.stepAdjustment} />
       Tilde (~) marks a figure containing estimates.
     </p>
   );
@@ -355,6 +387,11 @@ function ProfileForm({ profile, onSave }) {
     activity_multiplier: profile?.activity_multiplier ?? 1.75,
     activity_source: profile?.activity_source || 'manual',
     activity_trailing_days: profile?.activity_trailing_days ?? 14,
+    step_adjust_enabled: profile?.step_adjust_enabled === true,
+    step_adjust_pct:
+      profile?.step_adjust_pct != null
+        ? Math.round(profile.step_adjust_pct * 100)
+        : 50,
     goal_weight_lb: profile?.goal_weight_lb ?? '',
     goal_date: profile?.goal_date || '',
     floor_pct:
@@ -393,6 +430,9 @@ function ProfileForm({ profile, onSave }) {
         form.activity_trailing_days === ''
           ? ''
           : Number(form.activity_trailing_days),
+      step_adjust_enabled: form.step_adjust_enabled,
+      step_adjust_pct:
+        form.step_adjust_pct === '' ? '' : Number(form.step_adjust_pct) / 100,
       goal_weight_lb:
         form.goal_weight_lb === '' ? '' : Number(form.goal_weight_lb),
       goal_date: form.goal_date,
@@ -505,6 +545,32 @@ function ProfileForm({ profile, onSave }) {
             onChange={(e) => set('activity_multiplier', e.target.value)}
           />
         </label>
+        <label className={styles.field}>
+          <span>Adjust for yesterday&apos;s steps</span>
+          <select
+            className={styles.select}
+            value={form.step_adjust_enabled ? 'on' : 'off'}
+            onChange={(e) =>
+              set('step_adjust_enabled', e.target.value === 'on')
+            }
+          >
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </label>
+        {form.step_adjust_enabled ? (
+          <label className={styles.field}>
+            <span>Step burn credited (%)</span>
+            <input
+              className={styles.input}
+              type="number"
+              min="1"
+              max="100"
+              value={form.step_adjust_pct}
+              onChange={(e) => set('step_adjust_pct', e.target.value)}
+            />
+          </label>
+        ) : null}
         <label className={styles.field}>
           <span>Safe floor (% of maintenance)</span>
           <input
@@ -2314,6 +2380,14 @@ export default function DietPage() {
               />
               {completenessLabel(totals)}
             </div>
+            {target.stepAdjustment?.status === 'applied' &&
+            target.stepAdjustment.calories !== 0 ? (
+              <p className={styles.provenance}>
+                Target includes {target.stepAdjustment.calories > 0 ? '+' : '−'}
+                {Math.abs(target.stepAdjustment.calories)} cal for
+                yesterday&apos;s steps.
+              </p>
+            ) : null}
 
             <NutritionSummary
               totals={totals}
