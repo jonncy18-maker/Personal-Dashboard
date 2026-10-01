@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Luna image and PDF comparison (temporary)</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 1000px; margin: 24px auto; padding: 0 16px; color: #1b2430; }
+  h1 { font-size: 1.3rem; }
+  label { display: block; margin-top: 12px; font-weight: 600; }
+  select, input[type=file], textarea, input[type=text] { font: inherit; width: 100%; max-width: 520px; padding: 6px; box-sizing: border-box; }
+  textarea { height: 90px; }
+  button { font: inherit; padding: 8px 16px; margin-top: 14px; cursor: pointer; }
+  #status { margin: 12px 0; color: #555; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+  .col { border: 1px solid #ccd3dc; border-radius: 6px; padding: 10px 12px; min-width: 0; }
+  .col h2 { font-size: 1rem; margin: 0 0 6px; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; margin: 0; }
+  .same { background: #dff3e4; padding: 8px 12px; border-radius: 6px; margin: 10px 0; font-weight: 600; }
+  .diff { background: #fff4d6; padding: 8px 12px; border-radius: 6px; margin: 10px 0; font-weight: 600; }
+  .err { color: #b3321f; }
+  .hint { color: #555; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Luna image and PDF comparison <small>(temporary, read-only)</small></h1>
+<p>Upload one real file. The app reads it with Haiku (what runs today) and with Luna, and shows both readings. Nothing is saved. You judge which is right by looking at your original.</p>
+
+<label for="kind">What are you uploading?</label>
+<select id="kind">
+  <option value="french">French hours screenshot (Dreaming French progress page)</option>
+  <option value="schedule">Schedules screenshot (a message, to-do list, note)</option>
+  <option value="travel">Trip itinerary (PDF voucher and/or email text)</option>
+</select>
+
+<label for="file">File <span class="hint">(png, jpeg or webp for screenshots; PDF for trips; about 3 MB or less)</span></label>
+<input id="file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf">
+
+<div id="travelFields" hidden>
+  <label for="dest">Trip destination <span class="hint">(optional)</span></label>
+  <input id="dest" type="text">
+  <label for="subj">Email subject <span class="hint">(optional)</span></label>
+  <input id="subj" type="text">
+  <label for="txt">Email text <span class="hint">(optional if you upload a PDF)</span></label>
+  <textarea id="txt"></textarea>
+</div>
+
+<button id="run" type="button">Compare Haiku and Luna</button>
+<div id="status"></div>
+<div id="out"></div>
+
+<script>
+var kind = document.getElementById('kind');
+var travel = document.getElementById('travelFields');
+var statusEl = document.getElementById('status');
+var out = document.getElementById('out');
+kind.onchange = function () { travel.hidden = kind.value !== 'travel'; };
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+function toBase64(file) {
+  return new Promise(function (resolve, reject) {
+    var r = new FileReader();
+    r.onload = function () { resolve(String(r.result).split(',')[1]); };
+    r.onerror = function () { reject(new Error('Could not read the file.')); };
+    r.readAsDataURL(file);
+  });
+}
+function col(title, side) {
+  var body = side.ok ? '<pre>' + esc(JSON.stringify(side.result, null, 2)) + '</pre>'
+                     : '<pre class="err">' + esc(side.error) + '</pre>';
+  return '<div class="col"><h2>' + title + ' <span class="hint">(' + (side.ms / 1000).toFixed(1) + 's)</span></h2>' + body + '</div>';
+}
+
+document.getElementById('run').onclick = async function () {
+  var btn = this; btn.disabled = true; out.innerHTML = '';
+  try {
+    var file = document.getElementById('file').files[0];
+    var k = kind.value;
+    if (!file && k !== 'travel') throw new Error('Choose a file first.');
+    if (file && file.size > 3.3 * 1024 * 1024) throw new Error('That file is over about 3 MB. Use a smaller one.');
+    var payload = { kind: k };
+    if (file) { payload.mediaType = file.type; payload.data = await toBase64(file); }
+    if (k === 'travel') {
+      payload.destination = document.getElementById('dest').value;
+      payload.subject = document.getElementById('subj').value;
+      payload.text = document.getElementById('txt').value;
+    }
+    statusEl.textContent = 'Reading with both models… this can take up to a minute.';
+    var res = await fetch('/api/luna-compare', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    var same = data.haiku.ok && data.luna.ok && JSON.stringify(data.haiku.result) === JSON.stringify(data.luna.result);
+    out.innerHTML =
+      (same ? '<div class="same">Identical readings.</div>'
+            : '<div class="diff">' + (data.luna.ok ? 'The readings differ. Check each against your original.' : 'Luna did not return a reading. Its column says why (a missing key, a timeout, or an error from OpenAI).') + '</div>') +
+      '<div class="cols">' + col('Haiku (today)', data.haiku) + col('Luna', data.luna) + '</div>';
+    statusEl.textContent = 'Done. Nothing was saved.';
+  } catch (e) {
+    statusEl.textContent = 'Stopped: ' + e.message;
+  }
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>
