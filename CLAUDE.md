@@ -98,8 +98,7 @@ neon/
 # Server-side (no public prefix)
 DATABASE_URL=              # Neon connection string
 ANTHROPIC_API_KEY=         # Claude Haiku — Email Tier 2 residual + Travel parse
-OPENAI_API_KEY=            # OPTIONAL — GPT-6 Luna for the tasks listed in AI_LUNA_TASKS
-AI_LUNA_TASKS=             # OPTIONAL — comma list (or `all`) of lib/ai-models.js tasks to run on Luna; empty = all Haiku
+OPENAI_API_KEY=            # OPTIONAL — GPT-6 Luna for the text-only tasks in lib/ai-models.js; unset = all Haiku (scope to Preview first)
 AI_FORCE_ANTHROPIC=        # OPTIONAL — set to 1 to send every task back to Haiku at once
 VERCEL_API_TOKEN=          # Read-only Vercel API access for AI Projects
 GOOGLE_CLIENT_ID=          # Google OAuth — read-only Calendar + Gmail
