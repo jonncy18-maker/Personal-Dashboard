@@ -136,7 +136,7 @@ function nightsBetween(start, end) {
 // replaces the lib/mock-data.js placeholders those three used to read from.
 // One query per settled domain; Email is left out (no cheap, honest "count"
 // exists yet without a live Gmail call on every Home visit — see ROADMAP).
-export const GET = route(async () => {
+export const GET = route(async (request) => {
   const sql = getDb();
 
   const [
@@ -225,7 +225,10 @@ export const GET = route(async () => {
     sql`SELECT id, active, impact_1yr, impact_2yr, impact_3yr FROM mileage_scenarios`,
   ]);
 
-  const health = await loadHealthDay(sql, await deviceToday());
+  // The requesting device's own zone wins (deviceToday ignores an invalid one);
+  // the stored last-device zone is only the fallback, as for MCP callers.
+  const tz = new URL(request.url).searchParams.get('tz');
+  const health = await loadHealthDay(sql, await deviceToday({ timeZone: tz }));
 
   const { items: maintenanceItemRows, records: maintenanceRecordRows } =
     await loadMaintenanceRows(sql);
