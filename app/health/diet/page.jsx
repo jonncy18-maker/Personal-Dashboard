@@ -5,6 +5,7 @@ import { useResource } from '../../../lib/useResource';
 import { absoluteDate } from '../../../lib/format';
 import { todayYMD, addDays } from '../../../lib/health';
 import PageBanner from '../../../components/PageBanner';
+import ReorderGrid, { ReorderItem } from '../../../components/ReorderGrid';
 import styles from './page.module.css';
 
 const MEALS = [
@@ -2360,200 +2361,210 @@ export default function DietPage() {
       {saveError ? <p className={styles.loadError}>{saveError}</p> : null}
 
       <div className={styles.dayLayout}>
-        {/* Card row: the day's numbers, side by side above the timeline */}
-        <div className={styles.sidebar}>
-          <section className={styles.card}>
-            <BudgetRing
-              consumed={totals.total}
-              target={target.target}
-              estimated={estimated}
-            />
-            <div className={styles.ringCaptionRow}>
-              <span>{withTilde(totals.total, estimated)} logged</span>
-              <span>{cal(target.target)} target</span>
-            </div>
-            <div className={styles.completeness}>
-              <span
-                className={
-                  totals.entryCount === 0 ? styles.dotWarn : styles.dotOk
-                }
+        {/* Cards: packed grid above the timeline; drag a card's grip to reorder */}
+        <ReorderGrid storageKey="health-diet-cards">
+          <ReorderItem id="day">
+            <section className={styles.card}>
+              <BudgetRing
+                consumed={totals.total}
+                target={target.target}
+                estimated={estimated}
               />
-              {completenessLabel(totals)}
-            </div>
-            {target.stepAdjustment?.status === 'applied' &&
-            target.stepAdjustment.calories !== 0 ? (
-              <p className={styles.provenance}>
-                Target includes {target.stepAdjustment.calories > 0 ? '+' : '−'}
-                {Math.abs(target.stepAdjustment.calories)} cal for
-                yesterday&apos;s steps.
-              </p>
-            ) : null}
-
-            <NutritionSummary
-              totals={totals}
-              fiber={day.fiber}
-              veggies={day.veggies}
-              fruit={day.fruit}
-              water={day.water}
-            />
-            <MacroBar
-              proteinG={totals.proteinG}
-              proteinComplete={totals.proteinComplete}
-              carbsG={totals.carbsG}
-              carbsComplete={totals.carbsComplete}
-              fatG={totals.fatG}
-              fatComplete={totals.fatComplete}
-            />
-
-            {target.clamped ? (
-              <p className={styles.clamp}>
-                Target held at your safe floor of {cal(target.floor)}. At that
-                rate your goal lands around{' '}
-                <strong>{absoluteDate(target.projectedDate)}</strong>, not{' '}
-                {absoluteDate(profile?.goal_date)}.
-              </p>
-            ) : null}
-
-            {showFormulaToggle ? (
-              <>
-                <button
-                  className={styles.formulaToggle}
-                  onClick={() => setFormulaOpen((v) => !v)}
-                >
-                  <span>{formulaOpen ? '▾' : '▸'}</span> Formula &amp; activity
-                </button>
-                {formulaOpen ? (
-                  <TargetProvenance target={target} profile={profile} />
-                ) : null}
-              </>
-            ) : (
-              <TargetProvenance target={target} profile={profile} />
-            )}
-          </section>
-
-          <WaterCard
-            water={day.water}
-            isToday={isToday}
-            onLog={logWater}
-            onDelete={deleteWater}
-          />
-
-          <NetCaloriesCard />
-
-          <section className={styles.card}>
-            <div className={styles.cardHead}>
-              <h3 className={styles.cardTitle}>Weight &amp; steps</h3>
-              <span className={styles.cardMeta}>
-                {day.trend.length} reading{day.trend.length === 1 ? '' : 's'}
-              </span>
-            </div>
-
-            <div className={styles.tabRow}>
-              <button
-                className={
-                  weightTab === 'today' ? styles.tabActive : styles.tabBtn
-                }
-                onClick={() => setWeightTab('today')}
-              >
-                Today
-              </button>
-              <button
-                className={
-                  weightTab === 'trend' ? styles.tabActive : styles.tabBtn
-                }
-                onClick={() => setWeightTab('trend')}
-              >
-                Trend
-              </button>
-            </div>
-
-            {weightTab === 'today' ? (
-              <>
-                <div className={styles.todayStatsRow}>
-                  <div>
-                    <div className={styles.weightNow}>
-                      <span className={`${styles.weightNum} tabular`}>
-                        {day.latestWeight ? day.latestWeight.weight_lb : '—'}
-                      </span>
-                      <span className={styles.weightUnit}>lb</span>
-                    </div>
-                    <div className={styles.figureLabel}>
-                      Latest weight
-                      {day.latestWeight
-                        ? ` · ${absoluteDate(day.latestWeight.reading_date)}`
-                        : ''}
-                    </div>
-                  </div>
-                  <div>
-                    <div className={styles.weightNow}>
-                      <span className={`${styles.weightNum} tabular`}>
-                        {day.todaySteps != null
-                          ? day.todaySteps.toLocaleString()
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className={styles.figureLabel}>
-                      Steps {isToday ? '' : `· ${absoluteDate(day.date)}`}
-                    </div>
-                  </div>
-                </div>
-
-                <form className={styles.weightForm} onSubmit={saveWeight}>
-                  <input
-                    className={styles.inputNum}
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    placeholder="Weight (lb)"
-                    value={weightInput}
-                    onChange={(e) => setWeightInput(e.target.value)}
-                  />
-                  <button className={styles.saveBtn} type="submit">
-                    Log weight
-                  </button>
-                </form>
-                <form className={styles.weightForm} onSubmit={saveSteps}>
-                  <input
-                    className={styles.inputNum}
-                    type="number"
-                    step="1"
-                    min="0"
-                    placeholder="Steps"
-                    value={stepsInput}
-                    onChange={(e) => setStepsInput(e.target.value)}
-                  />
-                  <button className={styles.saveBtn} type="submit">
-                    Log steps
-                  </button>
-                </form>
-                {!isToday ? (
-                  <p className={styles.note}>
-                    Logging for {absoluteDate(day.date)}, not today.
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <TrendFilterBar
-                  range={trendRange}
-                  onRange={setTrendRange}
-                  customFrom={customFrom}
-                  customTo={customTo}
-                  onCustomFrom={setCustomFrom}
-                  onCustomTo={setCustomTo}
+              <div className={styles.ringCaptionRow}>
+                <span>{withTilde(totals.total, estimated)} logged</span>
+                <span>{cal(target.target)} target</span>
+              </div>
+              <div className={styles.completeness}>
+                <span
+                  className={
+                    totals.entryCount === 0 ? styles.dotWarn : styles.dotOk
+                  }
                 />
-                <WeightTrend
-                  trend={filteredTrend}
-                  goalWeight={profile?.goal_weight_lb}
-                />
-                <p className={styles.note}>
-                  Points sit where they fall. Gaps stay gaps — nothing is
-                  interpolated.
+                {completenessLabel(totals)}
+              </div>
+              {target.stepAdjustment?.status === 'applied' &&
+              target.stepAdjustment.calories !== 0 ? (
+                <p className={styles.provenance}>
+                  Target includes{' '}
+                  {target.stepAdjustment.calories > 0 ? '+' : '−'}
+                  {Math.abs(target.stepAdjustment.calories)} cal for
+                  yesterday&apos;s steps.
                 </p>
-              </>
-            )}
-          </section>
-        </div>
+              ) : null}
+
+              <NutritionSummary
+                totals={totals}
+                fiber={day.fiber}
+                veggies={day.veggies}
+                fruit={day.fruit}
+                water={day.water}
+              />
+              <MacroBar
+                proteinG={totals.proteinG}
+                proteinComplete={totals.proteinComplete}
+                carbsG={totals.carbsG}
+                carbsComplete={totals.carbsComplete}
+                fatG={totals.fatG}
+                fatComplete={totals.fatComplete}
+              />
+
+              {target.clamped ? (
+                <p className={styles.clamp}>
+                  Target held at your safe floor of {cal(target.floor)}. At that
+                  rate your goal lands around{' '}
+                  <strong>{absoluteDate(target.projectedDate)}</strong>, not{' '}
+                  {absoluteDate(profile?.goal_date)}.
+                </p>
+              ) : null}
+
+              {showFormulaToggle ? (
+                <>
+                  <button
+                    className={styles.formulaToggle}
+                    onClick={() => setFormulaOpen((v) => !v)}
+                  >
+                    <span>{formulaOpen ? '▾' : '▸'}</span> Formula &amp;
+                    activity
+                  </button>
+                  {formulaOpen ? (
+                    <TargetProvenance target={target} profile={profile} />
+                  ) : null}
+                </>
+              ) : (
+                <TargetProvenance target={target} profile={profile} />
+              )}
+            </section>
+          </ReorderItem>
+
+          <ReorderItem id="water">
+            <WaterCard
+              water={day.water}
+              isToday={isToday}
+              onLog={logWater}
+              onDelete={deleteWater}
+            />
+          </ReorderItem>
+
+          <ReorderItem id="net">
+            <NetCaloriesCard />
+          </ReorderItem>
+
+          <ReorderItem id="weight">
+            <section className={styles.card}>
+              <div className={styles.cardHead}>
+                <h3 className={styles.cardTitle}>Weight &amp; steps</h3>
+                <span className={styles.cardMeta}>
+                  {day.trend.length} reading{day.trend.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              <div className={styles.tabRow}>
+                <button
+                  className={
+                    weightTab === 'today' ? styles.tabActive : styles.tabBtn
+                  }
+                  onClick={() => setWeightTab('today')}
+                >
+                  Today
+                </button>
+                <button
+                  className={
+                    weightTab === 'trend' ? styles.tabActive : styles.tabBtn
+                  }
+                  onClick={() => setWeightTab('trend')}
+                >
+                  Trend
+                </button>
+              </div>
+
+              {weightTab === 'today' ? (
+                <>
+                  <div className={styles.todayStatsRow}>
+                    <div>
+                      <div className={styles.weightNow}>
+                        <span className={`${styles.weightNum} tabular`}>
+                          {day.latestWeight ? day.latestWeight.weight_lb : '—'}
+                        </span>
+                        <span className={styles.weightUnit}>lb</span>
+                      </div>
+                      <div className={styles.figureLabel}>
+                        Latest weight
+                        {day.latestWeight
+                          ? ` · ${absoluteDate(day.latestWeight.reading_date)}`
+                          : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.weightNow}>
+                        <span className={`${styles.weightNum} tabular`}>
+                          {day.todaySteps != null
+                            ? day.todaySteps.toLocaleString()
+                            : '—'}
+                        </span>
+                      </div>
+                      <div className={styles.figureLabel}>
+                        Steps {isToday ? '' : `· ${absoluteDate(day.date)}`}
+                      </div>
+                    </div>
+                  </div>
+
+                  <form className={styles.weightForm} onSubmit={saveWeight}>
+                    <input
+                      className={styles.inputNum}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="Weight (lb)"
+                      value={weightInput}
+                      onChange={(e) => setWeightInput(e.target.value)}
+                    />
+                    <button className={styles.saveBtn} type="submit">
+                      Log weight
+                    </button>
+                  </form>
+                  <form className={styles.weightForm} onSubmit={saveSteps}>
+                    <input
+                      className={styles.inputNum}
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="Steps"
+                      value={stepsInput}
+                      onChange={(e) => setStepsInput(e.target.value)}
+                    />
+                    <button className={styles.saveBtn} type="submit">
+                      Log steps
+                    </button>
+                  </form>
+                  {!isToday ? (
+                    <p className={styles.note}>
+                      Logging for {absoluteDate(day.date)}, not today.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <TrendFilterBar
+                    range={trendRange}
+                    onRange={setTrendRange}
+                    customFrom={customFrom}
+                    customTo={customTo}
+                    onCustomFrom={setCustomFrom}
+                    onCustomTo={setCustomTo}
+                  />
+                  <WeightTrend
+                    trend={filteredTrend}
+                    goalWeight={profile?.goal_weight_lb}
+                  />
+                  <p className={styles.note}>
+                    Points sit where they fall. Gaps stay gaps — nothing is
+                    interpolated.
+                  </p>
+                </>
+              )}
+            </section>
+          </ReorderItem>
+        </ReorderGrid>
 
         {/* Main panel: the day as a chronological timeline */}
         <div className={styles.mainPanel}>
