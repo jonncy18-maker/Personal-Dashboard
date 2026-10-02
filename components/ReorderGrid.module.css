@@ -33,6 +33,12 @@
   letter-spacing: 1px;
   color: var(--ink-faint);
   cursor: grab;
+  /* A finger on the grip must drag the card, not scroll the page, and must
+     not start a text selection or the browser's long-press menu. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   opacity: 0;
   transition: opacity 0.12s;
 }
@@ -47,5 +53,8 @@
 @media (hover: none) {
   .handle {
     opacity: 0.6;
+    /* Finger-sized hit area. */
+    padding: 10px 28px;
+    font-size: 15px;
   }
 }

@@ -45,13 +45,22 @@ export default function ReorderGrid({ storageKey, className, children }) {
   const [order, setOrder] = useState(ids);
   const [dragId, setDragId] = useState(null);
   const [spans, setSpans] = useState({});
+  // Touch/pen drags run on pointer events (HTML5 drag-and-drop never fires for
+  // a finger); a mouse keeps native DnD. Starts as a guess from the device,
+  // corrected by the first real pointerdown.
+  const [touchMode, setTouchMode] = useState(false);
   const cellRefs = useRef({});
+  const touchDrag = useRef(null);
 
   // Load the saved order after mount so server and first client render match.
   useEffect(() => {
     setOrder(reconcile(readSaved(storageKey), ids));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey, idsKey]);
+
+  useEffect(() => {
+    setTouchMode(window.matchMedia('(hover: none)').matches);
+  }, []);
 
   // Keep each cell's row span in step with its content height.
   useEffect(() => {
@@ -89,6 +98,40 @@ export default function ReorderGrid({ storageKey, className, children }) {
     [storageKey]
   );
 
+  // Finger drag: find the card under the finger and move the dragged card to
+  // its slot. After a move the layout shifts under the finger, so a target is
+  // only acted on once per entry (`lastTarget`), reset when the finger is back
+  // over the dragged card itself — otherwise two cards of different heights
+  // would swap back and forth every frame.
+  function onTouchMove(e) {
+    const drag = touchDrag.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
+
+    // Edge auto-scroll so a card can be carried past the fold.
+    const edge = 70;
+    if (e.clientY < edge) window.scrollBy(0, -14);
+    else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, 14);
+
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const targetId = el?.closest('[data-cell-id]')?.dataset.cellId;
+    if (!targetId) return;
+    if (targetId === drag.id) {
+      drag.lastTarget = null;
+      return;
+    }
+    if (targetId === drag.lastTarget) return;
+    drag.lastTarget = targetId;
+    move(drag.id, order.indexOf(targetId));
+  }
+
+  function endTouchDrag(e) {
+    const drag = touchDrag.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    touchDrag.current = null;
+    setDragId(null);
+  }
+
   const byId = Object.fromEntries(items.map((c) => [c.props.id, c]));
 
   return (
@@ -99,6 +142,7 @@ export default function ReorderGrid({ storageKey, className, children }) {
           <div
             key={id}
             className={styles.cell}
+            data-cell-id={id}
             style={{ gridRowEnd: `span ${spans[id] || 1}` }}
             onDragOver={(e) => {
               if (dragId && dragId !== id) {
@@ -120,9 +164,26 @@ export default function ReorderGrid({ storageKey, className, children }) {
               <button
                 type="button"
                 className={styles.handle}
-                draggable
+                draggable={!touchMode}
                 aria-label="Move card (drag, or use arrow keys)"
                 title="Drag to rearrange"
+                onPointerDown={(e) => {
+                  if (e.pointerType === 'mouse') {
+                    setTouchMode(false);
+                    return;
+                  }
+                  setTouchMode(true);
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  touchDrag.current = {
+                    id,
+                    pointerId: e.pointerId,
+                    lastTarget: null,
+                  };
+                  setDragId(id);
+                }}
+                onPointerMove={onTouchMove}
+                onPointerUp={endTouchDrag}
+                onPointerCancel={endTouchDrag}
                 onDragStart={(e) => {
                   e.dataTransfer.effectAllowed = 'move';
                   e.dataTransfer.setData('text/plain', id);
