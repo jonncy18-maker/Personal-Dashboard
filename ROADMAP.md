@@ -81,6 +81,17 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-10-02 — Steps-trailing multiplier: gentler ramp above 10k
+
+John's 14-day average is ~20k steps/day, which the old five-band table priced at the 1.9 ceiling from 12,500 steps up — so a 13k day and a 20k day got the same multiplier. Extended the ladder in `STEP_ACTIVITY_BANDS` (`lib/health.js`): unchanged below 10k (1.2 / 1.375 / 1.55), then 1.62 (10–12.5k), 1.69 (12.5–15k), 1.76 (15–17.5k), 1.83 (17.5–20k), 1.9 (20k+). `very active` now covers 10–15k and `extra active` 15k+. Stepped bands, no interpolation (John's call — skipped the cliff smoothing).
+
+- **Why not a formula.** A first-principles estimate (ACSM walking cost via `kcalPerStep`, 0.017 kcal/step at 118 lb / 62 in, on a 1.2 baseline) put his 20k average near ×1.46 / ~1,990 kcal maintenance, against 2,592 from the band table. John judged the band figure closer to what he actually sees, so the table stays; only its top end was reshaped. The old slope was ~95 kcal per extra 1,000 steps at his BMR, about 5x what the walking formula supports; the new slope above 10k is ~38.
+- **Effect on him.** None at 20,041 (still 1.9 / 2,592). Below 20k it lowers maintenance by ~140–285 kcal at 12.5–17.5k. His average sits 41 steps above the 20k edge, so a dip under 20k drops the multiplier to 1.83 (~100 kcal).
+- **Unvalidated.** The +0.07 per 2,500 slope is a judgment call, not fitted to his data. Open check: compare average logged intake plus weight change (lb × 3,500 ÷ days) against the maintenance this produces over a 2–4 week window that includes days at 13–16k. Intake under-logging biases that measured figure low, and water-weight noise needs a window of at least two weeks.
+- **Verified:** boundary and monotonicity tests for `stepsToActivityMultiplier` in `lib/health.test.js`. No schema or migration change.
+
+---
+
 ## 2026-10-01 — Luna for the image/PDF imports (wave 3): result and move
 
 **Result:** John ran the side-by-side comparison page on his own real files and reported that Luna did "really well, honestly better than Haiku". That is a human judgment on a handful of real files, not a measured accuracy figure, and he did not break it down per import, so all three moved together (each is one line in `LUNA_TASKS` if one needs to come back).
