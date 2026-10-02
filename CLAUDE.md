@@ -178,6 +178,8 @@ These are the rules where a violation is a real incident, not a style disagreeme
 
 **Write model families here, model IDs in code — the rule cuts both ways.** This file says "Sonnet", never "Sonnet 5", so the guidance above keeps meaning the current Sonnet without an edit; a pinned version here silently goes stale and keeps routing work to a superseded model (hit on a sibling project with a hardcoded Sonnet 4.6). The opposite is true in application code: `lib/anthropic.js`'s `MODEL` and `lib/assistant.js`'s `ASSISTANT_MODEL` are API arguments and **must stay pinned to an exact ID** — a floating model would change the Travel parse, the French import and the assistant's behavior and cost with no deploy and no diff. Do not "fix" those to a family name; they are pinned deliberately. Moving them to a newer model is a real change: bump the ID, note it in `ROADMAP.md`, and say what you checked still worked.
 
+**Merging — standing permission (granted 2026-10-02).** Claude Code merges its own PRs to `main` once CI and the Vercel preview are green, without asking first. Two exceptions still stop and ask: (1) any PR that adds a file under `neon/migrations/` — Preview and Production share one Neon database, so the migration must be applied by hand around the merge (§6); (2) a visual/layout change Claude Code could not view rendered, where the preview is the only real review before production. Merging also means `main` deploys to production, so a red or still-building check is never merged through.
+
 ## 9. Coder Profile & Agentic Loop
 
 Two layers, both from the [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop):
