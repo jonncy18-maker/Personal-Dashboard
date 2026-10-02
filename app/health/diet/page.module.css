@@ -119,32 +119,21 @@
   }
 }
 
-/* ── day layout: sidebar (numbers) + main panel (timeline) ── */
+/* ── day layout: card row (numbers) on top, timeline full-width below ── */
 .dayLayout {
   display: flex;
+  flex-direction: column;
   gap: 20px;
-  align-items: flex-start;
   margin-bottom: 20px;
 }
 .sidebar {
-  width: 264px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(264px, 1fr));
   gap: 14px;
+  align-items: start;
 }
 .mainPanel {
-  flex: 1 1 auto;
   min-width: 0;
-}
-
-@media (max-width: 900px) {
-  .dayLayout {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-  }
 }
 
 /* ── ring + macros (sidebar card) ───────────────────────── */

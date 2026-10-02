@@ -2360,7 +2360,7 @@ export default function DietPage() {
       {saveError ? <p className={styles.loadError}>{saveError}</p> : null}
 
       <div className={styles.dayLayout}>
-        {/* Sidebar: the day's numbers, pinned so they never scroll away */}
+        {/* Card row: the day's numbers, side by side above the timeline */}
         <div className={styles.sidebar}>
           <section className={styles.card}>
             <BudgetRing
