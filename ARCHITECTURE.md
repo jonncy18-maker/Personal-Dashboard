@@ -8,7 +8,7 @@ _Last updated: 2026-07-13 · Greenfield scaffold. This is a living stub: the set
 
 A private, single-user planning hub for John. One home page shows a status card per domain; each card links into that domain's full page. Seven domains across nine routes: AI Projects, Travel, Car (two tabs — Mileage and Maintenance), Schedules, Language Learning, Idea Board, Email. Plus a `/calendar` view — a read-only month view of Google Calendar, a cross-cutting surface rather than a new data domain (it owns no table). Email additionally feeds the Home hero's "To-do's" block: emails John flags become to-do's stored locally in `email_todos` (Gmail stays read-only — no star is written back).
 
-No public access, no multi-user model — **no auth layer** (see `CLAUDE.md` §7).
+No public access, no multi-user model — **no auth layer** (see `AGENTS.md` → Hard boundaries).
 
 ## System Overview
 
@@ -56,11 +56,11 @@ All external calls are **read-only** except writes to this app's own Neon DB.
 
 ## Secret Isolation Boundary
 
-Every secret-bearing call lives in a server-side `app/api/*` route handler. The browser holds no keys and never contacts Vercel, GitHub, Google, or Anthropic directly. No secret env var carries a `NEXT_PUBLIC_` prefix. See `CLAUDE.md` §2.
+Every secret-bearing call lives in a server-side `app/api/*` route handler. The browser holds no keys and never contacts Vercel, GitHub, Google, or Anthropic directly. No secret env var carries a `NEXT_PUBLIC_` prefix. See `AGENTS.md` → Hard boundaries.
 
 ## Data Model
 
-Current tables live in `neon/schema.sql` (canonical). Settled domains have tables; Language Learning intentionally has none yet. Migration convention in `CLAUDE.md` §6.
+Current tables live in `neon/schema.sql` (canonical). Settled domains have tables; Language Learning intentionally has none yet. Migration convention in `AGENTS.md` → Schema and migrations.
 
 ## The Three AI Patterns (kept distinct)
 
@@ -68,6 +68,6 @@ Current tables live in `neon/schema.sql` (canonical). Settled domains have table
 2. **Email Tier 2** — Haiku, _only_ for the semantic residual Gmail's native categories can't express. Ongoing small per-email cost.
 3. **Travel import** — Haiku, one-shot extraction-and-confirm from a Gmail itinerary email. Always previewed before save.
 
-_(Since scoped beyond three: French screenshot import, Schedules screenshot import — both Haiku — and the **app-wide AI Assistant**, the one agentic surface and the one Sonnet use: `/api/assistant` runs a tool loop whose tools are an allowlisted catalog of this app's own api routes, called over same-origin fetch. See `CLAUDE.md` §7. The Travel AI Brief also lived here briefly — retired 2026-09-07.)_
+_(Since scoped beyond three: French screenshot import, Schedules screenshot import — both Haiku — and the **app-wide AI Assistant**, the one agentic surface and the one Sonnet use: `/api/assistant` runs a tool loop whose tools are an allowlisted catalog of this app's own api routes, called over same-origin fetch. See `AGENTS.md` → Hard boundaries. The Travel AI Brief also lived here briefly — retired 2026-09-07.)_
 
 _(Build fills in: exact request/response shapes, error/fallback handling, and any caching of Vercel/GitHub responses.)_
