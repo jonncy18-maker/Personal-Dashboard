@@ -2,225 +2,64 @@
 
 Master personal planning hub consolidating John's AI projects, travel, schedules, language learning, idea backlog, and email triage into one home. Built for a single user (John), no public access.
 
-> **Session start:** read `ARCHITECTURE.md` (system map) and the latest `ROADMAP.md` entry (recent decisions) before making structural changes. Older dated history (pre-2026-07-15) lives in `ROADMAP-ARCHIVE-2026-H1.md`.
+> **Session start:** read `ARCHITECTURE.md` (system map, domain → route → data source) and the latest `ROADMAP.md` entry (recent decisions) before making structural changes. Older dated history (pre-2026-07-15) lives in `ROADMAP-ARCHIVE-2026-H1.md`.
 >
-> **Personal context:** John maintains a dated personal-context doc (background,
-> constraints, review priorities as the builder — not this repo's rules) in Google
-> Drive: https://drive.google.com/drive/folders/1cjNFhY6ZnN5xB4PSDhz7FA24KGl92NTy —
-> titles are date-stamped (e.g. `Personal_Context_YYYY-MM-DD.md`). At session start,
-> or whenever asked to review this repo "against what you know about me," use the
-> Google Drive tools to find the **most recently dated** file in that folder (don't
-> assume a fixed filename) and weigh suggestions against it, not just generic best
-> practice. Nothing is committed to this repo for this — the Drive folder is the only
-> source of truth, so it's always current.
+> **Personal context:** John keeps a dated personal-context doc (background, constraints, review priorities as the builder — not this repo's rules) in Google Drive: https://drive.google.com/drive/folders/1cjNFhY6ZnN5xB4PSDhz7FA24KGl92NTy — titles are date-stamped (`Personal_Context_YYYY-MM-DD.md`). At session start, or when asked to review this repo "against what you know about me," use the Google Drive tools to find the **most recently dated** file there (don't assume a filename) and weigh suggestions against it. Nothing is committed to this repo for this.
 >
-> **Response style (this session, working in this repo — not app UI behavior):** when
-> answering a question or giving a conclusion/analysis in conversation, prefer
-> publishing it as a visual artifact before writing the full text explanation.
-> Judgment call on the split, weighted by length: a long or multi-part answer leads
-> with the artifact and a short pointer to it in chat; a short answer (a few
-> sentences) can just be said directly, artifact optional. This governs how Claude
-> Code communicates in this repo — it has nothing to do with how the dashboard app
-> itself is built or how it presents data to John.
+> **Response style (this session, in this repo — not app UI behavior):** when answering a question or giving a conclusion/analysis, prefer publishing it as a visual artifact before the full text explanation. A long or multi-part answer leads with the artifact and a short pointer in chat; a short answer (a few sentences) can just be said directly.
 
 - **Repo:** `jonncy18-maker/Personal-Dashboard`
-- **Live URL(s):** _(fill in after first Vercel deploy)_
-- **Stack:** Next.js (App Router) + JavaScript + Vercel + Neon
-- **Cutover:** N/A — greenfield project, scoped July 2026
+- **Stack:** Next.js (App Router) + JavaScript (`.jsx`/`.js`) + React + Vercel (native Git integration, no CI workflow) + Neon (own project, not shared with AI-Capital-Planning). Prettier: single quotes, semis, 80 cols. Styling is Claude Code's judgment (follow `frontend-design`, avoid the generic template look).
+- **AI:** Claude Haiku (`claude-haiku-4-5`) for narrow jobs — most run on GPT-6 Luna when `OPENAI_API_KEY` is set (`lib/ai-models.js`); Claude Sonnet (`claude-sonnet-5`) for the AI Assistant only.
+- **Deliberate divergences from the NextGen-Immersion gold standard** (don't "fix" them back): real App Router routes + `app/api/*` handlers instead of a HashRouter SPA shell; no auth (§ Hard Boundaries).
 
-## 1. Stack
+## Env and secrets
 
-| Layer      | Choice                                                                                                                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework  | Next.js (App Router)                                                                                                                                                                     |
-| Frontend   | React                                                                                                                                                                                    |
-| Routing    | Next.js App Router (file-based) — one route per domain under `app/`                                                                                                                      |
-| Language   | **JavaScript (`.jsx`/`.js`)** — matches the NextGen-Immersion gold standard                                                                                                              |
-| Styling    | _(Claude Code's judgment — follow `frontend-design` skill, avoid generic template look)_                                                                                                 |
-| Database   | Neon (new, separate project — not shared with AI-Capital-Planning)                                                                                                                       |
-| Auth       | **None — deliberately dropped.** See §7 Hard Boundaries.                                                                                                                                 |
-| Hosting    | Vercel (native Git integration — no CI workflow)                                                                                                                                         |
-| Formatting | Prettier — config copied verbatim from the gold standard (single quotes, semis, 80-col)                                                                                                  |
-| AI         | Claude Haiku (`claude-haiku-4-5`) — narrow uses (most now run on GPT-6 Luna when `OPENAI_API_KEY` is set, `lib/ai-models.js`); Claude Sonnet (`claude-sonnet-5`) — the AI Assistant only |
+Every key, its prefix, where it lives and why: `docs/api-keys.md` (template: `.env.example`). Set every var for **both Production and Preview** in Vercel explicitly — a var present only in Production makes Preview fail in a way that looks like a runtime bug. The Vercel API token must be read-only scope; never let it reach client code.
 
-**Two deliberate divergences from the NextGen-Immersion gold standard, documented so a future session doesn't "fix" them back:**
+## Schema and migrations
 
-1. **App Router, not a HashRouter SPA.** The gold standard is a Vite SPA migrated into a Next shell (`app/page.jsx → dynamic(App,{ssr:false})` + `pages/api/*`). This is greenfield with no SPA legacy, so it uses real App Router file-based routes and `app/api/*` route handlers. The blueprint's SPA-shell `next.config.js` rewrite is intentionally absent.
-2. **No auth.** The blueprint calls same-origin Neon Auth "the single highest-value pattern to copy." It does not apply here: this is a single-user private app. Auth (and `better-auth`/`jose`/`@neondatabase/auth`) is deliberately omitted. Do not add it back — gate access at the Vercel project level if needed.
+No ORM. `neon/schema.sql` is the single source of truth for the current DB shape — read it, never reassemble state from migration history.
 
-No migration history — this is a new project, built directly to this stack from day one.
+- Every change is a new numbered file in `neon/migrations/`. Applied migrations are immutable. All DDL is idempotent (`IF NOT EXISTS`, drop-and-recreate triggers).
+- After applying one, update `schema.sql` to the sum of all migrations and bump its "Applied migrations:" line.
+- No speculative tables for undecided domains — a new domain is a 2-file change (migration + `schema.sql`).
+- **`npm run migrate` (`scripts/migrate.js`) applies pending migrations — run it explicitly, never automatically.** It is deliberately NOT in the Vercel build: Preview and Production share **one** Neon database, so an unmerged PR's schema change would land on live data the moment its preview builds. After merging a PR that adds a migration, run it (or ask Claude Code to, via the Neon MCP) before relying on the deployed code. Skipping this caused a real `/travel` outage (PR #29).
+- Locally, point `DATABASE_URL` at the Neon `dev-local` branch (`.env.local`), never at `main`.
 
-## 2. API Key / Security Rules
+## Hard boundaries
 
-The full key table (every key, its prefix, where it lives, and why) is in `docs/api-keys.md`.
+A violation of these is a real incident, not a style disagreement. Each rule is stated once, here.
 
-**Rule:** anything that touches the Vercel API, Neon connection, Google APIs, or the Anthropic or OpenAI API goes through a server-side route handler (`app/api/*`); the browser never calls any of these directly. No env var carrying a secret gets a `NEXT_PUBLIC_` prefix.
+1. **No auth — don't add it back.** Single-user private app; the blueprint's Neon Auth pattern doesn't apply. Since 2026-09-17 Vercel Authentication is also deliberately off so claude.ai's OAuth connector can reach `/api/mcp/health`; the app is reachable by anyone with its `.vercel.app` URL, by design. `HEALTH_MCP_TOKEN` and the OAuth wrapper gate the MCP write tools. Don't re-enable Vercel Authentication to "fix" this.
+2. **Gmail is read-only, full stop.** No code path may call a Gmail write/archive/delete/modify endpoint. "Hiding" an email only sets a local flag (`email_hidden`).
+3. **No fabricated metrics.** A metric comes from real data or a field John maintains — if there's no data source, it doesn't appear.
+4. **No AI import ever auto-saves.** Every AI import (Travel itinerary, French hours, Schedules screenshot, all of them) shows a preview for John to confirm or edit first.
+5. **The AI Assistant's tools are an allowlisted catalog of this app's OWN api routes, over same-origin fetch.** Never give it a direct DB handle, a raw-fetch tool, or a third-party API call. The app-wide MCP server (`/api/mcp/app`) reuses this exact catalog — extend it once in `lib/assistant.js` and both surfaces pick it up.
+6. **Secrets stay server-side.** Anything touching the Vercel API, Neon, Google APIs, or the Anthropic/OpenAI API goes through an `app/api/*` route handler; the browser never calls them. No secret env var gets a `NEXT_PUBLIC_` prefix.
+7. **Applied migrations are immutable** (see above).
+8. **Coerce `NUMERIC`/`DECIMAL` with `num()` from `lib/db.js`** at the API boundary, never in a component (the Neon driver returns them as strings).
 
-**Rule:** the Gmail integration is **read-only by design**. No code path may call a Gmail write/modify/delete endpoint. "Hiding" an email only sets a local flag in this app's own Neon database (`email_hidden`); the actual Gmail mailbox is never touched.
+## Other cross-cutting rules
 
-**The Vercel API token is a real secret with write-capable scope if over-provisioned.** Scope it read-only in Vercel's token UI if possible, and never let it reach client code. A leaked deploy-capable token is a materially worse failure than a leaked read-only one.
+- **Schedules vs Idea Board: the boundary is the due date, not topic.** Idea Board = no due date; Schedules = has one (`schedules.due_date` is `NOT NULL`, `ideas` has no date column). Separate tables on purpose — don't merge them.
+- **Google Calendar is in scope; Google Drive is not.** Only read access to Calendar is needed.
+- **Conventions for the refresh signal, PWA/service worker, `PageBanner` headers and API error handling** live in `.claude/skills/frontend-conventions/SKILL.md` and load when you touch those files. The one to never forget: the service worker must never cache `/api/*`.
+- **Subagent models — name the family, never a version; choose by how checkable the output is.** Haiku: clear spec, output gets checked (sweeps, summaries, mechanical edits, small tests) — but a trivial job nothing will catch (security-sensitive edit, verbatim move across many files) goes to Sonnet. Sonnet: the default (features, bugs, refactors, UI, reviews). Opus: ambiguous problems or where a subtle mistake is expensive (architecture, costly audits). If a cheaper model's result looks thin, rerun one tier up rather than patching it. Say which model you used and why.
+- **Families here, exact IDs in code.** This file says "Sonnet", never "Sonnet 5". But `lib/anthropic.js`'s `MODEL` and `lib/assistant.js`'s `ASSISTANT_MODEL` are API arguments and **must stay pinned to an exact ID** — a floating model would change behavior and cost with no deploy or diff. Moving them is a real change: bump the ID, note it in `ROADMAP.md`, say what you checked still worked.
+- **Merging — standing permission (granted 2026-10-02).** Claude Code merges its own PRs to `main` once CI and the Vercel preview are green, without asking. Two exceptions still stop and ask: (1) any PR adding a file under `neon/migrations/`; (2) a visual/layout change Claude Code couldn't view rendered. `main` deploys to production — never merge through a red or still-building check.
 
-## 3. Project Structure
+## Coder Profile and Agentic Loop
 
-_(Expected shape given domain-per-route App Router. Claude Code populates real paths during Build.)_
+From the [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop):
 
-```
-app/
-  page.jsx                 # Home — status cards for all 6 domains
-  ai-projects/page.jsx     # AI Projects — popup w/ project cards (Vercel + GitHub) + Add Project
-  travel/page.jsx          # Travel — trip records + AI-assisted Gmail itinerary import
-  car/mileage/page.jsx     # Car › Mileage — lease odometer log, trip journal, checkpoint forecast
-  car/maintenance/page.jsx # Car › Maintenance — service schedule off the same forecast
-  schedules/page.jsx       # Schedules — cross-domain task/prep list, optional trip/project link
-  language/page.jsx        # Language — "coming soon" + live "next Spanish call" card (Calendar)
-  ideas/page.jsx           # Idea Board — title/notes/status/domain-tag CRUD
-  email/page.jsx           # Email — read-only Gmail view, Tier 1 + Tier 2 hide rules, onboarding scan
-  api/
-    vercel/route.js        # Server-side Vercel API proxy
-    github/route.js        # Server-side GitHub public API proxy (ROADMAP.md "Next Up")
-    calendar/route.js      # Server-side Google Calendar proxy (read-only)
-    gmail/route.js         # Server-side Gmail proxy (read-only — list/search only)
-    email-rules/route.js   # CRUD for Tier 1 + Tier 2 rules; Haiku for Tier 2 residual only
-    travel-import/route.js # AI-assisted Gmail search + parse for itinerary import (Haiku)
-    schedules/route.js     # CRUD for cross-domain Schedules tasks
-lib/
-  db.js                    # Neon client + num() numeric-string coercion helper
-  anthropic.js             # Shared Haiku client (server-only)
-  ai-models.js             # Task → provider registry for the Haiku-class jobs (email, trip detect, French/Schedules/Travel imports); Luna when OPENAI_API_KEY is set (server-only)
-neon/
-  schema.sql               # canonical current DB state
-  migrations/              # numbered, immutable, additive (see §6)
-```
+- **Coder Profile** — https://raw.githubusercontent.com/jonncy18-maker/Agentic-Loop/main/CODER_PROFILE.md. Applies to **every task**; read it at the start of every session.
+- **Agentic Loop** — https://raw.githubusercontent.com/jonncy18-maker/Agentic-Loop/main/AGENTIC_LOOP.md. Applies to changes touching 3+ files, or adding a component, data domain/table, or user-visible structural change.
 
-## 4. Environment Variables
+## Map
 
-```
-# Server-side (no public prefix)
-DATABASE_URL=              # Neon connection string
-ANTHROPIC_API_KEY=         # Claude Haiku — Email Tier 2 residual + Travel parse
-OPENAI_API_KEY=            # OPTIONAL — GPT-6 Luna for the five tasks in lib/ai-models.js; unset = all Haiku
-AI_FORCE_ANTHROPIC=        # OPTIONAL — set to 1 to send every task back to Haiku at once
-VERCEL_API_TOKEN=          # Read-only Vercel API access for AI Projects
-GOOGLE_CLIENT_ID=          # Google OAuth — read-only Calendar + Gmail
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REFRESH_TOKEN=
-GITHUB_TOKEN=              # OPTIONAL — raises GitHub rate limit + unlocks private repos (AI Projects)
-GOOGLE_MAPS_API_KEY=       # Geocoding API — Travel map/country stats + Car places/trips/legs
-HEALTH_MCP_TOKEN=          # Bearer token gating the Health MCP server's write tools (fails closed)
-APP_MCP_TOKEN=             # Bearer token gating the app-wide MCP server (/api/mcp/app) — same fail-closed shape
+Domain rules live in `.claude/skills/<name>/SKILL.md` and load themselves when the matching files are touched; read the file directly if one doesn't fire. Skills: `health`, `car`, `travel`, `pto`, `email`, `assistant`, `ai-projects`, `language`, `home`, `schedules`, `geocoding`, `frontend-conventions`.
 
-# Client-side (public-prefixed)
-NEXT_PUBLIC_APP_URL=       # Same-origin base URL
-```
+Other references: `STACK_BLUEPRINT.md` (canonical stack source), `docs/api-keys.md`, `docs/runbooks/google-oauth.md` (the 7-day refresh-token trap), `ROADMAP-ARCHIVE-2026-H1.md`. Cross-repo: AI Projects' "Next Up" line needs a `## Next Up` section at the top of each tracked repo's `ROADMAP.md` (not yet retrofitted; renders "—" until then).
 
-**Gotcha:** per Stack Blueprint Part 2, set every one of these for both **Production and Preview** in Vercel explicitly — a var present only in Production makes Preview deploys fail in a way that looks like a runtime bug, not a config bug.
-
-## 5. Routes / Pages
-
-| Route          | Component         | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`            | Home dashboard    | Status cards, one per domain (6), linking into each domain's page                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `/ai-projects` | AI Projects       | Popup lists all tracked projects. Each: Vercel deploy status + live link (if a Vercel URL is set) OR a "protocol/library" badge + GitHub link (if not). Each card shows a "Next Up" line parsed from that repo's `ROADMAP.md`. "Add Project" = two fields (GitHub URL required, Vercel URL optional)                                                                                                                                                                                                                                                                                                                                            |
-| `/travel`      | Travel            | Trip records (destination, dates, status, notes, optional budget). Click into a trip for full day-by-day/port itinerary (AI-assisted Gmail import — `travel` skill). No Idea Board link in v1. Also hosts the **PTO Planner** panel — a self-set annual PTO budget, auto-derived from trips, plus a separate banked-holiday ledger and a read-only simulation layer (`pto` skill). Not a 7th domain                                                                                                                                                                                                                                             |
-| `/car`         | Car               | The 7th domain, two tabs. **Mileage** — Tesla lease tracker/forecaster: a dated odometer log is the ground truth for miles driven; a point-to-point trip journal (geocoded + OSRM-routed) is a supplementary log, never summed into the odometer total; three lease checkpoints (1/2/3-yr) project miles vs. allowance from the current pace plus any John-checked named scenarios. **Maintenance** — a service schedule whose due dates invert that same forecast (whichever of a mileage/time interval comes first), with per-item interval provenance and an append-only service log. `/mileage` redirects here. No AI — see the `car` skill |
-| `/health`      | Health            | The 8th domain, one section today. **Diet** — calories and weight: a Mifflin–St Jeor target shown with its inputs and overridable, a dated gap-tolerant weight log, intake rows carrying a label/recall/estimated source tier that drives the tilde on every total, and a completeness signal so an unlogged day can't read as a good one. Capture is primarily Claude over the MCP server at `/api/mcp/health`; the page is the fallback. `/health` redirects to `/health/diet`. No AI in the app itself — see the `health` skill                                                                                                              |
-| `/schedules`   | Schedules         | Cross-domain task/prep list (title, notes, due date, status, optional link to Travel trip / AI project). A linked item's card shows a small indicator when it has open Schedules tasks. Distinct from Idea Board by having a due date                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `/language`    | Language Learning | Two different shapes, not one. **French** (active learning): hours logged via a screenshot import of Dreaming French's progress page (Haiku vision, preview-confirm-before-save). **Spanish** (already C1, ambient daily immersion): the live next-tutor-call card (Google Calendar, host/keyword match, no AI) plus an editable freeform note — no hours metric, since there's nothing to log                                                                                                                                                                                                                                                  |
-| `/ideas`       | Idea Board        | CRUD — title, notes, status, domain tag. No promotion path to AI Projects. Distinct from Schedules by having no due date                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `/email`       | Email             | Read-only Gmail triage. No categorization buckets. Tier 1 + Tier 2 hide rules (`email` skill). Management view lists both tiers w/ undo/delete. First-run onboarding scan (`email` skill)                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-
-## 6. Schema & Migrations
-
-Lightweight convention — no ORM (overkill for one user), but a small runner closes the "migration file merged, database never updated" gap:
-
-- **`neon/schema.sql` is the single source of truth** for the current DB shape. Read that one file; never reassemble state from migration history.
-- **Every change is a new numbered file** in `neon/migrations/` (`001_initial.sql`, `002_*.sql`, …). Applied migrations are **immutable** — never edit one. A later change (settling Language, adding a new domain) is always a new file.
-- **After applying a migration, update `schema.sql`** to reflect the sum of all migrations, and bump its "Applied migrations:" line.
-- **All DDL is idempotent** (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `DROP TRIGGER IF EXISTS` + recreate). Re-running a migration is always safe.
-- **Settled domains have tables now; undecided ones don't.** Language Learning's core "next tutor call" still reads live from Calendar, but migration 011 added tables for the one settled v1 slice (French hours log + per-language note) — see the `language` skill. Do not add speculative tables beyond a settled slice — a new domain later is a 2-file operation (new migration + update `schema.sql`), not something to pre-guess.
-
-**`npm run migrate` (`scripts/migrate.js`) applies pending migrations — run it explicitly, never automatically.** It tracks applied files in a `schema_migrations` table and runs any `neon/migrations/*.sql` not yet recorded, in filename order. It is a plain script, not a framework (no Prisma/Drizzle) — splitting each file into individual statements itself, since the Neon serverless driver accepts one statement per call.
-
-**Deliberately NOT wired into the Vercel build.** Surfaced 2026-07-15/16: Preview and Production deployments share **one** Neon database here (no per-branch DB). Auto-running migrations on every build — the normal move for apps with a branched/staging DB — would mean an unmerged, unreviewed PR's schema change lands on the live database the moment its preview builds. Instead: **after merging a PR that adds a migration, run `npm run migrate` (or ask Claude Code to, via the Neon MCP) before relying on the deployed code that needs it.** This was a real outage during the Travel redesign (PR #29): the code shipped expecting new columns that didn't exist yet in Neon, and `/travel` 500'd until the migration was applied by hand.
-
-## 7. Hard Boundaries
-
-These are the rules where a violation is a real incident, not a style disagreement — the fuller reasoning for each lives in the skill or section noted in the Map (§11).
-
-1. **No auth — and don't add it back.** Single-user private app; if access needs gating, do it at the Vercel project level, not by reintroducing an auth layer.
-2. **Gmail access is read-only, full stop.** No code path may call a Gmail write/archive/delete/modify endpoint — "hiding" an email only sets a local flag. Hard boundary, not a revisitable default.
-3. **No fabricated metrics.** A metric comes from real data or a field John maintains, never a hardcoded number — if there's no data source, it does not appear.
-4. **No AI import ever auto-saves.** Every AI import shows a preview for John to confirm/edit before saving — Travel itinerary, French hours, Schedules screenshot, all of them.
-5. **The AI Assistant's tools are an explicit allowlisted catalog of this app's OWN api routes, called over same-origin fetch.** Never give it a direct DB handle, a raw-fetch tool, or a third-party API call. **The app-wide MCP server (`/api/mcp/app`, added 2026-09-17) reuses this exact catalog** rather than exposing a second, looser one — a claude.ai connection through it can do exactly what the in-app Assistant chat can do, no more. Extend the catalog once in `lib/assistant.js` and both surfaces pick it up.
-6. **No env var carrying a secret gets a `NEXT_PUBLIC_` prefix**, and anything that touches the Vercel API, Neon connection, Google APIs, or the Anthropic or OpenAI API goes through a server-side route handler (`app/api/*`) — the browser never calls any of these directly.
-7. **Applied migrations are immutable** — never edit one; every change is a new numbered file in `neon/migrations/`.
-8. **Coerce `NUMERIC`/`DECIMAL` columns with `num()`** from `lib/db.js` at the API boundary, never in a component.
-
-## 8. Cross-Cutting Rules
-
-**No auth — and don't add it back.** Single-user private app. The blueprint's same-origin Neon Auth pattern does not apply here. If access needs gating, do it at the Vercel project level, not by reintroducing an auth layer. **As of 2026-09-17, it isn't gated there either** — Vercel Authentication was turned off deliberately (ROADMAP.md's Health MCP entries) so claude.ai's OAuth connector could reach `/api/mcp/health`; that wall was blocking every automated caller, not just unwanted ones. The app is now reachable by anyone with its `.vercel.app` URL, no password, by design — `HEALTH_MCP_TOKEN` and its OAuth wrapper still gate the MCP write tools specifically. Don't silently re-enable Vercel Authentication to "fix" this; it would re-break the connector the same way.
-
-**Schedules vs Idea Board — the boundary is the due date, not topic.** Idea Board = no due date, "someday/maybe." Schedules = has a due date, actionable now. Kept as **separate tables** deliberately (`ideas` has no date column; `schedules.due_date` is `NOT NULL`). Do not merge them into one table with an optional date.
-
-**Google Calendar is in scope; Google Drive is explicitly not.** Different APIs, different concerns. Only Calendar read access is needed (next Spanish tutor call, matched by host/keyword — no AI).
-
-**Numeric-string coercion (Neon driver).** `NUMERIC`/`DECIMAL` columns (e.g. Travel `budget`) come back as strings. Coerce with `num()` from `lib/db.js` at the API boundary, never in a component.
-
-**App-wide refresh signal.** The TopBar refresh button drives `lib/refresh.jsx` (`RefreshProvider`/`useRefresh`, wrapping the shell in `AppShell`): calling `refresh()` bumps a `refreshKey` that `useHomeSummary` and `useResource` re-fetch on. A new data hook should subscribe to `useRefresh()` so the button covers it. All six domain pages now read through `useResource` (Travel, Email, Ideas, Schedules were migrated 2026-07-17), so the refresh button covers every page. Pages with optimistic mutations mirror the hook's `data` into local state via an effect and call the hook's `reload()` after a persist — keep that pattern when adding a page.
-
-**PWA — installable, and data stays live.** `app/manifest.js` (→ `/manifest.webmanifest`) + `public/sw.js` (registered by `components/RegisterSW.jsx`, production only) make the app installable. The service worker is deliberately conservative: cache-first for hashed static assets, network-first for pages, and **API routes are never cached** — this app depends on fresh reads and the refresh button assumes them. Never make the SW cache `/api/*`. It also leaves video (`.mp4`/`.webm`, any `Range` request) to the browser — caching it breaks Safari's byte-range playback. Icons live in `public/icons/` (the "Horizon" mark; `app/icon.png` is the favicon).
-
-**Domain page headers are `PageBanner` (`components/PageBanner.jsx`).** Each domain page opens with its photo band from `lib/page-art.js` — eyebrow and title on the photo, the page's own controls in the row beneath it, never on the photo. The photos (and the Home hero videos) are generated art from one shared prompt: imagined places, never a real landmark, never standing in for the user's own data (no generated trip photos or meal photos) — they decorate, they don't document. A new domain page gets a band from the same prompt set and its own `focus`, checked at real size.
-
-**API error-handling convention — two shapes, one boundary.** _User-input CRUD routes_ (`trips`, `ideas`, `schedules`, `projects` + their `[id]` variants, `home-summary`) wrap their handler in `route()` from `lib/route.js` so an unexpected throw returns a JSON `{ error }` 500 the client can parse — not an opaque framework error page. Validation still returns explicit `400`/`404` from inside the handler. _External-source routes_ (`github`, `vercel`, `gmail`, `calendar`, the AI routes) instead **fail soft**: they catch internally and return the success shape with `null`/`[]` payloads (a dead repo or missing token must never break the view). When adding a route, pick the matching pattern. On the client, every fetch must check `res.ok` before trusting the body — a non-2xx body is an error payload, not data. Shared client fetching goes through `useResource()` (`lib/useResource.js`); pages with optimistic mutations keep local state but must revert it on a failed persist.
-
-**Subagent model selection — name the family, never a version; choose by how checkable the output is.** The main session picks the model per task. This is a default, not an allowlist — when it reports back it says which model it used and why.
-
-- **Haiku** — anything with a clear spec whose output gets checked: file/usage sweeps, summarizing output, mechanical edits, formatting, small tests, docs written to a spec, parallel fan-out searches. It's the smallest tier, so "simple" alone isn't enough: a trivial job nothing will catch (a security-sensitive edit, a verbatim move across many files) goes to Sonnet.
-- **Sonnet** — the default when unsure: building features, tracing bugs, refactors, UI work, reviews.
-- **Opus** — when a subtle mistake would be expensive or the problem is ambiguous, whatever its size: architecture and scoping decisions, audits whose misses are costly.
-- **Escalate, don't patch around.** If a cheaper model's result looks thin or fails a check, rerun it one tier up rather than trusting or hand-fixing it.
-
-**Write model families here, model IDs in code — the rule cuts both ways.** This file says "Sonnet", never "Sonnet 5", so the guidance above keeps meaning the current Sonnet without an edit; a pinned version here silently goes stale and keeps routing work to a superseded model (hit on a sibling project with a hardcoded Sonnet 4.6). The opposite is true in application code: `lib/anthropic.js`'s `MODEL` and `lib/assistant.js`'s `ASSISTANT_MODEL` are API arguments and **must stay pinned to an exact ID** — a floating model would change the Travel parse, the French import and the assistant's behavior and cost with no deploy and no diff. Do not "fix" those to a family name; they are pinned deliberately. Moving them to a newer model is a real change: bump the ID, note it in `ROADMAP.md`, and say what you checked still worked.
-
-**Merging — standing permission (granted 2026-10-02).** Claude Code merges its own PRs to `main` once CI and the Vercel preview are green, without asking first. Two exceptions still stop and ask: (1) any PR that adds a file under `neon/migrations/` — Preview and Production share one Neon database, so the migration must be applied by hand around the merge (§6); (2) a visual/layout change Claude Code could not view rendered, where the preview is the only real review before production. Merging also means `main` deploys to production, so a red or still-building check is never merged through.
-
-## 9. Coder Profile & Agentic Loop
-
-Two layers, both from the [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop):
-
-- **Coder Profile** — https://raw.githubusercontent.com/jonncy18-maker/Agentic-Loop/main/CODER_PROFILE.md
-  Applies to **every task, no threshold**. Governs how code is written and how it gets verified. Read it at the start of every session.
-- **Agentic Loop protocol** — https://raw.githubusercontent.com/jonncy18-maker/Agentic-Loop/main/AGENTIC_LOOP.md
-  Applies to any change touching 3+ files, or introducing a new component, new data domain/table, or user-visible structural change. Governs whether the right thing was built.
-
-A change small enough to skip the loop is still governed by the profile.
-
-## 10. References
-
-- [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop) — shared development protocol and coder profile
-- `STACK_BLUEPRINT.md` — canonical stack/structure source (from NextGen-Immersion)
-- Sibling repos for pattern reference: NextGen-Scholars, NextGen-Immersion (numeric-coercion gotcha; same-origin auth pattern — not used here)
-
-**Cross-repo dependency (tracked in ROADMAP.md):** AI Projects' "Next Up" feature depends on each tracked repo having a standardized `## Next Up` section at the top of its `ROADMAP.md`. This convention does not yet exist in any sibling repo (NextGen-Scholars, NextGen-Immersion, AI-Capital-Planning, Agentic-Loop) or the Stack Blueprint. Until retrofitted, "Next Up" renders as "—". Retrofit is a separate task from this dashboard's build.
-
-## 11. Map
-
-Domain rules live in `.claude/skills/`, which load themselves when the matching files are touched; this map is the fallback pointer if a skill doesn't fire.
-
-- `.claude/skills/health/SKILL.md` — Health › Diet: the three intake source tiers and the tilde, the computed target's provenance and override, clamp-and-slip, the completeness signal, the MCP-primary capture path
-- `.claude/skills/car/SKILL.md` — Car: odometer ground truth, checkpoints, usual trips, favorite places, leg scenarios, travel day exclusions; maintenance schedule, whichever-comes-first due dates, interval provenance, check-off roll-forward
-- `.claude/skills/travel/SKILL.md` — Travel: itinerary import, destination photo, geocoded map pins, the retired AI Brief
-- `.claude/skills/pto/SKILL.md` — PTO Planner: the self-set budget, banked-holiday ledger, simulation layer, net glance figure
-- `.claude/skills/email/SKILL.md` — Email: Tier 1 / Tier 2 rules, Gmail-native categories, onboarding scan
-- `.claude/skills/assistant/SKILL.md` — AI Assistant: tool catalog, model choice, attachments, cut-off handling
-- `.claude/skills/ai-projects/SKILL.md` — AI Projects: GitHub vs Vercel, Add Project, the thin manual layer
-- `.claude/skills/language/SKILL.md` — Language: French hours import vs Spanish's ambient note
-- `.claude/skills/home/SKILL.md` — Home: time-of-day hero photo, daily quote, no fabricated metrics
-- `.claude/skills/schedules/SKILL.md` — Schedules: the AI screenshot import
-- `.claude/skills/geocoding/SKILL.md` — Geocoding: the Google Geocoding API, shared by Travel and Car
-- `docs/api-keys.md` — the full API key table (§2's rules stay in this file)
-- `docs/runbooks/google-oauth.md` — the Google refresh-token 7-day trap and the re-mint runbook
-- `ROADMAP-ARCHIVE-2026-H1.md` — dated ROADMAP entries before 2026-07-15
-
-**Keeping this file short is a maintenance rule, not a one-time cleanup.** Before adding anything here, ask: does this change how code is written in files outside one domain? If it only matters inside one domain, it belongs in that domain's skill. If it's a procedure John runs rather than a rule Claude Code follows, it belongs in `docs/`. A dated account of why a decision was made belongs in `ROADMAP.md`. Only genuinely cross-cutting rules live here — the file was 253 lines before the 2026-09-12 restructure precisely because that test wasn't being applied.
+**Keep this file short — it is a maintenance rule.** Before adding anything, ask: does it change how code is written outside one domain? If it only matters in one domain, it goes in that domain's skill. A procedure John runs goes in `docs/`. A dated account of why a decision was made goes in `ROADMAP.md`. State each rule once.
