@@ -1,15 +1,17 @@
 # Stack Blueprint
 
-_Canonical source: `NextGen-Immersion` (gold-standard structure as of Phase 14/2026-07-04). Copy this file verbatim into any project's repo root and keep it in sync manually — there is no shared package linking these repos, so "sync" means re-copy when the canonical copy changes materially._
+_Canonical source: `NextGen-Immersion` (gold-standard structure as of Phase 14/2026-07-04; agent-file split added 2026-10-03). Copy this file verbatim into any project's repo root and keep it in sync manually — there is no shared package linking these repos, so "sync" means re-copy when the canonical copy changes materially._
 
 ## How to use this document
 
 This file has two jobs. Use the mode that matches what you're doing:
 
-- **Scaffolding a new project** — copy the section skeleton in Part 1 into the new project's `CLAUDE.md`, filling in every `<placeholder>`. Adopt the reference patterns in Part 2 verbatim unless the new project's stack genuinely forces a different choice — if it does, write down _why_ it diverges, right there in the CLAUDE.md, so the next session doesn't "fix" it back.
-- **Cleaning up an existing project's `CLAUDE.md`** — run the Part 3 checklist against it. The goal is a `CLAUDE.md` that reads like NGS-Immersion's: a living reference someone (or some future Claude session) can act on immediately, with history moved out to `ROADMAP.md` where it belongs.
+- **Scaffolding a new project** — copy the section skeleton in Part 1 into the new project's `AGENTS.md`, filling in every `<placeholder>`. Adopt the reference patterns in Part 2 verbatim unless the new project's stack genuinely forces a different choice — if it does, write down _why_ it diverges, right there in the AGENTS.md, so the next session doesn't "fix" it back.
+- **Cleaning up an existing project's `AGENTS.md` / `CLAUDE.md`** — run the Part 3 checklist against them. The goal is an `AGENTS.md` that reads like NGS-Immersion's: a living reference someone (or any future agent session) can act on immediately, with history moved out to `ROADMAP.md` where it belongs.
 
-A `CLAUDE.md` that matches this shape should need no re-reading of the whole file to answer "where do secrets live" or "what's the one gotcha that bit us before" — those answers should be in one place each, not spread across a migration narrative.
+An `AGENTS.md` that matches this shape should need no re-reading of the whole file to answer "where do secrets live" or "what's the one gotcha that bit us before" — those answers should be in one place each, not spread across a migration narrative.
+
+**Two files, one job each.** Shared project instructions go in `AGENTS.md`, which every coding agent reads (Claude Code, Codex, Antigravity). `CLAUDE.md` starts with the line `@AGENTS.md` (which imports it) and holds only what applies to Claude Code alone: Claude-specific environment quirks (section 8), Claude skills, Claude-only workflow and permissions. Agent roles and permissions (push, merge, deploy) never go in `AGENTS.md`: a repo file outranks each agent's global file, so a permission written there would apply to every agent. Keep `AGENTS.md` under about 24 KB; Codex stops reading instruction files at 32 KiB, so move reference material (file tables, route lists, architecture walk-throughs) into `ARCHITECTURE.md` or `docs/` and leave a pointer.
 
 ---
 
@@ -41,13 +43,13 @@ A single code block, split into server-side (no public prefix) and client-side (
 
 Table: `Route | Component | Role`. Skip for single-page apps — HashRouter/App-Router internals go in Project Structure instead.
 
-### 7. Key Rules for Claude Code
+### 7. Key Rules
 
 The highest-value section. One bolded rule-lead-in per paragraph, each describing a specific gotcha discovered the hard way — not generic advice. Examples from real gotchas across these projects: a type-coercion quirk in the DB driver, an idempotency key requirement, a timer that must stop on specific player states, an auth model that must not be reverted to a prior broken version. If a rule doesn't reference a concrete failure mode that actually happened (or would obviously happen), it doesn't belong here — it belongs in generic engineering practice, not this file.
 
 ### 8. Working in This Environment
 
-Tooling quirks specific to running Claude Code against this repo: commit signing workarounds, CDN/cache lag after deploys, sandbox network restrictions, anything that would otherwise cause a session to falsely conclude something didn't work.
+Tooling quirks that would otherwise cause a session to falsely conclude something didn't work. Quirks any agent hits (CDN/cache lag after deploys) go in `AGENTS.md`; quirks specific to Claude Code's environment (commit signing workarounds, its sandbox network restrictions) go in `CLAUDE.md`.
 
 ### 9. Agentic Loop
 
@@ -77,12 +79,15 @@ These are concrete, working patterns from NGS-Immersion. When scaffolding a new 
 
 ## Part 3 — Cleanup Checklist (existing projects)
 
-Run this against a project's current `CLAUDE.md`:
+Run this against a project's current `AGENTS.md` and `CLAUDE.md`:
 
-- [ ] Does a `ROADMAP.md` (or equivalent session log) exist? If not, create one — dated history moves there, not in `CLAUDE.md`.
-- [ ] Is there a narrative migration/history section longer than one paragraph inside `CLAUDE.md`? Move it to `ROADMAP.md`'s session log, leave one summary paragraph behind.
+- [ ] Does a `ROADMAP.md` (or equivalent session log) exist? If not, create one — dated history moves there, not in `AGENTS.md`.
+- [ ] Is there a narrative migration/history section longer than one paragraph inside `AGENTS.md`? Move it to `ROADMAP.md`'s session log, leave one summary paragraph behind.
 - [ ] Does the Agentic Loop section paste the full protocol text instead of linking to it? Replace with a one-line link + activation threshold.
 - [ ] Is there a Security/API-key table? If the project has any secret and no such table, add one.
 - [ ] Are the remaining sections in Part 1's order? Reorder if not — consistency across projects is the point.
-- [ ] Does "Key Rules for Claude Code" contain generic advice rather than specific, previously-hit gotchas? Trim generic entries; they add re-reading cost without adding information.
-- [ ] Does `CLAUDE.md` tell the session to read `ARCHITECTURE.md`/`ROADMAP.md` at session start (if those files exist)? If they exist but aren't referenced, add the pointer.
+- [ ] Does "Key Rules" contain generic advice rather than specific, previously-hit gotchas? Trim generic entries; they add re-reading cost without adding information.
+- [ ] Does `AGENTS.md` tell the session to read `ARCHITECTURE.md`/`ROADMAP.md` at session start (if those files exist)? If they exist but aren't referenced, add the pointer.
+- [ ] Does `CLAUDE.md` start with `@AGENTS.md` and hold only Claude-specific items? Move anything other agents need into `AGENTS.md`.
+- [ ] Does `AGENTS.md` grant any agent push, merge or deploy permission? Remove it; permissions live in each agent's global file.
+- [ ] Is `AGENTS.md` under about 24 KB? If not, move reference material out and leave pointers.
