@@ -19,7 +19,7 @@ The home page (`/`) shows a status card per domain (7 routes, 6 domains); each l
 
 Next.js (App Router) · JavaScript · Vercel · Neon (Postgres) · Claude Haiku (narrow AI use) · Google (Calendar + Gmail, read-only)
 
-Single-user, private — **no auth layer by design** (see `CLAUDE.md`). See `CLAUDE.md` for architecture, environment variables, and build conventions; `ARCHITECTURE.md` for the system map; and `STACK_BLUEPRINT.md` for the canonical stack reference this project was scaffolded from.
+Single-user, private — **no auth layer by design** (see `AGENTS.md`). See `AGENTS.md` for architecture, environment variables, and build conventions; `ARCHITECTURE.md` for the system map; and `STACK_BLUEPRINT.md` for the canonical stack reference this project was scaffolded from.
 
 ## Getting started
 
@@ -34,7 +34,7 @@ Database: run `neon/schema.sql` once against a fresh Neon project.
 
 ## Deployment
 
-Deployed on Vercel via its native Git integration (no CI workflow). All environment variables must be set for **both Production and Preview** — see `CLAUDE.md` → Environment Variables for the gotcha this causes if skipped.
+Deployed on Vercel via its native Git integration; CI (`.github/workflows/ci.yml`) runs tests and a build on every PR. All environment variables must be set for **both Production and Preview** — see `AGENTS.md` → Env and secrets for the gotcha this causes if skipped.
 
 ## Status
 

@@ -1,7 +1,7 @@
 import { fetchCalendarEvents } from '../../../lib/calendar-events';
 
 // Read-only Google Calendar window for the /calendar month view. External
-// source → fails soft (CLAUDE.md §7): any error returns the success shape with
+// source → fails soft (AGENTS.md → Hard boundaries): any error returns the success shape with
 // an empty list so the calendar renders its grid, never a broken page. No
 // write/modify calls, ever — same read-only boundary as the tutor-call lookup.
 // Events John has hidden (calendar_hidden, see 013_calendar_hidden.sql) are
