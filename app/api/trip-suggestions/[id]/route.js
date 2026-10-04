@@ -1,4 +1,5 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
+import { route } from '../../../../lib/route';
 import { getGmailClient } from '../../../../lib/google';
 import { fetchDestinationPhoto } from '../../../../lib/unsplash';
 import { parseItineraryForMessage } from '../../../../lib/itinerary-import';
@@ -22,7 +23,14 @@ function serialize(row) {
 // same source email so the trip lands populated. The suggestion is marked
 // approved so it leaves the review queue. Never happens without this explicit
 // click — the human gate.
-export async function POST(request, { params }) {
+//
+// The slow enrichment (photo, itinerary parse) runs first, unclaimed, so a
+// timeout leaves the suggestion pending. Then the suggestion is claimed
+// (pending → approved) in one atomic UPDATE and the trip inserted back-to-back,
+// so two concurrent approvals can't both create a trip (the loser only wastes
+// its enrichment) and the stranded-as-approved window is two fast queries. If
+// the INSERT throws, the claim is reverted so a retry works.
+export const POST = route(async (request, { params }) => {
   const { id } = await params;
   const sql = getDb();
 
@@ -70,8 +78,8 @@ export async function POST(request, { params }) {
   // Auto photo for the new trip (same path as manual trip create).
   const photo = await fetchDestinationPhoto(sugg.destination);
 
-  // Auto-run the itinerary import from the source email; best-effort — a parse
-  // failure still creates the trip, John can import manually later.
+  // Auto-run the itinerary import from the source email; best-effort — a
+  // parse failure still creates the trip, John can import manually later.
   let itinerary = null;
   const gmail = getGmailClient();
   if (gmail && sugg.source_gmail_id) {
@@ -87,27 +95,47 @@ export async function POST(request, { params }) {
     }
   }
 
-  const [trip] = await sql`
-    INSERT INTO trips (
-      destination, start_date, end_date, status, itinerary,
-      image_url, image_attribution, image_source, merged_into_id
-    )
-    VALUES (
-      ${sugg.destination}, ${sugg.start_date}, ${sugg.end_date}, 'upcoming',
-      ${itinerary}, ${photo?.image_url || null},
-      ${photo?.image_attribution || null}, 'auto', ${mergeIntoId}
-    )
-    RETURNING id, destination, start_date, end_date, status, notes, budget,
-              itinerary, image_url, image_attribution, image_source,
-              merged_into_id, created_at, updated_at
+  // Claim and insert back-to-back. Only one concurrent request gets the row
+  // back; the loser is told it's handled and never inserts.
+  const claimed = await sql`
+    UPDATE trip_suggestions SET status = 'approved'
+    WHERE id = ${id} AND status = 'pending'
+    RETURNING id
   `;
+  if (claimed.length === 0) {
+    return Response.json({ error: 'already handled' }, { status: 409 });
+  }
 
-  await sql`
-    UPDATE trip_suggestions SET status = 'approved' WHERE id = ${id}
-  `;
+  try {
+    const [trip] = await sql`
+      INSERT INTO trips (
+        destination, start_date, end_date, status, itinerary,
+        image_url, image_attribution, image_source, merged_into_id
+      )
+      VALUES (
+        ${sugg.destination}, ${sugg.start_date}, ${sugg.end_date}, 'upcoming',
+        ${itinerary}, ${photo?.image_url || null},
+        ${photo?.image_attribution || null}, 'auto', ${mergeIntoId}
+      )
+      RETURNING id, destination, start_date, end_date, status, notes, budget,
+                itinerary, image_url, image_attribution, image_source,
+                merged_into_id, created_at, updated_at
+    `;
 
-  return Response.json({ trip: serialize(trip) }, { status: 201 });
-}
+    return Response.json({ trip: serialize(trip) }, { status: 201 });
+  } catch (err) {
+    // No trip was created: release the claim so a retry can succeed.
+    try {
+      await sql`
+        UPDATE trip_suggestions SET status = 'pending'
+        WHERE id = ${id} AND status = 'approved'
+      `;
+    } catch (revertErr) {
+      console.error('[trip-suggestions] could not revert claim:', revertErr);
+    }
+    throw err;
+  }
+});
 
 // Dismiss a suggestion → mark dismissed (remembered, so the scan never
 // re-proposes it). Read-only Gmail is untouched.
