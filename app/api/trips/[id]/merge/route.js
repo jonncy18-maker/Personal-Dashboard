@@ -68,8 +68,41 @@ export const POST = route(async (request, { params }) => {
     }
   }
 
-  for (const legId of legIds) {
-    await sql`UPDATE trips SET merged_into_id = ${id} WHERE id = ${legId}`;
+  // The checks above give friendly errors, but they are separate statements,
+  // so two concurrent merges (say B into A and A into B) can both pass them
+  // and leave A and B pointing at each other. The write itself therefore
+  // re-checks everything in ONE statement (the HTTP driver has no
+  // interactive transactions): it row-locks the root and every leg in id
+  // order, keeping only a root that is still unmerged and legs that still
+  // have no children of their own. A concurrent writer that already changed
+  // one of those rows makes Postgres re-test it after the lock wait, so it
+  // drops out of `locked`, the count no longer matches, and the UPDATE
+  // changes nothing. All legs move together or none do.
+  const moved = await sql`
+    WITH locked AS (
+      SELECT id FROM trips
+      WHERE (id = ${id}::uuid AND merged_into_id IS NULL)
+         OR (
+           id = ANY(${legIds}::uuid[])
+           AND NOT EXISTS (
+             SELECT 1 FROM trips c WHERE c.merged_into_id = trips.id
+           )
+         )
+      ORDER BY id
+      FOR UPDATE
+    ), moved AS (
+      UPDATE trips SET merged_into_id = ${id}::uuid
+      WHERE id = ANY(${legIds}::uuid[])
+        AND (SELECT count(*) FROM locked) = ${legIds.length + 1}
+      RETURNING id
+    )
+    SELECT id FROM moved
+  `;
+  if (moved.length !== legIds.length) {
+    return Response.json(
+      { error: 'trips changed while merging — reload and try again' },
+      { status: 409 }
+    );
   }
 
   const legs = await sql`
