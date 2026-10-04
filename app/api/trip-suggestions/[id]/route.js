@@ -24,9 +24,12 @@ function serialize(row) {
 // approved so it leaves the review queue. Never happens without this explicit
 // click — the human gate.
 //
-// The suggestion is claimed (pending → approved) in one atomic UPDATE before
-// any slow work, so two concurrent approvals can't both create a trip. If
-// anything after the claim throws, the claim is reverted so a retry works.
+// The slow enrichment (photo, itinerary parse) runs first, unclaimed, so a
+// timeout leaves the suggestion pending. Then the suggestion is claimed
+// (pending → approved) in one atomic UPDATE and the trip inserted back-to-back,
+// so two concurrent approvals can't both create a trip (the loser only wastes
+// its enrichment) and the stranded-as-approved window is two fast queries. If
+// the INSERT throws, the claim is reverted so a retry works.
 export const POST = route(async (request, { params }) => {
   const { id } = await params;
   const sql = getDb();
@@ -72,8 +75,28 @@ export const POST = route(async (request, { params }) => {
     }
   }
 
-  // Atomically claim the suggestion before the slow photo/AI work. Only one
-  // concurrent request gets the row back; the loser is told it's handled.
+  // Auto photo for the new trip (same path as manual trip create).
+  const photo = await fetchDestinationPhoto(sugg.destination);
+
+  // Auto-run the itinerary import from the source email; best-effort — a
+  // parse failure still creates the trip, John can import manually later.
+  let itinerary = null;
+  const gmail = getGmailClient();
+  if (gmail && sugg.source_gmail_id) {
+    try {
+      const { days } = await parseItineraryForMessage(
+        gmail,
+        sugg.source_gmail_id,
+        sugg.destination
+      );
+      if (days && days.length) itinerary = JSON.stringify(days);
+    } catch {
+      // leave itinerary null; the trip is still created
+    }
+  }
+
+  // Claim and insert back-to-back. Only one concurrent request gets the row
+  // back; the loser is told it's handled and never inserts.
   const claimed = await sql`
     UPDATE trip_suggestions SET status = 'approved'
     WHERE id = ${id} AND status = 'pending'
@@ -84,26 +107,6 @@ export const POST = route(async (request, { params }) => {
   }
 
   try {
-    // Auto photo for the new trip (same path as manual trip create).
-    const photo = await fetchDestinationPhoto(sugg.destination);
-
-    // Auto-run the itinerary import from the source email; best-effort — a
-    // parse failure still creates the trip, John can import manually later.
-    let itinerary = null;
-    const gmail = getGmailClient();
-    if (gmail && sugg.source_gmail_id) {
-      try {
-        const { days } = await parseItineraryForMessage(
-          gmail,
-          sugg.source_gmail_id,
-          sugg.destination
-        );
-        if (days && days.length) itinerary = JSON.stringify(days);
-      } catch {
-        // leave itinerary null; the trip is still created
-      }
-    }
-
     const [trip] = await sql`
       INSERT INTO trips (
         destination, start_date, end_date, status, itinerary,
