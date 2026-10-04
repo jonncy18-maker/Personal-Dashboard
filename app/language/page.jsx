@@ -307,12 +307,19 @@ function FrenchProgress() {
 
   async function confirmSave() {
     setSaving(true);
+    setNote(null);
     try {
-      await fetch('/api/french-progress/save', {
+      const res = await fetch('/api/french-progress/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(preview),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // Keep the preview open so John can fix the entry and confirm again.
+        setNote(data.error || 'Save failed — try again.');
+        return;
+      }
       setPreview(null);
       reload();
     } catch {
