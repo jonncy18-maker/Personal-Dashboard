@@ -646,14 +646,19 @@ function SuggestionsBell({
   onDismiss,
 }) {
   const [busy, setBusy] = useState(null);
+  // Per-suggestion approval failure message, keyed by suggestion id; a failed
+  // approval keeps its row so John can retry.
+  const [errors, setErrors] = useState({});
   // Which existing trip (by id) is selected in each suggestion's "merge into"
   // dropdown — keyed by suggestion id so multiple rows don't interfere.
   const [mergeChoice, setMergeChoice] = useState({});
 
   async function act(id, fn) {
     setBusy(id);
+    setErrors((prev) => ({ ...prev, [id]: null }));
     try {
-      await fn(id);
+      const message = await fn(id);
+      if (message) setErrors((prev) => ({ ...prev, [id]: message }));
     } finally {
       setBusy(null);
     }
@@ -735,6 +740,11 @@ function SuggestionsBell({
                       )}
                     </div>
                   )}
+                  {errors[s.id] && (
+                    <p className={styles.formError} role="alert">
+                      {errors[s.id]}
+                    </p>
+                  )}
                 </div>
                 <div className={styles.suggestActions}>
                   <button
@@ -769,7 +779,11 @@ export default function TravelPage() {
   // and `suggestions` state is kept for optimistic mutations and synced from
   // the loaded data; `loadSuggestions` (reload) replaces the old imperative
   // refresh after a scan/approve/dismiss.
-  const { data: tripsData, error: loadError } = useResource('/api/trips', {
+  const {
+    data: tripsData,
+    error: loadError,
+    reload: loadTrips,
+  } = useResource('/api/trips', {
     errorMessage: 'Could not load trips.',
   });
   const { data: mapData } = useResource('/api/trip-map');
@@ -882,17 +896,35 @@ export default function TravelPage() {
     }
   }
 
+  // Returns an error message to show on the row, or null on success. The row
+  // leaves the list only when the suggestion is no longer pending server-side
+  // (approved, or 409 already handled); any other failure keeps it for retry.
   async function approveSuggestion(id, mergeIntoId) {
-    const res = await fetch(`/api/trip-suggestions/${id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ merge_into_id: mergeIntoId || null }),
-    });
-    const data = await res.json();
-    if (res.ok && data.trip) {
-      setTrips((prev) => [data.trip, ...(prev || [])]);
+    let res;
+    let data = null;
+    try {
+      res = await fetch(`/api/trip-suggestions/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merge_into_id: mergeIntoId || null }),
+      });
+      data = await res.json().catch(() => null);
+    } catch {
+      return 'Couldn’t reach the server — try again.';
     }
-    setSuggestions((prev) => prev.filter((s) => s.id !== id));
+    if (res.ok && data?.trip) {
+      setTrips((prev) => [data.trip, ...(prev || [])]);
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      return null;
+    }
+    if (res.status === 409) {
+      // Already handled elsewhere (another tab or the assistant): sync up.
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      loadTrips();
+      loadSuggestions();
+      return null;
+    }
+    return data?.error || 'Couldn’t add this trip — try again.';
   }
 
   async function dismissSuggestion(id) {
