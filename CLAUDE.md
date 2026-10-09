@@ -12,7 +12,7 @@ Everything shared with other agents is in `AGENTS.md` (imported above). This fil
 
 ## Subagent routing
 
-Follow "Subagent models" in `~/.claude/CLAUDE.md`: Haiku for searches, sweeps and mechanical edits, Sonnet for implementation and reviews, Opus for planning and final review.
+Follow "Subagent models" in `~/.claude/CLAUDE.md`: Haiku (5.5) for all exploratory jobs (exploration, searches, file reads), sweeps and mechanical edits, Sonnet for implementation and reviews, Opus for planning and final review.
 
 ## Git workflow (set by John, 2026-10-03)
 
