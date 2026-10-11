@@ -2417,6 +2417,14 @@ export default function DietPage() {
                 </p>
               ) : null}
 
+              {target.activityMultiplierCapped ? (
+                <p className={styles.provenance}>
+                  Activity cap active: ×{target.activityMultiplier} (steps
+                  estimate ×{target.activityUncappedMultiplier}). Maintenance{' '}
+                  {cal(target.maintenance)} cal/day.
+                </p>
+              ) : null}
+
               {showFormulaToggle ? (
                 <>
                   <button

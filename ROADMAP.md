@@ -81,6 +81,29 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-10-10 — Steps-derived activity multiplier cap
+
+Added `ACTIVITY_MULTIPLIER_CAP = 1.7` in `lib/health.js`, applied with
+`Math.min` only after the trailing-steps multiplier resolves. Lower activity
+bands, pending-data fallback, manual activity/target overrides, floor logic,
+and prior-day step adjustment retain their existing paths. The day view shows
+an active-cap notice with the applied multiplier, original steps estimate,
+and capped base maintenance. No stored data, profile, API, or schema changes.
+
+Review the cap after 2–3 weeks of use by comparing 7-day average weight with
+logged intake; adjust the code constant if warranted.
+
+Direct Node assertions verified the cap, lower activity bands, manual paths,
+pending fallback, and percentage/flat floors. Added regression tests to
+`lib/health.test.js`. Full suite and build could not run in this copy:
+`vitest: not found` / `next: not found` (dependencies absent). Browser rendering
+and live-data results remain unverified.
+Independent audit passed in one iteration with no actionable findings; its
+Node checks also covered mixed trailing averages and positive/negative
+prior-day adjustments under the cap.
+
+---
+
 ## 2026-10-02 — Steps-trailing multiplier: gentler ramp above 10k
 
 John's 14-day average is ~20k steps/day, which the old five-band table priced at the 1.9 ceiling from 12,500 steps up — so a 13k day and a 20k day got the same multiplier. Extended the ladder in `STEP_ACTIVITY_BANDS` (`lib/health.js`): unchanged below 10k (1.2 / 1.375 / 1.55), then 1.62 (10–12.5k), 1.69 (12.5–15k), 1.76 (15–17.5k), 1.83 (17.5–20k), 1.9 (20k+). `very active` now covers 10–15k and `extra active` 15k+. Stepped bands, no interpolation (John's call — skipped the cliff smoothing).
