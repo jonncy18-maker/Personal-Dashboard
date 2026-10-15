@@ -2,12 +2,31 @@ import {
   authorized,
   json,
   refreshRecommendations,
+  refreshAllRecommendations,
+  requestProject,
 } from '../../../../../lib/project-recommendations';
 export const maxDuration = 120;
 async function refresh(request, secret) {
   if (!authorized(request, secret)) return json({ error: 'unauthorized' }, 401);
+  let project;
   try {
-    return json(await refreshRecommendations());
+    project = requestProject(request);
+  } catch {
+    return json({ error: 'Unknown project' }, 400);
+  }
+  try {
+    const result =
+      project === undefined
+        ? await refreshAllRecommendations()
+        : await refreshRecommendations(project);
+    return json(
+      result,
+      result.status === 'failed'
+        ? 502
+        : result.status === 'partial_failure'
+          ? 207
+          : 200
+    );
   } catch {
     return json(
       { error: 'Refresh failed; last successful snapshot retained' },

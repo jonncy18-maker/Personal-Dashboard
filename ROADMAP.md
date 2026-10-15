@@ -81,6 +81,36 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-10-14 — Expand recommendation feed to five selected repositories
+
+John authorized the same backend recommendation feed for NextGen-Scholars,
+NextGen-Immersion, AI-Capital-Planning, Agentic-Loop and AI-harness. A centralized
+allowlist owns stable slugs, names and chosen icon metadata; no automatic repo
+scanning or source-repository changes. GET now returns five persistent cache
+cards, or one via `?project=<slug>`. The existing daily cron refreshes all five
+with independent repository keys, atomic 15-minute leases/cooldowns and bounded
+five-project concurrency; partial failure preserves successes and returns 207,
+all failures return 502. Feedback accepts the project slug, isolates actions and
+fingerprints per repository, and retains Immersion defaults/legacy keys.
+Long roadmap excerpts now select bounded phases referenced by Next Up instead
+of assuming Phase 32. Tests first reproduced missing allowlist, selector
+validation, aggregate cache-only behavior and generic phase extraction, then
+verified independent source URLs/prompts, feedback writes, cooldowns and partial
+failure persistence. No schema, provider, UI, deployment or env activation.
+
+Validation: `npm test` → `Test Files 6 passed (6)`, `Tests 85 passed (85)`;
+`npm run build` → `Compiled successfully`, static pages `90/90`.
+Read-only live collection succeeded for all five (22/21/21/15/10 sources in
+allowlist order), with every source URL belonging to its selected repo.
+Compiled HTTP smoke: aggregate `200 no-store` with five correctly named/iconed
+unavailable cards when DB is unconfigured; invalid selectors `400`, invalid
+credentials `401`. Independent audit: initial FAIL for repeated phase headings
+crowding out recent roadmap notes; bounded section count plus a 12-heading
+regression passed the second audit (24/24 recommendation tests). Live AI quality
+and PostgreSQL execution/concurrency remain unverified; those services are
+mocked by tests. The first local build rejected a dependency symlink; using an
+actual dependency directory resolved it without changing project configuration.
+
 ## 2026-10-14 — First-project recommendation backend
 
 John approved the first-repo feed before wiring all five cards. Added a
