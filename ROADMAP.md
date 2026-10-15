@@ -81,6 +81,12 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-10-15 — Steps-derived activity multiplier capped at 1.7; observed maintenance shown beside the formula
+
+26 days of logged intake (Sep 17–Oct 12) against daily weigh-ins showed real weight loss ~250–350 cal/day smaller than the formula predicted: implied maintenance ~2,250–2,350 (multiplier ~1.64–1.72) versus 2,490–2,610 from bands that reached 1.83–1.9 at ~20k steps/day. Added `ACTIVITY_MULTIPLIER_CAP = 1.7` in `lib/health.js`, applied inside `computeTarget` on the `steps_trailing` path only; the manual multiplier, the pending fallback, `manual_target_cal`, the floor and goal-date/clamp logic are untouched, and `stepsToActivityMultiplier` still returns the raw band (lower averages still give lower multipliers). When it binds, `activityCapped`/`activityUncappedMultiplier` are returned and the provenance line and `get_day` (`activity_capped`) say so. Past days are not stored, they are recomputed on every read (`/api/health`, `/api/health/net`, Home, both MCP `get_day` paths), so every historical maintenance/target and the trailing-net card shift after this change. The 0.07/2,500-step bands were left as is: above ~15k steps the cap now makes the 1.83→1.9 cliff moot. New read-only `empiricalMaintenance()` (avg logged intake + lb lost × 3500 / days, ends averaged over up to 3 weigh-ins, null on thin data) is shown under "Formula & activity"; it never feeds the target. **Revisit in 2–3 weeks:** compare 7-day average weight against logged intake and adjust the cap.
+
+---
+
 ## 2026-10-02 — Steps-trailing multiplier: gentler ramp above 10k
 
 John's 14-day average is ~20k steps/day, which the old five-band table priced at the 1.9 ceiling from 12,500 steps up — so a 13k day and a 20k day got the same multiplier. Extended the ladder in `STEP_ACTIVITY_BANDS` (`lib/health.js`): unchanged below 10k (1.2 / 1.375 / 1.55), then 1.62 (10–12.5k), 1.69 (12.5–15k), 1.76 (15–17.5k), 1.83 (17.5–20k), 1.9 (20k+). `very active` now covers 10–15k and `extra active` 15k+. Stepped bands, no interpolation (John's call — skipped the cliff smoothing).

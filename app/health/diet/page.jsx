@@ -276,7 +276,11 @@ function ActivityProvenance({ target }) {
       <>
         ×{target.activityMultiplier} ({target.activityLabel}, avg{' '}
         {Math.round(target.activityAvgSteps).toLocaleString()} steps/day over{' '}
-        {target.activityWindowDays} days)
+        {target.activityWindowDays} days
+        {target.activityCapped
+          ? `; capped at ×${target.activityMultiplier}, steps alone would give ×${target.activityUncappedMultiplier}`
+          : ''}
+        )
       </>
     );
   }
@@ -293,6 +297,28 @@ function ActivityProvenance({ target }) {
     );
   }
   return <>×{target?.activityMultiplier}</>;
+}
+
+// Read-only cross-check beside the formula's maintenance. Never feeds the
+// target; shown so the two can be compared as the log grows.
+function EmpiricalMaintenance({ empirical, formulaMaintenance }) {
+  if (!empirical) return null;
+  const diff =
+    formulaMaintenance == null
+      ? null
+      : formulaMaintenance - empirical.maintenance;
+  return (
+    <p className={styles.provenance}>
+      Observed maintenance ~{empirical.maintenance.toLocaleString()} cal (avg
+      logged intake {empirical.avgIntake.toLocaleString()} over{' '}
+      {empirical.daysLogged} logged days, {empirical.lossLb} lb lost in{' '}
+      {empirical.spanDays} days
+      {diff == null
+        ? ''
+        : `; formula is ${Math.abs(diff).toLocaleString()} ${diff >= 0 ? 'higher' : 'lower'}`}
+      ). Comparison only — it does not set the target.
+    </p>
+  );
 }
 
 // The prior-day step adjustment clause. Always says why when it isn't moving
@@ -2433,6 +2459,12 @@ export default function DietPage() {
               ) : (
                 <TargetProvenance target={target} profile={profile} />
               )}
+              {formulaOpen || !showFormulaToggle ? (
+                <EmpiricalMaintenance
+                  empirical={day.empiricalMaintenance}
+                  formulaMaintenance={target?.maintenance}
+                />
+              ) : null}
             </section>
           </ReorderItem>
 
