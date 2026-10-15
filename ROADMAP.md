@@ -81,6 +81,30 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-10-14 — First-project recommendation backend
+
+John approved the first-repo feed before wiring all five cards. Added a
+bearer-protected, persistent v1 recommendation experiment for NextGen-Immersion:
+commit-pinned ROADMAP excerpts, recent issues/PRs/checks, source-ID validation,
+explicit coverage limits and AI labels. GET is cache-only; separate manual/daily
+refreshes use a persistent lease and 15-minute interval. Current-ID feedback
+suppresses dismissed actions. Reuses pinned Luna/Haiku routing and `app_flags`;
+no migration, UI, deployment, live DB write or widget/GitHub App provisioning.
+Instructions and limitations are in `docs/project-recommendations.md`.
+
+Validation: `npm test` → `Test Files 5 passed (5)`, `Tests 77 passed (77)`;
+`npm run build` → `Compiled successfully`, `Generating static pages (90/90)`.
+Live read-only collector checked commit `733b0a76d24df078d035d469191e39e6696baa4c`
+and 21 sources. Built-route HTTP smoke checks returned `401 no-store` for all
+four unauthenticated methods. Independent audit: first pass found a concurrent
+feedback/refresh suppression race; second pass PASS after fingerprint-aware
+read suppression and a deferred-AI regression test. `not_now` snoozes 24 hours;
+`done`/`wrong` persist. Live AI generation and PostgreSQL behavior remain
+unverified; tests mock those services. Initial sandbox build could not fetch
+existing Google Fonts; the network-enabled build passed.
+
+---
+
 ## 2026-10-15 — Steps-derived activity multiplier capped at 1.7; observed maintenance shown beside the formula
 
 26 days of logged intake (Sep 17–Oct 12) against daily weigh-ins showed real weight loss ~250–350 cal/day smaller than the formula predicted: implied maintenance ~2,250–2,350 (multiplier ~1.64–1.72) versus 2,490–2,610 from bands that reached 1.83–1.9 at ~20k steps/day. Added `ACTIVITY_MULTIPLIER_CAP = 1.7` in `lib/health.js`, applied inside `computeTarget` on the `steps_trailing` path only; the manual multiplier, the pending fallback, `manual_target_cal`, the floor and goal-date/clamp logic are untouched, and `stepsToActivityMultiplier` still returns the raw band (lower averages still give lower multipliers). When it binds, `activityCapped`/`activityUncappedMultiplier` are returned and the provenance line and `get_day` (`activity_capped`) say so. Past days are not stored, they are recomputed on every read (`/api/health`, `/api/health/net`, Home, both MCP `get_day` paths), so every historical maintenance/target and the trailing-net card shift after this change. The 0.07/2,500-step bands were left as is: above ~15k steps the cap now makes the 1.83→1.9 cliff moot. New read-only `empiricalMaintenance()` (avg logged intake + lb lost × 3500 / days, ends averaged over up to 3 weigh-ins, null on thin data) is shown under "Formula & activity"; it never feeds the target. **Revisit in 2–3 weeks:** compare 7-day average weight against logged intake and adjust the cap.

@@ -71,3 +71,13 @@ Current tables live in `neon/schema.sql` (canonical). Settled domains have table
 _(Since scoped beyond three: French screenshot import, Schedules screenshot import — both Haiku — and the **app-wide AI Assistant**, the one agentic surface and the one Sonnet use: `/api/assistant` runs a tool loop whose tools are an allowlisted catalog of this app's own api routes, called over same-origin fetch. See `AGENTS.md` → Hard boundaries. The Travel AI Brief also lived here briefly — retired 2026-09-07.)_
 
 _(Build fills in: exact request/response shapes, error/fallback handling, and any caching of Vercel/GitHub responses.)_
+
+## Project recommendation experiment (2026-10-14)
+
+`GET /api/projects/recommendations` → Neon `app_flags` only, bearer gated by
+`PROJECT_WIDGET_TOKEN`. `/refresh` uses CRON_SECRET for GET and widget token for
+POST, then `lib/project-recommendations.js` → fixed GitHub evidence → existing
+`completeText` → persistent snapshot. `/feedback` records current-ID feedback.
+Atomic DB lease/cooldown limits paid work; no schema or UI change. Source review
+is bounded, AI output is advice with source IDs, and no repo action executes.
+Setup, limitations and cache semantics: `docs/project-recommendations.md`.
