@@ -7,6 +7,8 @@ import { mileageSummary, monthlyForecast } from '../../../lib/mileage';
 import { maintenanceSummary, nearestDue } from '../../../lib/maintenance';
 import {
   computeTarget,
+  weightBasis,
+  WEIGHT_BASIS_DAYS,
   dayTotals,
   veggieProgress,
   waterProgress,
@@ -44,7 +46,7 @@ async function loadHealthDay(sql, todayStr) {
         sql`SELECT * FROM health_profile WHERE id = 1`,
         sql`SELECT reading_date, weight_lb FROM health_weight_readings
           WHERE reading_date <= ${todayStr} AND weight_lb IS NOT NULL
-          ORDER BY reading_date DESC LIMIT 1`,
+          ORDER BY reading_date DESC LIMIT ${WEIGHT_BASIS_DAYS}`,
         // Only needed when activity_source = 'steps_trailing' below, but this
         // read is cheap and keeping it unconditional avoids a second
         // profile-dependent round trip inside the same try/catch.
@@ -70,12 +72,13 @@ async function loadHealthDay(sql, todayStr) {
           floor_pct: num(profileRow.floor_pct),
         }
       : null;
-    const latestWeight = weightRows[0]
-      ? {
-          reading_date: dateOnly(weightRows[0].reading_date),
-          weight_lb: num(weightRows[0].weight_lb),
-        }
-      : null;
+    const latestWeight = weightBasis(
+      weightRows.map((r) => ({
+        reading_date: dateOnly(r.reading_date),
+        weight_lb: num(r.weight_lb),
+      })),
+      todayStr
+    );
     const stepsRows = stepsRowsRaw.map((r) => ({
       reading_date: dateOnly(r.reading_date),
       steps: num(r.steps),

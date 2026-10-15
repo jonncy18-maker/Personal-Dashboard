@@ -376,7 +376,10 @@ function TargetProvenance({ target, profile }) {
 
   return (
     <p className={styles.provenance}>
-      Mifflin–St Jeor · {target.weightLb} lb
+      Mifflin–St Jeor · {Math.round(target.weightLb * 10) / 10} lb
+      {target.weightDaysAveraged > 1
+        ? ` (${target.weightDaysAveraged}-reading avg, trailing 7 days)`
+        : ''}
       {height == null ? '' : `, ${feet}′${inches}″`}
       {target.age == null ? '' : `, ${target.age}`}
       {profile?.sex ? `, ${profile.sex}` : ''} ·{' '}
