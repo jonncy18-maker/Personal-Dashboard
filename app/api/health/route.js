@@ -3,6 +3,7 @@ import { route } from '../../../lib/route';
 import {
   addDays,
   computeTarget,
+  weightBasis,
   dayTotals,
   empiricalMaintenance,
   veggieProgress,
@@ -117,7 +118,8 @@ export const GET = route(async (request) => {
   // query. computeTarget's own trailingStepsAverage does the windowing.
   const target = computeTarget({
     profile,
-    latestWeight,
+    // Trailing 7-day mean of the logged weights, not the single latest one.
+    latestWeight: weightBasis(shapedTrend, todayStr),
     todayStr,
     stepsRows: shapedTrend,
   });
