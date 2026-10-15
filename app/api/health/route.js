@@ -1,8 +1,10 @@
 import { getDb, num, dateOnly } from '../../../lib/db';
 import { route } from '../../../lib/route';
 import {
+  addDays,
   computeTarget,
   dayTotals,
+  empiricalMaintenance,
   veggieProgress,
   fruitProgress,
   fiberProgress,
@@ -119,6 +121,22 @@ export const GET = route(async (request) => {
     todayStr,
     stepsRows: shapedTrend,
   });
+  // Read-only comparison figure; never feeds `target`. Fetched for the window
+  // ending the viewed day, so browsing past days shows what was knowable then.
+  const intakeDayRows = await sql`
+    SELECT entry_date, SUM(calories) AS total
+    FROM health_intake_entries
+    WHERE entry_date >= ${addDays(todayStr, -28)} AND entry_date < ${todayStr}
+    GROUP BY entry_date
+  `;
+  const empirical = empiricalMaintenance({
+    intakeRows: intakeDayRows.map((r) => ({
+      entry_date: dateOnly(r.entry_date),
+      total: num(r.total),
+    })),
+    weightRows: shapedTrend,
+    todayStr,
+  });
   const [overrideRow] = await sql`
     SELECT fiber_g, saturated_fat_g, source, note
     FROM health_daily_nutrition_overrides
@@ -207,6 +225,7 @@ export const GET = route(async (request) => {
     date: todayStr,
     profile,
     target,
+    empiricalMaintenance: empirical,
     totals,
     veggies,
     fruit,
