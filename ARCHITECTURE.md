@@ -76,8 +76,14 @@ _(Build fills in: exact request/response shapes, error/fallback handling, and an
 
 `GET /api/projects/recommendations` → Neon `app_flags` only, bearer gated by
 `PROJECT_WIDGET_TOKEN`. `/refresh` uses CRON_SECRET for GET and widget token for
-POST, then `lib/project-recommendations.js` → fixed GitHub evidence → existing
+POST, then `lib/project-recommendations.js` → allowlisted GitHub evidence → existing
 `completeText` → persistent snapshot. `/feedback` records current-ID feedback.
-Atomic DB lease/cooldown limits paid work; no schema or UI change. Source review
+The fixed allowlist owns metadata for NextGen-Scholars, NextGen-Immersion,
+AI-Capital-Planning, Agentic-Loop and AI-harness. GET aggregates five cache-only
+cards; an optional validated `project` slug selects one. Refresh aggregates at
+most five concurrent isolated jobs and reports per-project failures (207 partial,
+502 all failed). Cache, feedback, 15-minute lease/cooldown and error keys are
+repository-specific; Immersion retains the original v1 namespace. No caller can
+supply an owner, repository URL or storage key. Atomic DB lease/cooldown limits paid work; no schema or UI change. Source review
 is bounded, AI output is advice with source IDs, and no repo action executes.
 Setup, limitations and cache semantics: `docs/project-recommendations.md`.
