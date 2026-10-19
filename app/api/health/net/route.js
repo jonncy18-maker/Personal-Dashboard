@@ -1,6 +1,11 @@
 import { getDb, num, dateOnly } from '../../../../lib/db';
 import { route } from '../../../../lib/route';
-import { computeTarget, addDays, daysBetween } from '../../../../lib/health';
+import {
+  computeTarget,
+  weightBasis,
+  addDays,
+  daysBetween,
+} from '../../../../lib/health';
 import { deviceToday } from '../../../../lib/device-time';
 
 // Trailing net calorie surplus/deficit — sum of (consumed - target) over a
@@ -26,18 +31,6 @@ function shapeProfile(row) {
     goal_weight_lb: num(row.goal_weight_lb),
     floor_pct: num(row.floor_pct),
   };
-}
-
-// Weight forward-fills to whatever day is being scored, same rule the main
-// health GET uses for "today" — a doctor's-visit weigh-in from three weeks
-// ago is still the best known weight for a day in between two readings.
-function latestWeightAsOf(dateStr, weightRows) {
-  let found = null;
-  for (const row of weightRows) {
-    if (row.weight_lb == null || row.reading_date > dateStr) continue;
-    found = row;
-  }
-  return found;
 }
 
 export const GET = route(async (request) => {
@@ -79,7 +72,8 @@ export const GET = route(async (request) => {
   let estimated = false;
   for (const row of dayRows) {
     const dateStr = dateOnly(row.entry_date);
-    const latestWeight = latestWeightAsOf(dateStr, weightRows);
+    // Trailing 7-day mean as of that day (forward-fills a stale reading).
+    const latestWeight = weightBasis(weightRows, dateStr);
     const target = computeTarget({
       profile,
       latestWeight,
