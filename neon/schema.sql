@@ -671,10 +671,14 @@ CREATE TABLE IF NOT EXISTS health_profile (
   max_loss_pct_per_week numeric(3, 2) DEFAULT 1.00
                        CHECK (max_loss_pct_per_week > 0 AND max_loss_pct_per_week <= 5),
   -- Maintain: stated maintenance (NULL = the Mifflin-St Jeor formula), the
-  -- +/- % band around it, and an optional weight to hold.
+  -- % band around it, and an optional weight to hold.
   maintain_cal_manual  integer CHECK (maintain_cal_manual > 0),
+  -- The band's size, hard-capped at 10, and which way it runs from maintenance:
+  -- both (+/-), down (only below) or up (only above).
   maintain_band_pct    numeric(4, 1) NOT NULL DEFAULT 5
-                       CHECK (maintain_band_pct >= 0 AND maintain_band_pct <= 25),
+                       CHECK (maintain_band_pct >= 0 AND maintain_band_pct <= 10),
+  maintain_band_dir    text NOT NULL DEFAULT 'both'
+                       CHECK (maintain_band_dir IN ('both', 'down', 'up')),
   maintain_weight_lb   numeric(5, 1) CHECK (maintain_weight_lb > 0),
   -- Build: surplus as % of maintenance, held under a gain-rate cap (NULL = no
   -- cap), and the protein target in grams per lb of bodyweight.

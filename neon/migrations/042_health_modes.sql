@@ -8,7 +8,9 @@
 --            a goal date that would need a faster loss than the cap slips the
 --            DATE instead of bending the target.
 --   maintain maintenance calories (maintain_cal_manual, else the formula)
---            +/- maintain_band_pct. The target is a range, not a point.
+--            with a band of maintain_band_pct (hard-capped at 10) applied
+--            both ways, down only or up only (maintain_band_dir). The target
+--            is a range, not a point.
 --   build    maintenance + a surplus (build_surplus_pct, held under
 --            max_gain_pct_per_week), with a protein target of
 --            protein_g_per_lb x weight.
@@ -22,7 +24,9 @@ ALTER TABLE health_profile ADD COLUMN IF NOT EXISTS max_loss_pct_per_week numeri
 ALTER TABLE health_profile ADD COLUMN IF NOT EXISTS maintain_cal_manual integer
   CHECK (maintain_cal_manual > 0);
 ALTER TABLE health_profile ADD COLUMN IF NOT EXISTS maintain_band_pct numeric(4, 1)
-  NOT NULL DEFAULT 5 CHECK (maintain_band_pct >= 0 AND maintain_band_pct <= 25);
+  NOT NULL DEFAULT 5 CHECK (maintain_band_pct >= 0 AND maintain_band_pct <= 10);
+ALTER TABLE health_profile ADD COLUMN IF NOT EXISTS maintain_band_dir text
+  NOT NULL DEFAULT 'both' CHECK (maintain_band_dir IN ('both', 'down', 'up'));
 ALTER TABLE health_profile ADD COLUMN IF NOT EXISTS maintain_weight_lb numeric(5, 1)
   CHECK (maintain_weight_lb > 0);
 ALTER TABLE health_profile ADD COLUMN IF NOT EXISTS build_surplus_pct numeric(4, 1)

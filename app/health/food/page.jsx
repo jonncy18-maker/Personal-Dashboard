@@ -364,7 +364,7 @@ function TargetProvenance({ target, profile }) {
     return (
       <p className={styles.provenance}>
         Maintenance you stated: {target.maintainBase?.toLocaleString()} cal, ±
-        {profile?.maintain_band_pct}% ({target.targetLow?.toLocaleString()}–
+        {bandLabel(profile)} ({target.targetLow?.toLocaleString()}–
         {target.targetHigh?.toLocaleString()}).
         {target.maintenance != null
           ? ` The formula would say ${target.maintenance.toLocaleString()} cal — comparison only.`
@@ -454,6 +454,7 @@ function ProfileForm({ profile, onSave }) {
     max_loss_pct_per_week: profile?.max_loss_pct_per_week ?? '',
     maintain_cal_manual: profile?.maintain_cal_manual ?? '',
     maintain_band_pct: profile?.maintain_band_pct ?? 5,
+    maintain_band_dir: profile?.maintain_band_dir || 'both',
     maintain_weight_lb: profile?.maintain_weight_lb ?? '',
     build_surplus_pct: profile?.build_surplus_pct ?? 10,
     max_gain_pct_per_week: profile?.max_gain_pct_per_week ?? '',
@@ -506,6 +507,7 @@ function ProfileForm({ profile, onSave }) {
       max_loss_pct_per_week: numOrBlank(form.max_loss_pct_per_week),
       maintain_cal_manual: numOrBlank(form.maintain_cal_manual),
       maintain_band_pct: numOrBlank(form.maintain_band_pct),
+      maintain_band_dir: form.maintain_band_dir,
       maintain_weight_lb: numOrBlank(form.maintain_weight_lb),
       build_surplus_pct: numOrBlank(form.build_surplus_pct),
       max_gain_pct_per_week: numOrBlank(form.max_gain_pct_per_week),
@@ -709,13 +711,25 @@ function ProfileForm({ profile, onSave }) {
               />
             </label>
             <label className={styles.field}>
-              <span>Range (± % of maintenance)</span>
+              <span>Range direction</span>
+              <select
+                className={styles.select}
+                value={form.maintain_band_dir}
+                onChange={(e) => set('maintain_band_dir', e.target.value)}
+              >
+                <option value="both">± both ways</option>
+                <option value="down">− below maintenance only</option>
+                <option value="up">+ above maintenance only</option>
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span>Range size (% of maintenance, max 10)</span>
               <input
                 className={styles.input}
                 type="number"
                 step="0.5"
                 min="0"
-                max="25"
+                max="10"
                 value={form.maintain_band_pct}
                 onChange={(e) => set('maintain_band_pct', e.target.value)}
               />
@@ -2195,6 +2209,136 @@ function ProteinBlock({ totals, target }) {
   );
 }
 
+const BAND_SIGN = { both: '±', down: '−', up: '+' };
+const MAINTAIN_BAND_MAX_PCT = 10;
+
+function bandLabel(profile) {
+  const sign = BAND_SIGN[profile?.maintain_band_dir] || '±';
+  return `${sign}${profile?.maintain_band_pct ?? 5}%`;
+}
+
+// Inline controls for the mode's own dial, so it can be changed where it
+// matters without opening Edit profile. The cut cap is a default, not a wall:
+// blank clears it (no cap). The maintain band's ceiling is hard (10%), and the
+// server enforces it too.
+function ModeControls({ mode, target, profile, onSave }) {
+  const [cap, setCap] = useState(profile?.max_loss_pct_per_week ?? '');
+  const [dir, setDir] = useState(profile?.maintain_band_dir || 'both');
+  const [band, setBand] = useState(profile?.maintain_band_pct ?? 5);
+  useEffect(() => {
+    setCap(profile?.max_loss_pct_per_week ?? '');
+    setDir(profile?.maintain_band_dir || 'both');
+    setBand(profile?.maintain_band_pct ?? 5);
+  }, [
+    profile?.max_loss_pct_per_week,
+    profile?.maintain_band_dir,
+    profile?.maintain_band_pct,
+  ]);
+
+  if (mode === 'cut') {
+    const saved = profile?.max_loss_pct_per_week ?? '';
+    return (
+      <form
+        className={styles.modeControl}
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave({ max_loss_pct_per_week: numOrBlank(cap) });
+        }}
+      >
+        <span className={styles.modeControlLabel}>Max loss</span>
+        <input
+          className={styles.inputNum}
+          type="number"
+          step="0.1"
+          min="0.1"
+          max="5"
+          placeholder="no cap"
+          aria-label="Max loss, percent of bodyweight per week"
+          value={cap}
+          onChange={(e) => setCap(e.target.value)}
+        />
+        <span className={styles.modeControlLabel}>% / week</span>
+        <button
+          className={styles.saveBtn}
+          type="submit"
+          disabled={String(cap) === String(saved)}
+        >
+          Save
+        </button>
+        {target?.maxRateKcalPerDay != null ? (
+          <span className={styles.modeControlNote}>
+            ≈ {cal(target.maxRateKcalPerDay)} cal/day deficit at most
+          </span>
+        ) : (
+          <span className={styles.modeControlNote}>No cap set</span>
+        )}
+      </form>
+    );
+  }
+
+  if (mode === 'maintain') {
+    const changed =
+      dir !== (profile?.maintain_band_dir || 'both') ||
+      String(band) !== String(profile?.maintain_band_pct ?? 5);
+    return (
+      <form
+        className={styles.modeControl}
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave({
+            maintain_band_dir: dir,
+            maintain_band_pct: numOrBlank(band),
+          });
+        }}
+      >
+        <span className={styles.modeControlLabel}>Range</span>
+        <span className={styles.signToggle} role="group" aria-label="Direction">
+          {Object.entries(BAND_SIGN).map(([id, sign]) => (
+            <button
+              key={id}
+              type="button"
+              className={dir === id ? styles.tabActive : styles.tabBtn}
+              aria-pressed={dir === id}
+              aria-label={
+                id === 'both'
+                  ? 'Plus or minus'
+                  : id === 'down'
+                    ? 'Minus only'
+                    : 'Plus only'
+              }
+              onClick={() => setDir(id)}
+            >
+              {sign}
+            </button>
+          ))}
+        </span>
+        <input
+          className={styles.inputNum}
+          type="number"
+          step="0.5"
+          min="0"
+          max={MAINTAIN_BAND_MAX_PCT}
+          aria-label="Range size, percent of maintenance"
+          value={band}
+          onChange={(e) => setBand(e.target.value)}
+        />
+        <span className={styles.modeControlLabel}>%</span>
+        <button
+          className={styles.saveBtn}
+          type="submit"
+          disabled={!changed || band === ''}
+        >
+          Save
+        </button>
+        <span className={styles.modeControlNote}>
+          Max {MAINTAIN_BAND_MAX_PCT}% either way
+        </span>
+      </form>
+    );
+  }
+  return null;
+}
+
 // Per-mode context under the ring: the range and where the day sits in it
 // (maintain), the surplus (build), or the loss-rate cap that moved the date
 // (cut). Says "to reach the bottom" rather than "under" while the day is still
@@ -2221,7 +2365,7 @@ function ModeNotes({ target, totals, profile }) {
           <strong>
             {cal(target.targetLow)}–{cal(target.targetHigh)} cal
           </strong>{' '}
-          (±{profile?.maintain_band_pct}% of {cal(target.maintainBase)})
+          ({bandLabel(profile)} of {cal(target.maintainBase)})
           {status ? ` · ${status}` : ''}
         </p>
         {diff != null ? (
@@ -2711,6 +2855,12 @@ export default function DietPage() {
               />
 
               <ModeNotes target={target} totals={totals} profile={profile} />
+              <ModeControls
+                mode={mode}
+                target={target}
+                profile={profile}
+                onSave={saveProfile}
+              />
 
               {target.clamped ? (
                 <p className={styles.clamp}>
