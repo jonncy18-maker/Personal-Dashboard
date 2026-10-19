@@ -5,6 +5,7 @@ import {
   weightBasis,
   addDays,
   daysBetween,
+  coerceModeNumerics,
 } from '../../../../lib/health';
 import { deviceToday } from '../../../../lib/device-time';
 
@@ -30,6 +31,8 @@ function shapeProfile(row) {
     activity_trailing_days: num(row.activity_trailing_days),
     goal_weight_lb: num(row.goal_weight_lb),
     floor_pct: num(row.floor_pct),
+    maintain_cal_manual: num(row.maintain_cal_manual),
+    ...coerceModeNumerics(row, num),
   };
 }
 

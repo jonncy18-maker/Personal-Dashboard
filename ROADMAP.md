@@ -81,6 +81,21 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-10-19 — Health › Food: cut / maintain / build modes, loss-rate cap
+
+**Why.** John is inside his target weight range, but the cut math was still chasing a goal 2.2 lb away on 2026-10-28 (his Miami flight): 2.2 lb × 3,500 ÷ 9 days = an 849 cal/day deficit, 37% of maintenance. Nothing stopped it because the only brake was the floor (60% of maintenance), and 1,456 sat just above it. Two things follow. The goal-date model needed a brake of its own, and the page needed to stop assuming every day is a cut.
+
+**Built (migration 042, not yet applied — run `npm run migrate` after merge).**
+- `/health/diet` → `/health/food` (the old route redirects, so bookmarks and the PWA shortcut survive). Sidebar, Home card link and `domain-meta` follow. One profile `mode` (`cut` default / `maintain` / `build`); logging, weight, steps, water and every MCP tool are identical in all three modes, only the target math and the lead number change.
+- **Cut:** unchanged, plus `max_loss_pct_per_week` (default 1% of bodyweight, ≈581 cal/day at 116 lb). When the date needs more, the target holds at the cap and the date slips (`rateCapped`, real `projectedDate`) — the clamp-and-slip rule with a gentler brake in front of the floor. Override it in the profile; blank = no cap. On today's numbers the target moves 1,456 → 1,724 and the goal lands ~Nov 2. The cap (cut) and the band's direction and size (maintain) are also editable inline on the day card.
+- **Maintain:** `maintain_cal_manual` (stated maintenance, e.g. 2,300; blank = formula, which currently says 2,305) with a band of `maintain_band_pct` (default 5%, hard cap 10%) that runs ± both ways, down only or up only (`maintain_band_dir`). The day's "left" is room under the TOP of the band (`remainingCalories()`); under the bottom reads "N cal to reach the bottom of your range", never "under", while the day is still open. Optional `maintain_weight_lb` reports the 7-day mean's distance from it. A stated maintenance needs no body stats. Goal weight/date are ignored in this mode.
+- **Build:** surplus = `build_surplus_pct` (default 10%) of maintenance, held under `max_gain_pct_per_week` (default 0.5%); protein target = `protein_g_per_lb` (default 0.8) × weight, shown first. A partial protein sum renders with the tilde.
+- `update_health_profile` / `get_health_profile` / `get_day` carry all of it; validation lives once in `normalizeModeFields()` (`lib/health.js`) and is shared by `PATCH /api/health` and the MCP tool.
+
+**Decisions.** Modes, not separate sections: John wanted everything tracked identically, and a Muscle Building section would fork the data. The caps are nullable on purpose (NULL = no cap) so the 1% default is a default, not a wall. The protein target is build-only: no protein goal was named for the other modes, and a plausible default would be a fabricated target.
+
+**Not touched.** Net-calories card still sums `consumed − target` against the band's midpoint. The Home card's "left" follows `remainingCalories()`.
+
 ## 2026-10-15 — Target weight is a trailing 7-day mean
 
 The daily target (and so the trailing net surplus/deficit) used the single latest weigh-in as its BMR input, so a 1–3 lb water swing moved the target day to day. `weightBasis()` in `lib/health.js` now feeds `computeTarget` the mean of readings in the 7 calendar days ending that day — gap-tolerant (only days with a reading count, no interpolation); if the window is empty the latest earlier reading stands in unchanged, so sparse weighers keep the old forward-fill and stale-age label. Wired into all four call sites (`/api/health`, `/api/health/net`, `/api/home-summary`, `get_day` and the net tool in `lib/health-mcp-tools.js`). The page provenance line shows "N-reading avg" when more than one reading was averaged. The `ACTIVITY_MULTIPLIER_CAP` note ("revisit against the 7-day average weight vs intake") can now be checked against this. No schema change.
