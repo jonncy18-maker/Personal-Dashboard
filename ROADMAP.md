@@ -84,7 +84,6 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 ## 2026-10-15 — Target weight is a trailing 7-day mean
 
 The daily target (and so the trailing net surplus/deficit) used the single latest weigh-in as its BMR input, so a 1–3 lb water swing moved the target day to day. `weightBasis()` in `lib/health.js` now feeds `computeTarget` the mean of readings in the 7 calendar days ending that day — gap-tolerant (only days with a reading count, no interpolation); if the window is empty the latest earlier reading stands in unchanged, so sparse weighers keep the old forward-fill and stale-age label. Wired into all four call sites (`/api/health`, `/api/health/net`, `/api/home-summary`, `get_day` and the net tool in `lib/health-mcp-tools.js`). The page provenance line shows "N-reading avg" when more than one reading was averaged. The `ACTIVITY_MULTIPLIER_CAP` note ("revisit against the 7-day average weight vs intake") can now be checked against this. No schema change.
-
 ## 2026-10-14 — First-project recommendation backend
 
 John approved the first-repo feed before wiring all five cards. Added a
