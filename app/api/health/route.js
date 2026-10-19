@@ -11,10 +11,13 @@ import {
   fiberProgress,
   waterProgress,
   DEFAULT_STEP_ADJUST_PCT,
+  coerceModeNumerics,
+  normalizeModeFields,
+  remainingCalories,
 } from '../../../lib/health';
 import { deviceToday } from '../../../lib/device-time';
 
-// Health › Diet — the profile plus the computed day view in one read, so the
+// Health › Food — the profile plus the computed day view in one read, so the
 // page never has to assemble the target from three round trips (and so the
 // same numbers can never drift between them).
 //
@@ -44,6 +47,7 @@ function shapeProfile(row) {
     fruit_target_servings: num(row.fruit_target_servings),
     fiber_target_g: num(row.fiber_target_g),
     water_target_oz: num(row.water_target_oz),
+    ...coerceModeNumerics(row, num),
   };
 }
 
@@ -179,7 +183,7 @@ export const GET = route(async (request) => {
   // `remaining` is only meaningful next to the completeness signal the client
   // renders from `totals` — see the ROADMAP entry: a big friendly number after
   // an unlogged day is the one way this domain can lie.
-  const remaining = target.target == null ? null : target.target - totals.total;
+  const remaining = remainingCalories(target, totals.total);
 
   // Favorites are date-independent templates — fetched alongside the day
   // view (not a separate round trip) since the page renders them next to
@@ -274,6 +278,14 @@ const PROFILE_FIELDS = [
   'fruit_target_servings',
   'fiber_target_g',
   'water_target_oz',
+  'mode',
+  'max_loss_pct_per_week',
+  'maintain_cal_manual',
+  'maintain_band_pct',
+  'maintain_weight_lb',
+  'build_surplus_pct',
+  'max_gain_pct_per_week',
+  'protein_g_per_lb',
 ];
 
 const ACTIVITY_SOURCES = ['manual', 'steps_trailing'];
@@ -365,6 +377,8 @@ export const PATCH = route(async (request) => {
     }
     patch.water_target_oz = n;
   }
+  const modeError = normalizeModeFields(patch);
+  if (modeError) return Response.json({ error: modeError }, { status: 400 });
 
   // Read-merge-write rather than ten conditional SQL fragments: a field the
   // caller omitted must keep its stored value, while a field sent as null must
@@ -396,7 +410,15 @@ export const PATCH = route(async (request) => {
         veggie_target_servings = ${next.veggie_target_servings},
         fiber_target_g      = ${next.fiber_target_g},
         fruit_target_servings = ${next.fruit_target_servings},
-        water_target_oz     = ${next.water_target_oz}
+        water_target_oz     = ${next.water_target_oz},
+        mode                = ${next.mode},
+        max_loss_pct_per_week = ${next.max_loss_pct_per_week},
+        maintain_cal_manual = ${next.maintain_cal_manual},
+        maintain_band_pct   = ${next.maintain_band_pct},
+        maintain_weight_lb  = ${next.maintain_weight_lb},
+        build_surplus_pct   = ${next.build_surplus_pct},
+        max_gain_pct_per_week = ${next.max_gain_pct_per_week},
+        protein_g_per_lb    = ${next.protein_g_per_lb}
     WHERE id = 1
     RETURNING *
   `;

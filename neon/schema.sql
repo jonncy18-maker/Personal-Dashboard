@@ -29,7 +29,7 @@
 --                      037_health_drink_fluid, 038_mcp_auth_code_server,
 --                      039_health_nutrition,
 --                      040_health_daily_nutrition_overrides,
---                      041_health_step_adjust
+--                      041_health_step_adjust, 042_health_modes
 --
 -- Run on a fresh Neon project with `npm run migrate` (scripts/migrate.js —
 -- see CLAUDE.md §6), which applies every neon/migrations/*.sql file in order
@@ -660,6 +660,30 @@ CREATE TABLE IF NOT EXISTS health_profile (
   step_adjust_enabled  boolean NOT NULL DEFAULT false,
   step_adjust_pct      numeric(3, 2) NOT NULL DEFAULT 0.50
                        CHECK (step_adjust_pct > 0 AND step_adjust_pct <= 1),
+  -- Food mode (migration 042): cut (goal weight + date), maintain (a calorie
+  -- range around maintenance) or build (surplus + protein). Same logs and
+  -- weight tracking in every mode; only the target math and the lead number
+  -- change. Default 'cut' keeps an existing profile's goal.
+  mode                 text NOT NULL DEFAULT 'cut'
+                       CHECK (mode IN ('cut', 'maintain', 'build')),
+  -- Cut: max loss as % of bodyweight per week. A goal date needing faster loss
+  -- slips the date, not the target. NULL = no cap (an explicit override).
+  max_loss_pct_per_week numeric(3, 2) DEFAULT 1.00
+                       CHECK (max_loss_pct_per_week > 0 AND max_loss_pct_per_week <= 5),
+  -- Maintain: stated maintenance (NULL = the Mifflin-St Jeor formula), the
+  -- +/- % band around it, and an optional weight to hold.
+  maintain_cal_manual  integer CHECK (maintain_cal_manual > 0),
+  maintain_band_pct    numeric(4, 1) NOT NULL DEFAULT 5
+                       CHECK (maintain_band_pct >= 0 AND maintain_band_pct <= 25),
+  maintain_weight_lb   numeric(5, 1) CHECK (maintain_weight_lb > 0),
+  -- Build: surplus as % of maintenance, held under a gain-rate cap (NULL = no
+  -- cap), and the protein target in grams per lb of bodyweight.
+  build_surplus_pct    numeric(4, 1) NOT NULL DEFAULT 10
+                       CHECK (build_surplus_pct > 0 AND build_surplus_pct <= 30),
+  max_gain_pct_per_week numeric(3, 2) DEFAULT 0.50
+                       CHECK (max_gain_pct_per_week > 0 AND max_gain_pct_per_week <= 2),
+  protein_g_per_lb     numeric(3, 2) NOT NULL DEFAULT 0.80
+                       CHECK (protein_g_per_lb > 0 AND protein_g_per_lb <= 2),
   goal_weight_lb       numeric(5, 1),
   goal_date            date,
   -- The safe floor the daily target may never fall below, as a fraction of

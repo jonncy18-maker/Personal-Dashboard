@@ -38,7 +38,7 @@ export const DOMAIN_META = {
   },
   health: {
     label: 'Health',
-    href: '/health/diet',
+    href: '/health/food',
     icon: HealthIcon,
     color: 'var(--dom-health)',
     soft: 'var(--dom-health-soft)',

@@ -12,6 +12,8 @@ import {
   dayTotals,
   veggieProgress,
   waterProgress,
+  coerceModeNumerics,
+  remainingCalories,
 } from '../../../lib/health';
 
 // Maintenance's tables are read separately from the main Promise.all, and a
@@ -70,6 +72,7 @@ async function loadHealthDay(sql, todayStr) {
           activity_trailing_days: num(profileRow.activity_trailing_days),
           goal_weight_lb: num(profileRow.goal_weight_lb),
           floor_pct: num(profileRow.floor_pct),
+          ...coerceModeNumerics(profileRow, num),
         }
       : null;
     const latestWeight = weightBasis(
@@ -112,7 +115,7 @@ async function loadHealthDay(sql, todayStr) {
       estimated: totals.estimated,
       meals_logged: totals.mealsLogged,
       entry_count: totals.entryCount,
-      remaining: target.target == null ? null : target.target - totals.total,
+      remaining: remainingCalories(target, totals.total),
       weight_lb: target.weightLb,
       veggie_servings: veggies.servings,
       veggie_target: veggies.target,

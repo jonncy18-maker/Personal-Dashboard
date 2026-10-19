@@ -30,7 +30,7 @@ import { deviceToday } from '../../../../lib/device-time';
 // applies regardless, since tool descriptions are always part of tools/list.
 async function instructions() {
   const today = await deviceToday();
-  return `You are connected to John's Personal Dashboard — a private, single-user planning hub spanning eight domains: Home, AI Projects, Travel (plus PTO Planner), Car (mileage + maintenance), Schedules, Language Learning, Idea Board, Email, and Health › Diet.
+  return `You are connected to John's Personal Dashboard — a private, single-user planning hub spanning eight domains: Home, AI Projects, Travel (plus PTO Planner), Car (mileage + maintenance), Schedules, Language Learning, Idea Board, Email, and Health › Food.
 
 Every tool here calls this app's own API routes or database directly, the same as its own UI or in-app AI Assistant would — nothing goes through a third-party API, and no tool can touch Gmail beyond reading it.
 
