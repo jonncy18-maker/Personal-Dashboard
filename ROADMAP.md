@@ -81,6 +81,14 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-10-19 — Target weight is the lower of the 7-day mean and the latest reading
+
+**Why.** The trailing 7-day mean (2026-10-15) steadies scale noise, but on 2026-10-19 it read 116.2 lb while that morning's weight was 114.6: a flat mean lags a real drop by about three days and carries a multi-day soreness/water bump (117.2, 117.5 on Oct 15–16 after a new workout) that no average removes. The error is one-directional for the target — too high a weight asks for a bigger deficit — so using the single latest reading would be too twitchy (117.5 → 116.0 → 114.6 in three days is ordinary scale noise) but doing nothing leaves the bias in.
+
+**Built.** `weightBasis()` now returns the lower of the window mean and the newest reading in it, plus `basis` (`mean`/`latest`), `meanLb`, `latestLb`; `computeTarget` exposes `weightBasis`/`weightMeanLb`; the page's provenance line and `get_day` (`weight_basis`, `weight_mean_lb`) say which one won. A sore spike raises the latest reading, so the mean (which dampens it) sets the target; a real drop shows the same day. A fluke low reading only means a slightly smaller deficit for a day. The trend chart and "Latest weight" are untouched.
+
+**Checked.** With John's real readings the cut target on 2026-10-19 moves from 1,724 (mean 116.2 lb) to 2,060 (114.6 lb; deficit 233, no cap needed). Not tested against longer history, and the lowest-3-of-7 average was the considered, calmer alternative. Separate data-quality note: 2026-10-04 to 10-09 are six identical 117.0 entries, which looks carried-forward rather than six weigh-ins.
+
 ## 2026-10-19 — Health › Food: cut / maintain / build modes, loss-rate cap
 
 **Why.** John is inside his target weight range, but the cut math was still chasing a goal 2.2 lb away on 2026-10-28 (his Miami flight): 2.2 lb × 3,500 ÷ 9 days = an 849 cal/day deficit, 37% of maintenance. Nothing stopped it because the only brake was the floor (60% of maintenance), and 1,456 sat just above it. Two things follow. The goal-date model needed a brake of its own, and the page needed to stop assuming every day is a cut.

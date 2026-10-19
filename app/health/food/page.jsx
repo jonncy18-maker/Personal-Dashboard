@@ -389,9 +389,11 @@ function TargetProvenance({ target, profile }) {
   return (
     <p className={styles.provenance}>
       Mifflin–St Jeor · {Math.round(target.weightLb * 10) / 10} lb
-      {target.weightDaysAveraged > 1
-        ? ` (${target.weightDaysAveraged}-reading avg, trailing 7 days)`
-        : ''}
+      {target.weightBasis === 'latest' && target.weightMeanLb != null
+        ? ` (latest reading — lower than the ${Math.round(target.weightMeanLb * 10) / 10} lb ${target.weightDaysAveraged}-reading avg, trailing 7 days)`
+        : target.weightDaysAveraged > 1
+          ? ` (${target.weightDaysAveraged}-reading avg, trailing 7 days; the latest reading is not lower)`
+          : ''}
       {height == null ? '' : `, ${feet}′${inches}″`}
       {target.age == null ? '' : `, ${target.age}`}
       {profile?.sex ? `, ${profile.sex}` : ''} ·{' '}
@@ -2370,7 +2372,7 @@ function ModeNotes({ target, totals, profile }) {
         </p>
         {diff != null ? (
           <p className={styles.modeLine}>
-            7-day weight is{' '}
+            Weight is{' '}
             {diff === 0
               ? 'right at'
               : `${Math.abs(diff)} lb ${diff > 0 ? 'above' : 'below'}`}{' '}
