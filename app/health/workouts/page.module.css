@@ -1,0 +1,576 @@
+/* Health › Workouts. Built phone-first: it is used one-handed between sets,
+   so every control that gets tapped mid-workout is at least 48px tall. */
+
+.page {
+  max-width: 1180px;
+}
+.narrow {
+  max-width: 620px;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.planGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .planGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── view switcher ─────────────────────────────────────── */
+.views {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 620px;
+}
+.view,
+.viewActive {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.viewActive {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── cards and text ────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cardDone {
+  border-color: var(--good);
+}
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dom-health);
+}
+.sessionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sessionTitle {
+  margin: 2px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.sessionCount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  font-style: italic;
+}
+.error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--critical);
+}
+
+/* ── exercise card ─────────────────────────────────────── */
+.exHead,
+.planTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.exName {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.exTarget {
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lastLine {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lastLine b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.suggestion {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--dom-health);
+}
+
+.setList {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+.setRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+.setNum {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--dom-health-soft);
+  color: var(--dom-health);
+  font-size: 12px;
+  font-weight: 800;
+}
+.setVal {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.unconfirmed {
+  font-weight: 600;
+  color: var(--warn);
+}
+
+.logRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stepperLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.stepperRow {
+  display: flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+.stepBtn {
+  width: 48px;
+  min-height: 52px;
+  flex: none;
+  border: none;
+  background: none;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.stepBtn:active {
+  background: var(--dom-health-soft);
+  color: var(--dom-health);
+}
+.stepInput {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: none;
+  text-align: center;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── buttons ───────────────────────────────────────────── */
+.primaryBtn,
+.finishBtn,
+.ghostBtn {
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.primaryBtn {
+  background: var(--dom-health);
+  border: 1px solid var(--dom-health);
+  color: #fff;
+}
+.finishBtn {
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  color: var(--surface);
+}
+.ghostBtn {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+}
+.primaryBtn:disabled,
+.ghostBtn:disabled,
+.chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.linkBtn,
+.linkBtnDanger {
+  background: none;
+  border: none;
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--dom-health);
+  cursor: pointer;
+}
+.linkBtnDanger {
+  color: var(--critical);
+}
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+.iconBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.btnRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.btnRowTight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.primaryBtn:focus-visible,
+.finishBtn:focus-visible,
+.ghostBtn:focus-visible,
+.chip:focus-visible,
+.view:focus-visible,
+.viewActive:focus-visible,
+.linkBtn:focus-visible,
+.linkBtnDanger:focus-visible,
+.iconBtn:focus-visible,
+.stepBtn:focus-visible {
+  outline: 2px solid var(--dom-health);
+  outline-offset: 2px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-sunken);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* ── forms ─────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  min-width: 0;
+}
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--dom-health);
+}
+.addRow {
+  display: flex;
+  gap: 8px;
+}
+.addRow .ghostBtn {
+  flex: none;
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.targetRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* ── today's plan, history, plan editor ────────────────── */
+.planList,
+.histList,
+.editList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.planItem,
+.editItem,
+.templateRow {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.planName {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.histRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.histSets {
+  font-size: 13px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.totals {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.badgeLive,
+.badgeWarn {
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.badgeLive {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.badgeWarn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.exerciseRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.exMeta {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scheduleRow {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.scheduleDay {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+@media (max-width: 520px) {
+  .scheduleRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .scheduleDay {
+    grid-column: 1 / -1;
+  }
+  .exerciseRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ── progress ──────────────────────────────────────────── */
+.chart {
+  width: 100%;
+  height: auto;
+}
+.chartGrid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.chartTick,
+.chartLabel {
+  font-size: 11px;
+  fill: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.chartTick {
+  text-anchor: end;
+}
+.chartLine {
+  fill: none;
+  stroke: var(--dom-health);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chartDot {
+  fill: var(--surface);
+  stroke: var(--dom-health);
+  stroke-width: 2.5;
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  padding: 10px 10px 10px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.table .num {
+  text-align: right;
+  padding-right: 0;
+  padding-left: 12px;
+  white-space: nowrap;
+}

@@ -1,0 +1,40 @@
+.wrap {
+  max-width: 1180px;
+}
+
+.tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+/* The sans stack, not var(--font-display) — same reason as the Car tabs. */
+.tab,
+.tabActive {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 10px 0 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+  color: var(--ink-faint);
+  transition: color 0.14s ease;
+}
+
+.tab:hover {
+  color: var(--ink-muted);
+}
+
+.tabActive {
+  color: var(--ink);
+  border-bottom-color: var(--dom-health);
+}
+
+.tab:focus-visible,
+.tabActive:focus-visible {
+  outline: 2px solid var(--dom-health);
+  outline-offset: 3px;
+  border-radius: 4px;
+}

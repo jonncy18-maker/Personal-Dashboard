@@ -81,6 +81,16 @@ _(Candidates for a future domain/card — not yet grilled. Do not build schema o
 
 ---
 
+## 2026-11-16 — Health › Workouts: training log, templates and MCP tools
+
+**Why.** John wants to track progressive overload (weight, reps and sets per exercise) and get workout recommendations from Claude and ChatGPT against one shared record. ChatGPT had been keeping the log in chat. This reverses the 2026-09-16 "no training log" decision.
+
+**Built (migration 043, not yet applied to production — run `npm run migrate` after merge).** Seven `workout_*` tables. `/health/workouts` is a second Health tab: a phone-first set logger (weight and rep steppers pre-filled from the previous set, per-side toggle on one-sided exercises), history, a per-exercise top-weight chart, and a plan editor for templates, the weekly schedule, the exercise list and John's goals and constraints. 17 tools in the Assistant catalog (`get_workouts`, `log_workout_session`, `add_workout_sets`, template, schedule and profile tools), so the in-app Assistant, `/api/mcp/app` and `/api/chatgpt/mcp` share them. Rules are in the new `workouts` skill.
+
+**Decisions.** Sets reference exercises and sessions, never template rows, so a template edit cannot change history. Unknowns are stored as unknown: a session can be logged with no sets (`details_complete = false`) and `per_side` is nullable. The progression suggestion is a fixed rule from John's written plan, not a model call. Goals and constraints live in the database, not in code. The tools are catalog entries over the app's own routes, so hard boundary 5 needed no new exception. `get_workouts` reads a compact form because the full overview passed the 15,000-character tool-result cap.
+
+**Checked.** `npm test` and `npm run build` pass. On the `dev-local` Neon branch: both confirmed sessions seeded through the API and read back at 15 sets and 120 reps for 2026-11-15; a set logged, pre-filled and removed in the browser at phone width; all 17 tools listed and called over JSON-RPC on both MCP endpoints; a template edit left the 2026-11-15 session identical. Not checked: a live Claude or ChatGPT connector, the deployed app, and the template editor's controls in the browser. Production has no workout data until the migration runs and the seed is repeated there. No isolated audit agent was run.
+
 ## 2026-10-19 — Target weight is the lower of the 7-day mean and the latest reading
 
 **Why.** The trailing 7-day mean (2026-10-15) steadies scale noise, but on 2026-10-19 it read 116.2 lb while that morning's weight was 114.6: a flat mean lags a real drop by about three days and carries a multi-day soreness/water bump (117.2, 117.5 on Oct 15–16 after a new workout) that no average removes. The error is one-directional for the target — too high a weight asks for a bigger deficit — so using the single latest reading would be too twitchy (117.5 → 116.0 → 114.6 in three days is ordinary scale noise) but doing nothing leaves the bias in.
