@@ -55,7 +55,7 @@ From the [Agentic-Loop repo](https://github.com/jonncy18-maker/Agentic-Loop):
 
 ## Map
 
-Domain rules live in `.claude/skills/<name>/SKILL.md`; read the one for the domain you're touching before changing it. Skills: `health`, `car`, `travel`, `pto`, `email`, `assistant`, `ai-projects`, `language`, `home`, `schedules`, `geocoding`, `frontend-conventions`.
+Domain rules live in `.claude/skills/<name>/SKILL.md`; read the one for the domain you're touching before changing it. Skills: `health`, `workouts`, `car`, `travel`, `pto`, `email`, `assistant`, `ai-projects`, `language`, `home`, `schedules`, `geocoding`, `frontend-conventions`.
 
 Other references: `STACK_BLUEPRINT.md` (canonical stack source), `docs/api-keys.md`, `docs/runbooks/google-oauth.md` (the 7-day refresh-token trap), `ROADMAP-ARCHIVE-2026-H1.md`. Cross-repo: AI Projects' "Next Up" line needs a `## Next Up` section at the top of each tracked repo's `ROADMAP.md` (not yet retrofitted; renders "—" until then).
 
